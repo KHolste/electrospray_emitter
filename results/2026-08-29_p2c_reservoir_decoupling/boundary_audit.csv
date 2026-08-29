@@ -1,0 +1,14 @@
+# Audit der Dirichlet-Belegung; polymer_dirichlet muss 0 sein
+quantity,value
+nodes,107460
+dirichlet,11788
+liquid_conductor,11712
+liquid_feed_boundary,0
+extractor_metallisation,76
+far_field_dirichlet,0
+emitter_metal_reference,0
+polymer_dirichlet,0
+named_surface_dirichlet,0
+reservoir_liquid_nodes,10216
+feed_plane_outside_liquid,0
+violations,0

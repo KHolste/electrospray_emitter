@@ -1,0 +1,34 @@
+# selbstbeschreibender Parametersatz des P2b-Modells, SI
+name,value_SI,unit,role
+phi_3,4.000000000e-05,m,Aussendurchmesser am Emitterfuss
+phi_1,2.000000000e-05,m,Aussendurchmesser der Stirnflaeche
+phi_2,1.000000000e-05,m,Bohrungsdurchmesser
+emitter_height,6.000000000e-05,m,axiale Laenge der Verjuengung
+extraction_distance,5.000000000e-04,m,Stirnebene bis Extraktor
+extractor_aperture_diameter,4.000000000e-04,m,
+extractor_thickness,1.000000000e-04,m,
+extractor_outer_radius,2.000000000e-03,m,Pflichtangabe
+base_plate_thickness,1.400000000e-04,m,Dicke des dielektrischen Grundkoerpers; VORLAEUFIGER BEISPIELWERT, keine belegte Abmessung
+base_z,-2.000000000e-04,m,Rueckflaeche des Grundkoerpers (abgeleitet)
+reservoir_model,1,-,0 = truncated_column (ueberholte Diagnose); 1 = axisymmetric_plenum
+feed_channel_radius,5.000000000e-06,m,Radius des festen Zulaufkanals
+feed_channel_length,3.000000000e-04,m,Laenge des festen Zulaufkanals; VORLAEUFIG
+plenum_radius,5.000000000e-03,m,Radius des Fluessigkeitsraums (0 ohne Plenum)
+plenum_depth,2.500000000e-03,m,Tiefe des Fluessigkeitsraums
+plenum_wall_thickness,5.000000000e-04,m,Wandstaerke des PEEK-Koerpers
+plenum_outer_radius,5.500000000e-03,m,Aussenradius des PEEK-Koerpers (abgeleitet)
+plenum_fill_fraction,1.000000000e+00,-,Fuellgrad von der Decke gemessen
+z_roof,-5.000000000e-04,m,Decke des Fluessigkeitsraums
+z_fill,-3.000000000e-03,m,Fluessigkeitsspiegel
+z_cav_bottom,-3.000000000e-03,m,Boden des Fluessigkeitsraums
+z_block_bottom,-3.500000000e-03,m,Unterseite des PEEK-Koerpers
+domain_radius,1.200000000e-02,m,offene Rechendomaene
+domain_z_min,-1.200000000e-02,m,offene Rechendomaene
+domain_z_max,9.000000000e-03,m,offene Rechendomaene
+r_bore,5.000000000e-06,m,abgeleitet
+r_land,1.000000000e-05,m,abgeleitet
+r_foot,2.000000000e-05,m,abgeleitet
+r_aperture,2.000000000e-04,m,abgeleitet
+r_ext_outer,2.000000000e-03,m,abgeleitet
+mesh_level,3,-,Netzstufe
+mesh_size_scale,3.535533906e-01,-,Groessenfeldfaktor 2^(-Stufe/2)

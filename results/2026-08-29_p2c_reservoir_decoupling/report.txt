@@ -1,0 +1,103 @@
+P2c -- Entkopplung von Geraetegeometrie und Fluessigkeitsvorrat
+==============================================================
+
+WAS KORRIGIERT WURDE
+  Bisher verschob ein einziger Wert (liquid_feed_z) gleichzeitig die Laenge der
+  leitfaehigen Fluessigkeitssaeule, die Laenge des dielektrischen Rueckteils und die
+  rueckwaertige Geraetegeometrie. Die daraus berichtete "Konvergenz gegen die Lage
+  der Zulaufgrenze" war deshalb irrefuehrend: variiert wurde die Geometrie der
+  Hochspannungselektrode.  Die Lage eines vollstaendig eingetauchten Kontakts ist im
+  Modell des ideal leitfaehigen Fluessigkeitskoerpers dagegen irrelevant und wird
+  gar nicht geometrisch dargestellt.
+
+GETRENNTE PARAMETER
+  vorderer Emitter        : phi_1 = 2e-05 m, phi_2 = 1e-05 m, phi_3 = 4e-05 m, H = 6e-05 m
+  dielektrischer Grundkoerper: Dicke 0.00014 m -> Rueckflaeche bei z = -0.0002 m   VORLAEUFIG
+  fester Zulaufkanal      : Radius 5e-06 m, Laenge 0.0003 m   VORLAEUFIG
+  Vorratsgeometrie        : Plenumradius, Plenumtiefe, Wandstaerke 0.0005 m, Fuellstand
+  Extraktor               : L = 0.0005 m, D_a = 0.0004 m, t = 0.0001 m, R_aussen = 0.002 m
+
+NACHWEIS DER FESTEN FRONTGEOMETRIE
+  260 Gitterzeilen und 45066 Zellen je Variante verglichen, von der Rueckflaeche des
+  Grundkoerpers bis zum oberen Domaenenrand und bis zum Extraktoraussenradius:
+  groesste Knotenabweichung 0.0e+00 m radial, 0.0e+00 m axial; 0 Materialabweichungen.
+  Das ist bitgenaue Gleichheit, nicht Uebereinstimmung innerhalb einer Toleranz.
+
+GERECHNETE VARIANTEN (Netzstufe 3)
+  Kennung        Beschreibung                                   V_fluid [m^3] E_z(0,0+) [V/m]  Q_fluid [C]
+  saeule         abgeschnittene Saeule (Diagnose)                1.57080e-14  7.65633e+07  6.93584e-12
+  plenum_a       Plenum r = 2.5 mm, Tiefe 1.0 mm                 1.96350e-08  3.40382e+07  6.80749e-10
+  plenum_b       Plenum r = 3.5 mm, Tiefe 1.5 mm                 5.77268e-08  3.40256e+07  8.69144e-10
+  plenum_c       Plenum r = 5.0 mm, Tiefe 2.5 mm                 1.96350e-07  3.40195e+07  1.12065e-09
+  plenum_d       Plenum r = 7.0 mm, Tiefe 4.0 mm (Vergroesserungsstufe)  6.15752e-07  3.40158e+07  1.42950e-09
+  plenum_c_halb  Plenum r = 5.0 mm, Tiefe 2.5 mm, halb gefuellt  9.81748e-08  3.40199e+07  1.05994e-09
+
+LOKALES EXTRAKTIONSFELD GEGEN VORRATSGROESSE
+  Grenzen, vor der Messung festgelegt: phi 1.0e-03 der Spannweite, |E| 1.0e-03 relativ.
+  Beurteilt wird das MAXIMUM ueber alle kantenfernen Sondenpunkte, nicht eine nach
+  der Messung ausgewaehlte Groesse.
+  Letzte Vergroesserungsstufe (plenum_c -> plenum_d):
+    phi 2.702e-04 der Spannweite (schlechtester Punkt: axis_gap_three_quarter)
+    |E| 2.042e-03 relativ        (schlechtester Punkt: axis_gap_three_quarter)
+    -> NICHT EINGEHALTEN
+  Groesster Schritt ueber alle Stufen : phi 5.011e-04, |E| 3.292e-03
+  Getrennt ausgewiesen, weil es die Groesse ist, die ein Emissionsmodell braucht:
+  am Meniskus selbst -- E_z auf der Achse unmittelbar ueber der ebenen Oberflaeche
+  und |E| bei zwei Bohrungsradien -- betraegt die letzte Aenderung 1.084e-04 relativ,
+  also innerhalb die Grenze von 1.0e-03. Das ersetzt das Urteil oben NICHT.
+  Diskretisierungsfehler zum Vergleich (Netzstufe 3 -> 4, festes Plenum):
+    phi 5.212e-05 der Spannweite, |E| 6.462e-04 relativ.
+  Die Netz- und die Vorratswirkung sind damit getrennt bezifferbar; die Frontnetze
+  der verglichenen Varianten sind ohnehin bitgleich, der Diskretisierungsfehler faellt
+  in der Differenz also weitgehend heraus.
+  BEFUND: die Grenze wird NICHT erreicht.  Sie wird nicht gelockert, es wird keine
+  kuenstliche Elektrode eingefuehrt und keine "Referenzgroesse" stillschweigend
+  ausgewaehlt.  Jede berichtete Zahl gilt fuer die genannte Vorratsgeometrie.
+
+GLOBALE LADUNGSGROESSEN -- weiterhin vorratsabhaengig, und das ist richtig so
+  Kennung           Q_fluid [C]     Q_extr [C]      Summe [C]
+  saeule           6.935840e-12  -5.662735e-12   1.273105e-12
+  plenum_a         6.807488e-10  -3.576589e-10   3.230899e-10
+  plenum_b         8.691442e-10  -3.907413e-10   4.784028e-10
+  plenum_c         1.120648e-09  -4.109160e-10   7.097322e-10
+  plenum_d         1.429499e-09  -4.220543e-10   1.007444e-09
+  plenum_c_halb    1.059936e-09  -4.095823e-10   6.503532e-10
+  Ein endlicher Leiter im offenen Raum ohne Rueckfuehrelektrode traegt eine Ladung,
+  die mit seiner Groesse waechst.  Auf diese Groessen wird deshalb keine Toleranz
+  gelegt; sie werden als Funktion der Vorratsgeometrie berichtet.
+
+WAS NICHT EINGEFUEHRT WURDE
+  Keine leitfaehige Halterung, keine rueckwaertige Metallscheibe, keine Basisplatte
+  auf Emitterpotential.  Der Vorratskoerper ist ein Dielektrikum; das Audit zaehlt
+  0 festgehaltene Knoten ohne Fluessigkeitskontakt (Sollwert 0) und 0 auf den
+  benannten Polymerflaechen (Sollwert 0).  Die P2a-Abschlussscheibe bleibt abgelehnt.
+
+WOVON DIE ABSOLUTEN ZAHLEN ABHAENGEN
+  Der Vernetzer verlangt, dass das Plenum RADIAL AUSSERHALB des modellierten
+  Extraktors liegt (0.002 m), denn nur dann kann seine Groesse keinen einzigen
+  Nahfeldknoten verschieben.  Der Extraktoraussenradius ist selbst ein
+  BEISPIELWERT.  Mit dieser Wahl ragt der Vorrat radial ueber die Elektrode
+  hinaus und wird von ihr nicht abgeschirmt; das hebt das Potential in der
+  Extraktionsstrecke deutlich an (phi in der Mitte: 112 V mit abgeschnittener
+  Saeule, 516.8 V mit Plenum) und senkt E_z an der Oberflaeche entsprechend
+  (7.656e+07 V/m gegen 3.402e+07 V/m).  Das ist kein Rechenfehler, sondern die Wirkung eines
+  grossen Leiters auf Emitterpotential hinter einer kleinen Elektrode -- und es
+  zeigt, wie wenig das frueher berichtete Saeulenergebnis ueber das Geraet sagte.
+  Ein belegter Extraktoraussenradius und belegte Vorratsabmessungen sind die
+  naechsten fehlenden Eingaben.
+
+ERSATZGEOMETRIE, NICHT REKONSTRUKTION
+  Die Dissertation zeigt in Abb. A.5 ein verbessertes, NICHT rotationssymmetrisches
+  Reservoir von etwa 25 mm Hoehe sowie 10 mm Aussen- und 8 mm Innenbreite.  Diese
+  Angaben sind hier ausschliesslich zur Wahl der Groessenordnung benutzt worden --
+  Millimeter, nicht Mikrometer.  Das achsensymmetrische Plenum ist eine Ersatz-
+  geometrie und keine Rekonstruktion.  base_plate_thickness, feed_channel_length,
+  Wandstaerke und Fuellstand sind VORLAEUFIGE Beispielwerte, keine belegten Masse.
+
+WAS HIER NICHT MODELLIERT IST
+  Statisch zulaessig: die Ladungsrelaxationszeit eps/sigma der ionischen Fluessigkeit liegt bei etwa 1e-10 s und ist gegen jeden in P2b beschriebenen Vorgang vernachlaessigbar. NICHT mehr zulaessig, sobald Strom durch den Meniskus fliesst: dann bestimmen ohmscher Abfall und endliche Nachlieferung von Oberflaechenladung das Apexfeld (Leaky-Dielectric-Regime). P3/P4 muessen die Dirichlet-Bedingung auf der Fluessigkeit durch ein Leitungsmodell ersetzen.
+  Keine Oberflaechenspannung, keine Meniskusberechnung, keine Stroemung, keine
+  Emission, keine Raumladung, keine 3D-Modellierung. Die Ebene bei z = 0 ist die
+  anfaengliche ebene Fluessigkeitsoberflaeche.  Die Schwerkraft und die Benetzung im
+  Vorratsraum sind nicht modelliert; der Fuellstand ist eine ebene Flaeche und ein
+  Parameter des Ersatzmodells.

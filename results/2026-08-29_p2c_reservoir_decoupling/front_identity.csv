@@ -1,0 +1,11 @@
+# Nachweis, dass die Vorratsgroesse die vordere Geraetegeometrie nicht beruehrt.
+# Verglichen wird gegen plenum_a, bitweise auf den Knotenkoordinaten und exakt auf
+# dem Material jeder Zelle, fuer alle Zeilen ab der Rueckflaeche des Grundkoerpers
+# und alle Radien bis zum Extraktoraussenrand.
+variant,rows_compared,cells_compared,max_abs_dr_m,max_abs_dz_m,cell_material_mismatches,bitwise_identical
+saeule,260,45066,0.000000000e+00,0.000000000e+00,0,1
+plenum_a,260,45066,0.000000000e+00,0.000000000e+00,0,1
+plenum_b,260,45066,0.000000000e+00,0.000000000e+00,0,1
+plenum_c,260,45066,0.000000000e+00,0.000000000e+00,0,1
+plenum_d,260,45066,0.000000000e+00,0.000000000e+00,0,1
+plenum_c_halb,260,45066,0.000000000e+00,0.000000000e+00,0,1
