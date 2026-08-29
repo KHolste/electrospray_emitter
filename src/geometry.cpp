@@ -134,9 +134,10 @@ Real Mesh::total_area() const {
   return s;
 }
 
-void Mesh::write_csv(const std::string& path) const {
+void Mesh::write_csv(const std::string& path, const std::string& header) const {
   std::FILE* f = std::fopen(path.c_str(), "w");
   if (!f) throw std::runtime_error("cannot open " + path);
+  if (!header.empty()) std::fputs(header.c_str(), f);
   std::fprintf(f, "i,r_a,z_a,r_b,z_b,r_mid,z_mid,len,area,nr,nz,tag,body,potential\n");
   for (std::size_t i = 0; i < elems.size(); ++i) {
     const Element& e = elems[i];

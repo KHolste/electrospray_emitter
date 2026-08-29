@@ -16,15 +16,15 @@ using constants::pi;
 using constants::taylor_angle;
 
 // ---------------------------------------------------------------------------
-// Onset
+// Literature closed forms
 // ---------------------------------------------------------------------------
 
-Real onset_field_hemisphere(Real r, Real gamma) {
+Real hemisphere_balance_field(Real r, Real gamma) {
   if (!(r > 0.0)) return 0.0;
   return 2.0 * std::sqrt(gamma / (eps0 * r));
 }
 
-Real onset_voltage_taylor(Real r_c, Real d, Real gamma) {
+Real literature_onset_voltage_smith(Real r_c, Real d, Real gamma) {
   if (!(r_c > 0.0) || !(d > r_c)) return 0.0;
   return std::sqrt(2.0 * gamma * r_c * std::cos(taylor_angle) / eps0) * std::log(4.0 * d / r_c);
 }
@@ -48,9 +48,8 @@ Real ion_current_density(Real E, const Fluid& f, Real T) {
   if (E <= 0.0 || T <= 0.0) return 0.0;
   const Real barrier = f.dG_solvation - schottky_lowering(E);
   const Real x = -barrier / (kB * T);
-  // Guard the exponential: above the barrier the rate saturates at the attempt
-  // frequency, which the Iribarne-Thomson form does not model.  Clamping keeps
-  // parameter sweeps finite instead of producing inf.
+  // Above the barrier the rate saturates at the attempt frequency, which the
+  // Iribarne-Thomson form does not model.  Clamp so sweeps stay finite.
   const Real ex = std::exp(std::min(x, 30.0));
   return f.evap_prefactor * (kB * T / h_planck) * eps0 * E * ex;
 }
@@ -61,54 +60,60 @@ Real field_for_current_density(Real j_target, const Fluid& f, Real T) {
   if (ion_current_density(hi, f, T) < j_target) return 0.0;
   if (ion_current_density(lo, f, T) > j_target) return lo;
   for (int i = 0; i < 200; ++i) {
-    const Real mid = std::sqrt(lo * hi);  // geometric bisection: spans decades
+    const Real mid = std::sqrt(lo * hi);
     if (ion_current_density(mid, f, T) < j_target) lo = mid; else hi = mid;
   }
   return std::sqrt(lo * hi);
 }
 
 Real characteristic_evaporation_field(const Fluid& f) {
-  // G(E) = dG  =>  E = 4 pi eps0 dG^2 / e^3
   return 4.0 * pi * eps0 * f.dG_solvation * f.dG_solvation / (e * e * e);
+}
+
+void require_modelled_polarity(const BemSolver& bem) {
+  const std::array<Real, 3>& V = bem.applied();
+  require_modelled_polarity(V[static_cast<std::size_t>(Electrode::Emitter)] -
+                            V[static_cast<std::size_t>(Electrode::Extractor)]);
+}
+
+void require_modelled_polarity(Real U) {
+  if (U < 0.0) {
+    throw NotImplementedInThisPhase(
+        "Negative Emissionspolaritaet (Anionenemission)",
+        "Phase P4 (Speziesbehandlung) und P5 (emittierender Betrieb)",
+        "Modelliert ist ausschliesslich die Kationenreihe. Anionen haben andere Masse, "
+        "andere Solvatationsenergie und eine andere Speziesverteilung; das Vorzeichen von "
+        "E_n entscheidet ausserdem, ob ueberhaupt emittiert wird. Der Prototyp benutzte "
+        "|E_n| und Kationenmassen und lieferte deshalb fuer beide Polaritaeten identische "
+        "Stroeme -- eine Zahl, die fuer eine der beiden Polaritaeten falsch ist.");
+  }
 }
 
 IonEmission integrate_ion_emission(const BemSolver& bem, const Fluid& f, Real T,
                                    bool include_wetted_metal) {
+  require_modelled_polarity(bem);
+
   IonEmission out;
   const Mesh& m = bem.mesh();
-  std::vector<std::pair<Real, Real>> contrib;  // (current, area), descending
-  contrib.reserve(static_cast<std::size_t>(m.size()));
+
+  // A_eff = (int j dA)^2 / int j^2 dA -- a smooth functional of j, unlike the
+  // element-quantised "99% area" it replaces.
+  Real sum_j2A = 0.0;
 
   for (Index i = 0; i < m.size(); ++i) {
     const Element& el = m.elems[static_cast<std::size_t>(i)];
     const bool emits = (el.tag == Tag::FreeSurface) ||
                        (include_wetted_metal && el.tag == Tag::Emitter);
     if (!emits) continue;
-    // Ions leave along the outward normal, so only an outward-pulling field
-    // (positive sigma for a positively biased emitter) drives emission.  Use
-    // |E_n|: the polarity is set by the applied voltage sign, not by the model.
     const Real E = std::abs(bem.En(i));
     const Real j = ion_current_density(E, f, T);
-    const Real dI = j * el.area;
-    out.current += dI;
+    out.current += j * el.area;
+    sum_j2A += j * j * el.area;
     if (j > out.peak_j) { out.peak_j = j; out.peak_E = E; }
-    contrib.emplace_back(dI, el.area);
   }
 
-  // "Emitting area" = the smallest area collecting 99% of the current.  Field
-  // emission is so steep that this is typically a tiny fraction of the wetted
-  // surface -- worth reporting explicitly, because it drives the local heat
-  // load and the evaporative cooling of the apex.
-  std::sort(contrib.begin(), contrib.end(),
-            [](const auto& a, const auto& b) { return a.first > b.first; });
-  Real acc = 0.0;
-  for (const auto& c : contrib) {
-    if (acc >= 0.99 * out.current) break;
-    acc += c.first;
-    out.emitting_area += c.second;
-  }
+  out.effective_area = (sum_j2A > 0.0) ? (out.current * out.current) / sum_j2A : 0.0;
 
-  // Mass flow of the emitted clusters, from the mean q/m.
   const Real qm = f.qm_cluster();
   out.mdot = (qm > 0.0) ? out.current / qm : 0.0;
   return out;
@@ -147,9 +152,7 @@ ConeJetState cone_jet(const Fluid& f, Real Q, const ConeJetModel& model) {
 BeamFigures beam_figures(const std::vector<Species>& species, Real V_accel) {
   BeamFigures b;
   if (V_accel <= 0.0) return b;
-  Real sum_mv = 0.0;   // thrust
-  Real sum_mq = 0.0;   // current
-  Real sum_m = 0.0;    // mass flow
+  Real sum_mv = 0.0, sum_mq = 0.0, sum_m = 0.0;
   for (const Species& s : species) {
     if (s.mdot <= 0.0 || s.qm <= 0.0) continue;
     const Real v = std::sqrt(2.0 * s.qm * V_accel);
@@ -163,59 +166,87 @@ BeamFigures beam_figures(const std::vector<Species>& species, Real V_accel) {
   b.beam_power = b.current * V_accel;
   b.mean_qm = (sum_m > 0.0) ? sum_mq / sum_m : 0.0;
   b.Isp = (sum_m > 0.0) ? b.thrust / (sum_m * g0) : 0.0;
-  // eta_pol = F^2 / (2 mdot P).  Exactly 1 for a single species; the deficit is
-  // the energy wasted accelerating a mixture through one common potential.
   b.eta_polydispersity =
       (sum_m > 0.0 && b.beam_power > 0.0) ? b.thrust * b.thrust / (2.0 * sum_m * b.beam_power) : 0.0;
   return b;
 }
 
-void print_operating_point(std::FILE* out, const Fluid& f, const ConeJetState* cj,
-                           const IonEmission* ion, const BeamFigures* fig) {
+// ---------------------------------------------------------------------------
+// Output
+// ---------------------------------------------------------------------------
+
+void print_diagnostic_estimate(std::FILE* out, const Fluid& f, const IonEmission* ion,
+                               const BeamFigures* fig) {
+  std::fprintf(out,
+      "\n=====================================================================\n"
+      "NICHT GEKOPPELTE DIAGNOSTISCHE ABSCHAETZUNG -- kein Betriebspunkt\n"
+      "=====================================================================\n"
+      "Die folgenden Zahlen entstehen, indem die Iribarne-Thomson-Rate auf das\n"
+      "Feld eines STATISCHEN, perfekt leitenden, NICHT emittierenden Meniskus\n"
+      "angewandt wird. Im rein ionischen Betrieb ist die Stroemung\n"
+      "viskositaetsdominiert und der Strom wird von der endlichen Leitfaehigkeit\n"
+      "kontrolliert (Higuera 2008, Phys. Rev. E 77, 026308) -- das hier benutzte\n"
+      "Feld ist also nicht das Feld, das tatsaechlich anlaege.\n"
+      "Es handelt sich NICHT um eine Stromvorhersage. Das selbstkonsistente\n"
+      "Modell ist fuer Phase P5 vorgesehen.\n"
+      "=====================================================================\n");
   f.print(out);
-  if (cj) {
-    std::fprintf(out, "\ncone-jet (droplet) mode\n");
-    std::fprintf(out, "  flow rate           : %10.4g m^3/s (= %.4g nL/s)\n", cj->Q, cj->Q * 1e12);
-    std::fprintf(out, "  Q / Q_min           : %10.2f %s\n", cj->q_over_qmin,
-                 cj->q_over_qmin < 1.0 ? "  <-- below the stability floor" : "");
-    std::fprintf(out, "  current             : %10.4g A  (= %.4g nA)\n", cj->current,
-                 cj->current * 1e9);
-    std::fprintf(out, "  jet diameter        : %10.4g m  (= %.4g nm)\n", cj->d_jet,
-                 cj->d_jet * 1e9);
-    std::fprintf(out, "  droplet diameter    : %10.4g m  (= %.4g nm)\n", cj->d_droplet,
-                 cj->d_droplet * 1e9);
-    std::fprintf(out, "  droplet q/m         : %10.4g C/kg\n", cj->qm);
-    std::fprintf(out, "  fissility q/q_R     : %10.3f %s\n", cj->fissility,
-                 cj->fissility > 0.8 ? "  <-- Coulomb fission expected" : "");
-    if (cj->extrapolated)
-      std::fprintf(out,
-                   "  NOTE: eps_r = %.1f < 40, so f_current is extrapolated far outside the\n"
-                   "        range where the correlation was established.  Calibrate against\n"
-                   "        your own I(Q) data before believing the absolute current.\n",
-                   f.eps_r);
-  }
   if (ion) {
-    std::fprintf(out, "\nion evaporation (Iribarne-Thomson)\n");
-    std::fprintf(out, "  ion current         : %10.4g A  (= %.4g nA)\n", ion->current,
+    std::fprintf(out, "\nIonenverdampfung (Abschaetzung)\n");
+    std::fprintf(out, "  Strom               : %10.4g A  (= %.4g nA)\n", ion->current,
                  ion->current * 1e9);
-    std::fprintf(out, "  peak current density: %10.4g A/m^2\n", ion->peak_j);
-    std::fprintf(out, "  field at the peak   : %10.4g V/m (= %.3f V/nm)\n", ion->peak_E,
+    std::fprintf(out, "  Spitzenstromdichte  : %10.4g A/m^2\n", ion->peak_j);
+    std::fprintf(out, "  Feld am Maximum     : %10.4g V/m (= %.4f V/nm)\n", ion->peak_E,
                  ion->peak_E * 1e-9);
-    std::fprintf(out, "  99%%-current area    : %10.4g m^2\n", ion->emitting_area);
-    std::fprintf(out, "  ion mass flow       : %10.4g kg/s\n", ion->mdot);
+    std::fprintf(out, "  effektive Flaeche   : %10.4g m^2   (A_eff = (int j dA)^2 / int j^2 dA)\n",
+                 ion->effective_area);
+    std::fprintf(out, "  Ionenmassenstrom    : %10.4g kg/s\n", ion->mdot);
+    std::fprintf(out,
+        "  Empfindlichkeit     : d ln I / d dG = %.3g pro eV -- eine Aenderung von\n"
+        "                        0,1 eV in dG aendert den Strom um Faktor %.2g.\n"
+        "                        Literaturwerte fuer EMI-BF4 streuen 1,0-1,4 eV.\n",
+        -1.0 / (constants::kB * 298.15) * constants::eV,
+        std::exp(0.1 * constants::eV / (constants::kB * 298.15)));
   }
   if (fig) {
-    std::fprintf(out, "\nbeam figures of merit\n");
-    std::fprintf(out, "  total current       : %10.4g A  (= %.4g nA)\n", fig->current,
-                 fig->current * 1e9);
-    std::fprintf(out, "  total mass flow     : %10.4g kg/s\n", fig->mdot);
-    std::fprintf(out, "  thrust              : %10.4g N  (= %.4g uN)\n", fig->thrust,
+    std::fprintf(out, "\nDaraus abgeleitete Kennzahlen (erben die obige Einschraenkung)\n");
+    std::fprintf(out, "  Strom               : %10.4g A\n", fig->current);
+    std::fprintf(out, "  Massenstrom         : %10.4g kg/s\n", fig->mdot);
+    std::fprintf(out, "  Schub               : %10.4g N  (= %.4g uN)\n", fig->thrust,
                  fig->thrust * 1e6);
-    std::fprintf(out, "  specific impulse    : %10.1f s\n", fig->Isp);
-    std::fprintf(out, "  beam power          : %10.4g W\n", fig->beam_power);
-    std::fprintf(out, "  mean q/m            : %10.4g C/kg\n", fig->mean_qm);
+    std::fprintf(out, "  spezifischer Impuls : %10.1f s\n", fig->Isp);
+    std::fprintf(out, "  mittleres q/m       : %10.4g C/kg\n", fig->mean_qm);
     std::fprintf(out, "  eta_polydispersity  : %10.4f\n", fig->eta_polydispersity);
   }
+}
+
+void print_cone_jet_correlation(std::FILE* out, const Fluid& f, const ConeJetState& cj) {
+  std::fprintf(out,
+      "\n---------------------------------------------------------------------\n"
+      "EMPIRISCHE KORRELATION (empirical = true) -- nicht an Geometrie, Feld\n"
+      "oder Meniskus gekoppelt. Reine Formelauswertung.\n"
+      "Quelle: Fernandez de la Mora & Loscertales (1994), JFM 260, 155-184.\n"
+      "---------------------------------------------------------------------\n");
+  std::fprintf(out, "  Flussrate           : %10.4g m^3/s (= %.4g nL/s)\n", cj.Q, cj.Q * 1e12);
+  std::fprintf(out, "  Q / Q_min           : %10.2f %s\n", cj.q_over_qmin,
+               cj.q_over_qmin < 1.0 ? "  <-- unterhalb der Stabilitaetsgrenze" : "");
+  std::fprintf(out, "  Strom               : %10.4g A  (= %.4g nA)\n", cj.current,
+               cj.current * 1e9);
+  std::fprintf(out, "  Jetdurchmesser      : %10.4g m  (= %.4g nm)\n", cj.d_jet, cj.d_jet * 1e9);
+  std::fprintf(out, "  Tropfendurchmesser  : %10.4g m  (= %.4g nm)\n", cj.d_droplet,
+               cj.d_droplet * 1e9);
+  std::fprintf(out, "  Tropfen-q/m         : %10.4g C/kg\n", cj.qm);
+  std::fprintf(out, "  Fissilitaet q/q_R   : %10.3f %s\n", cj.fissility,
+               cj.fissility > 0.8 ? "  <-- Coulomb-Fission zu erwarten" : "");
+  if (cj.extrapolated)
+    std::fprintf(out,
+                 "  ACHTUNG: eps_r = %.1f < 40. Die Stromkorrelation wurde an\n"
+                 "           Flüssigkeiten mit eps_r >~ 40 etabliert; f_current ist hier\n"
+                 "           weit ausserhalb des Etablierungsbereichs extrapoliert.\n",
+                 f.eps_r);
+  std::fprintf(out,
+               "  Diese Werte gehen NICHT in den Strahltransport ein. Die Kopplung ist\n"
+               "  fuer Phase P6 vorgesehen.\n");
 }
 
 }  // namespace es

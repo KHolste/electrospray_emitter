@@ -55,11 +55,11 @@ int main(int argc, char** argv) try {
   std::printf("\nthresholds for %s\n", s.fluid.name.c_str());
   std::printf("  field for G(E) = dG   : %10.4g V/m  -> ratio %.3f\n", E_evap, Epeak / E_evap);
   if (s.r_contact > 0.0) {
-    const Real E_hemi = onset_field_hemisphere(s.r_contact, s.fluid.gamma);
+    const Real E_hemi = hemisphere_balance_field(s.r_contact, s.fluid.gamma);
     std::printf("  hemispherical onset   : %10.4g V/m  -> ratio %.3f\n", E_hemi, Epeak / E_hemi);
     if (s.gap > 0.0)
       std::printf("  Taylor/Smith V_onset  : %10.1f V   (applied %.1f V)\n",
-                  onset_voltage_taylor(s.r_contact, s.gap, s.fluid.gamma), s.voltage);
+                  literature_onset_voltage_smith(s.r_contact, s.gap, s.fluid.gamma), s.voltage);
   }
   std::printf("\nNOTE: this is the DRY field of the metal geometry.  A wetted emitter\n"
               "      forms a meniscus that sharpens under the field and raises the apex\n"
@@ -84,10 +84,24 @@ int main(int argc, char** argv) try {
     for (int i = 0; i < n; ++i) {
       const Real U = v0 + (v1 - v0) * i / std::max(1, n - 1);
       bem.solve({U, 0.0, 0.0});
-      const IonEmission ie = integrate_ion_emission(bem, s.fluid, s.temperature, true);
-      std::fprintf(f, "%.9e,%.9e,%.9e,%.9e\n", U, bem.peak_emitter_field(),
-                   bem.charge_on(Tag::Emitter), ie.current);
-      std::printf("  %10.1f %14.4g %14.4g\n", U, bem.peak_emitter_field(), ie.current);
+      IonEmission ie;
+      bool ion_available = true;
+      try {
+        ie = integrate_ion_emission(bem, s.fluid, s.temperature, true);
+      } catch (const NotImplementedInThisPhase& ex) {
+        // Do not report a silent zero: say that the quantity is unavailable.
+        ion_available = false;
+        if (i == 0) std::printf("\n  I_ion nicht verfuegbar: %s\n", ex.what());
+      }
+      if (ion_available) {
+        std::fprintf(f, "%.9e,%.9e,%.9e,%.9e\n", U, bem.peak_emitter_field(),
+                     bem.charge_on(Tag::Emitter), ie.current);
+        std::printf("  %10.1f %14.4g %14.4g\n", U, bem.peak_emitter_field(), ie.current);
+      } else {
+        std::fprintf(f, "%.9e,%.9e,%.9e,nan\n", U, bem.peak_emitter_field(),
+                     bem.charge_on(Tag::Emitter));
+        std::printf("  %10.1f %14.4g %14s\n", U, bem.peak_emitter_field(), "n/a");
+      }
     }
     std::fclose(f);
     std::printf("wrote %s\n", path.c_str());

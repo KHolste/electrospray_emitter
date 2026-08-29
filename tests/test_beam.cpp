@@ -4,6 +4,8 @@
 #include "es/beam.hpp"
 #include "es/constants.hpp"
 #include "es/fluid.hpp"
+#include "es/status.hpp"
+#include <string>
 
 using namespace es;
 using constants::eps0;
@@ -165,45 +167,74 @@ static void test_interception() {
 }
 
 // ---------------------------------------------------------------------------
-static void test_space_charge() {
-  std::printf("\n=== space charge ===\n");
+// Space charge is disabled: the ring model is not well posed (see beam.hpp).
+// What is tested here is that it fails closed rather than producing numbers.
+// ---------------------------------------------------------------------------
+static void test_space_charge_is_closed() {
+  std::printf("\n=== space charge: disabled, must fail closed ===\n");
   BemSolver bem = build_needle_extractor(1500.0, 3.0e-4, 2.0e-4);
   std::vector<Real> w(static_cast<std::size_t>(bem.size()), 0.0);
   for (Index i = 0; i < bem.size(); ++i) {
     const Element& e = bem.mesh().elems[static_cast<std::size_t>(i)];
     if (e.tag == Tag::Emitter && e.mid.z > -1.0e-5 && e.mid.r < 8.0e-6)
-      w[static_cast<std::size_t>(i)] = 2.0e-5;  // deliberately huge: 20 uA per element
+      w[static_cast<std::size_t>(i)] = 1e-9;
   }
   BeamParams bp;
   bp.z_end = 1.0e-3;
-  bp.r_max = 4.0e-3;
-  bp.cfl = 0.05;
-  bp.max_steps = 20000;
-  bp.path_samples = 40;
+  bp.max_steps = 2000;
 
+  // Without space charge the trace still works.
   const BeamResult a = trace_beam_with_weights(bem, w, {{"ion", 5.0e5, 1.0}}, bp);
-  bp.space_charge_iters = 3;
-  BemSolver bem2 = build_needle_extractor(1500.0, 3.0e-4, 2.0e-4);
-  const BeamResult b = trace_beam_with_weights(bem2, w, {{"ion", 5.0e5, 1.0}}, bp);
+  expect("Laplace-only trace still runs", a.current_launched > 0.0);
 
-  std::printf("  without space charge: half-angle(95%%) = %6.3f deg, E_mean = %7.1f eV\n",
-              a.half_angle_95 * 180.0 / pi, a.mean_energy_eV);
-  std::printf("  with    space charge: half-angle(95%%) = %6.3f deg, E_mean = %7.1f eV\n",
-              b.half_angle_95 * 180.0 / pi, b.mean_energy_eV);
-  expect("space-charge iterations actually ran", b.space_charge_iterations == 3);
-  // Mutual repulsion cannot focus the beam.
-  expect("space charge does not narrow the beam", b.half_angle_95 >= a.half_angle_95 - 1e-9);
-  // ... and it costs the beam some energy, since the leading charge decelerates
-  // the trailing charge less than it accelerates it -- net, the potential the
-  // particles fall through is reduced.
-  expect("mean energy is not increased by space charge", b.mean_energy_eV <= a.mean_energy_eV + 1.0);
+  // With space charge requested it must refuse, and say why.
+  bp.space_charge_iters = 3;
+  bool threw = false;
+  std::string msg;
+  try {
+    (void)trace_beam_with_weights(bem, w, {{"ion", 5.0e5, 1.0}}, bp);
+  } catch (const NotImplementedInThisPhase& e) {
+    threw = true;
+    msg = e.what();
+  }
+  expect("space_charge_iters > 0 throws NotImplementedInThisPhase", threw);
+  expect("message names phase P4", msg.find("P4") != std::string::npos);
+
+  // The ring kernels themselves stay, and stay singular -- which is the reason
+  // the model is closed rather than regularised by hand.
+  const Vec2 xp{5.0e-5, 1.0e-4};
+  const Vec2 E0 = ring_field(1e-15, xp, xp);
+  expect("ring self-field is still singular (the reason for the lock)",
+         !std::isfinite(E0.r) || !std::isfinite(E0.z));
+}
+
+// ---------------------------------------------------------------------------
+static void test_droplets_are_closed() {
+  std::printf("\n=== droplet species: locked until the cone-jet coupling ===\n");
+  BemSolver bem = build_needle_extractor(1500.0, 3.0e-4, 2.0e-4);
+  std::vector<Real> w(static_cast<std::size_t>(bem.size()), 0.0);
+  for (Index i = 0; i < bem.size(); ++i)
+    if (bem.mesh().elems[static_cast<std::size_t>(i)].tag == Tag::Emitter)
+      w[static_cast<std::size_t>(i)] = 1e-9;
+  BeamParams bp;
+  bp.z_end = 1.0e-3;
+  bp.max_steps = 2000;
+
+  bool threw = false;
+  std::string msg;
+  try {
+    (void)trace_beam_with_weights(bem, w, {{"droplet", 1e4, 1.0, SpeciesKind::Droplet}}, bp);
+  } catch (const NotImplementedInThisPhase& e) { threw = true; msg = e.what(); }
+  expect("droplet species throws NotImplementedInThisPhase", threw);
+  expect("message names phase P6", msg.find("P6") != std::string::npos);
 }
 
 int main() {
   test_ring_kernel();
   test_energy_conservation();
   test_interception();
-  test_space_charge();
+  test_space_charge_is_closed();
+  test_droplets_are_closed();
   std::printf("\n%s (%d failures)\n", failures ? "FAILED" : "PASSED", failures);
   return failures ? 1 : 0;
 }

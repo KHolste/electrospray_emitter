@@ -296,9 +296,7 @@ MeniscusSolution MeniscusSolver::solve_at_height(Real h, const MeniscusShape* st
       // Feed pressure alone already exceeds the target height: no voltage
       // needed, and h is not reachable from above by raising U.
       U = 0.0;
-      sol.voltage_clamped = true;
     } else {
-      sol.voltage_clamped = false;
       // Bracket by doubling.  A field scale that lifts the meniscus by ~r_c is
       // the natural starting guess.
       hi = std::sqrt(4.0 * params_.gamma / (eps0 * params_.r_contact)) /
@@ -316,7 +314,11 @@ MeniscusSolution MeniscusSolver::solve_at_height(Real h, const MeniscusShape* st
     // ---- new shape, under-relaxed -----------------------------------------
     ctx.U = U;
     const RawShape rs = integrate_shape(ctx, params_.r_contact);
-    if (!rs.ok) { sol.converged = false; sol.iterations = it + 1; break; }
+    if (!rs.ok) {
+      sol.status = SolveStatus::ShapeIntegrationFailed;
+      sol.iterations = it + 1;
+      break;
+    }
     const MeniscusShape fresh =
         resample(rs, params_.z_contact, params_.n_nodes, params_.apex_clustering);
 
@@ -346,9 +348,10 @@ MeniscusSolution MeniscusSolver::solve_at_height(Real h, const MeniscusShape* st
 
     sol.iterations = it + 1;
     sol.residual = disp;
+    sol.status = SolveStatus::NotConverged;
     if (params_.verbose)
       std::printf("    outer %2d: U = %10.2f V, residual = %.3e\n", it + 1, U, disp);
-    if (disp < params_.tol) { sol.converged = true; break; }
+    if (disp < params_.tol) { sol.status = SolveStatus::Converged; break; }
   }
 
   // Final field evaluation on the converged shape.
@@ -370,34 +373,86 @@ MeniscusSolution MeniscusSolver::solve_at_height(Real h, const MeniscusShape* st
 }
 
 MeniscusSolution MeniscusSolver::solve_at_voltage(Real U, Real h_max, int scout_steps) {
-  // Locate the fold first: U(h) is only invertible on the rising branch.
+  MeniscusSolution bad;
+  bad.target_voltage = U;
+  bad.delta_p = params_.delta_p;
+
+  // The branch is only invertible below its turning point, so locate that first.
   const std::vector<MeniscusSolution> scout =
       continuation(0.1 * params_.r_contact, h_max, std::max(4, scout_steps));
-  const Onset on = find_onset(scout);
-  if (!on.found || U > on.voltage) {
-    MeniscusSolution bad;
-    bad.voltage = U;
-    bad.converged = false;
-    if (on.found) bad.shape = scout.back().shape;
+  const StaticFold fold = find_static_fold(scout);
+  if (!fold.found()) {
+    bad.status = SolveStatus::NoStaticFoldFound;
+    return bad;
+  }
+  if (U > fold.voltage) {
+    // Above the fold no static meniscus exists at all.
+    bad.status = SolveStatus::VoltageNotBracketed;
+    bad.voltage = fold.voltage;
     return bad;
   }
 
-  // Bracket on the stable side and bisect on apex height.
-  Real lo = scout.front().shape.height, hi = on.height;
-  for (const MeniscusSolution& s : scout) {
-    if (!s.converged || s.shape.height > on.height) continue;
-    if (s.voltage <= U) lo = std::max(lo, s.shape.height);
+  // Bracket on the rising side: lo must satisfy U(lo) <= U, hi is the fold.
+  Real hi = fold.height;
+  Real lo = 0.0;
+  bool have_lo = false;
+  for (const MeniscusSolution& m : scout) {
+    if (!m.ok() || m.shape.height > fold.height) continue;
+    if (m.voltage <= U) { lo = std::max(lo, m.shape.height); have_lo = true; }
   }
+
+  if (!have_lo) {
+    // Every scouted point already exceeds U.  March downward rather than
+    // silently returning the lowest scouted shape -- that was the defect which
+    // reported an 872 V shape for a 500 V request.
+    Real h = scout.empty() ? 0.1 * params_.r_contact : scout.front().shape.height;
+    for (int i = 0; i < 30 && h > 1e-4 * params_.r_contact; ++i) {
+      h *= 0.5;
+      MeniscusSolution m = solve_at_height(h);
+      if (!m.ok()) continue;
+      if (m.voltage <= U) { lo = h; have_lo = true; break; }
+    }
+  }
+  if (!have_lo) {
+    // Not reachable from below either: at this feed pressure the meniscus
+    // already exceeds the requested voltage at vanishing apex height.
+    bad.status = SolveStatus::VoltageNotBracketed;
+    return bad;
+  }
+
+  // U(h) rises monotonically on this side, so bisection is well posed.
   MeniscusSolution best;
-  for (int i = 0; i < 24; ++i) {
+  const Real vtol = params_.voltage_tol * std::max(std::abs(U), 1.0);
+  for (int i = 0; i < 40; ++i) {
     const Real mid = 0.5 * (lo + hi);
-    MeniscusSolution s = solve_at_height(mid);
-    if (!s.converged) { hi = mid; continue; }
-    best = s;
-    if (s.voltage < U) lo = mid; else hi = mid;
-    if (std::abs(s.voltage - U) < 1e-4 * std::max(U, 1.0)) break;
+    MeniscusSolution m = solve_at_height(mid);
+    if (!m.ok()) { hi = mid; continue; }
+    best = m;
+    if (std::abs(m.voltage - U) <= vtol) break;
+    if (m.voltage < U) lo = mid; else hi = mid;
+    if (hi - lo < 1e-9 * params_.r_contact) break;
+  }
+
+  best.target_voltage = U;
+  if (best.status == SolveStatus::NotAttempted) best.status = SolveStatus::NotConverged;
+  if (!best.ok()) return best;
+
+  if (std::abs(best.voltage - U) > vtol) {
+    // Converged shape, but not the one that was asked for.  Never report this
+    // as success, however plausible the numbers look.
+    best.status = SolveStatus::VoltageMismatch;
   }
   return best;
+}
+
+void MeniscusSolver::realize(const MeniscusSolution& sol) {
+  if (sol.shape.nodes.size() < 2)
+    throw std::runtime_error("MeniscusSolver::realize: solution carries no free surface");
+  Mesh full = merge({electrodes_, sol.shape.to_mesh(0.0)});
+  bem_.set_mesh(std::move(full));
+  bem_.solve({sol.voltage, 0.0, 0.0});
+  last_ = sol.shape;
+  have_last_ = true;
 }
 
 std::vector<MeniscusSolution> MeniscusSolver::continuation(Real h_min, Real h_max, int n_steps) {
@@ -410,7 +465,7 @@ std::vector<MeniscusSolution> MeniscusSolver::continuation(Real h_min, Real h_ma
     if (params_.verbose) std::printf("  h = %.4g m (%.3f r_c)\n", h, h / params_.r_contact);
     MeniscusSolution s = solve_at_height(h);
     branch.push_back(s);
-    if (!s.converged && i > 2) {
+    if (!s.ok() && i > 2) {
       if (params_.verbose) std::printf("  branch stopped: no converged shape at h/r_c = %.3f\n",
                                        h / params_.r_contact);
       break;
@@ -419,56 +474,92 @@ std::vector<MeniscusSolution> MeniscusSolver::continuation(Real h_min, Real h_ma
   return branch;
 }
 
-MeniscusSolver::Onset MeniscusSolver::find_onset(const std::vector<MeniscusSolution>& branch) {
-  Onset o;
-  std::size_t best = 0;
-  bool any = false;
-  for (std::size_t i = 0; i < branch.size(); ++i) {
-    if (!branch[i].converged) continue;
-    if (!any || branch[i].voltage > branch[best].voltage) { best = i; any = true; }
-  }
-  if (!any) return o;
-  o.found = true;
-  o.voltage = branch[best].voltage;
-  o.height = branch[best].shape.height;
-  o.apex_field = branch[best].apex_field;
-  o.apex_radius = branch[best].shape.apex_radius;
-  o.half_angle = branch[best].shape.half_angle;
+MeniscusSolver::StaticFold MeniscusSolver::find_static_fold(
+    const std::vector<MeniscusSolution>& branch) {
+  StaticFold f;
 
-  // Parabolic refinement through the three points around the maximum.  Without
-  // it the reported onset is biased low by up to half a continuation step.
-  if (best > 0 && best + 1 < branch.size() && branch[best - 1].converged &&
-      branch[best + 1].converged) {
-    const Real h0 = branch[best - 1].shape.height, v0 = branch[best - 1].voltage;
-    const Real h1 = branch[best].shape.height, v1 = branch[best].voltage;
-    const Real h2 = branch[best + 1].shape.height, v2 = branch[best + 1].voltage;
-    if (h1 > h0 && h2 > h1) {
-      // Newton form: p(h) = v0 + d1 (h-h0) + a (h-h0)(h-h1)
-      const Real d1 = (v1 - v0) / (h1 - h0);
-      const Real d2 = (v2 - v1) / (h2 - h1);
-      const Real a = (d2 - d1) / (h2 - h0);
-      if (a < 0.0) {  // concave, i.e. a genuine maximum
-        const Real hstar = 0.5 * (h0 + h1) - d1 / (2.0 * a);
-        if (hstar > h0 && hstar < h2) {
-          o.height = hstar;
-          o.voltage = v0 + d1 * (hstar - h0) + a * (hstar - h0) * (hstar - h1);
-        }
+  std::vector<std::size_t> idx;
+  for (std::size_t i = 0; i < branch.size(); ++i)
+    if (branch[i].ok()) idx.push_back(i);
+
+  if (idx.size() < 3) {
+    // One or two points cannot exhibit a maximum.  The prototype reported one
+    // anyway, from a single converged point.
+    f.status = FoldStatus::TooFewPoints;
+    return f;
+  }
+
+  std::size_t kbest = 0;
+  for (std::size_t k = 1; k < idx.size(); ++k)
+    if (branch[idx[k]].voltage > branch[idx[kbest]].voltage) kbest = k;
+
+  if (kbest == 0 || kbest + 1 == idx.size()) {
+    // The largest value sits at the edge of the traced range: either the branch
+    // is monotone, or it was not followed far enough.  Neither demonstrates an
+    // interior turning point.
+    const bool rising = branch[idx.back()].voltage > branch[idx.front()].voltage;
+    const bool falling = branch[idx.back()].voltage < branch[idx.front()].voltage;
+    bool monotone = true;
+    for (std::size_t k = 1; k < idx.size(); ++k) {
+      const Real d = branch[idx[k]].voltage - branch[idx[k - 1]].voltage;
+      if ((rising && d < 0.0) || (falling && d > 0.0)) { monotone = false; break; }
+    }
+    f.status = monotone ? FoldStatus::Monotone : FoldStatus::MaximumAtBoundary;
+    return f;
+  }
+
+  const MeniscusSolution& mm = branch[idx[kbest]];
+  const MeniscusSolution& ml = branch[idx[kbest - 1]];
+  const MeniscusSolution& mr = branch[idx[kbest + 1]];
+
+  // Require a strict interior maximum: rising into it, falling out of it.
+  if (!(ml.voltage < mm.voltage && mr.voltage < mm.voltage)) {
+    f.status = FoldStatus::MaximumAtBoundary;
+    return f;
+  }
+
+  f.status = FoldStatus::Found;
+  f.index = idx[kbest];
+  f.voltage = mm.voltage;
+  f.height = mm.shape.height;
+  f.apex_field = mm.apex_field;
+  f.apex_radius = mm.shape.apex_radius;
+  f.half_angle = mm.shape.half_angle;
+
+  // Parabolic refinement through the three points around the maximum; without
+  // it the fold voltage is biased low by up to half a continuation step.
+  const Real h0 = ml.shape.height, v0 = ml.voltage;
+  const Real h1 = mm.shape.height, v1 = mm.voltage;
+  const Real h2 = mr.shape.height, v2 = mr.voltage;
+  if (h1 > h0 && h2 > h1) {
+    const Real d1 = (v1 - v0) / (h1 - h0);
+    const Real d2 = (v2 - v1) / (h2 - h1);
+    const Real a2 = (d2 - d1) / (h2 - h0);
+    if (a2 < 0.0) {
+      const Real hstar = 0.5 * (h0 + h1) - d1 / (2.0 * a2);
+      if (hstar > h0 && hstar < h2) {
+        f.height = hstar;
+        f.voltage = v0 + d1 * (hstar - h0) + a2 * (hstar - h0) * (hstar - h1);
       }
     }
   }
-  return o;
+  return f;
 }
 
 void MeniscusSolver::write_branch_csv(const std::string& path,
-                                      const std::vector<MeniscusSolution>& branch) {
+                                      const std::vector<MeniscusSolution>& branch,
+                                      const std::string& header) {
   std::FILE* f = std::fopen(path.c_str(), "w");
   if (!f) throw std::runtime_error("cannot open " + path);
+  if (!header.empty()) std::fputs(header.c_str(), f);
+  std::fprintf(f, "# the maximum of `voltage` over converged rows is the STATIC FOLD,\n");
+  std::fprintf(f, "# not an emission onset -- see docs/02_model_specification.md 2.4.\n");
   std::fprintf(f, "height,voltage,apex_field,peak_field,apex_radius,half_angle_deg,arclength,"
-                  "converged,iterations,residual\n");
+                  "status,iterations,residual\n");
   for (const MeniscusSolution& s : branch)
-    std::fprintf(f, "%.9e,%.9e,%.9e,%.9e,%.9e,%.6f,%.9e,%d,%d,%.3e\n", s.shape.height, s.voltage,
+    std::fprintf(f, "%.9e,%.9e,%.9e,%.9e,%.9e,%.6f,%.9e,%s,%d,%.3e\n", s.shape.height, s.voltage,
                  s.apex_field, s.peak_field, s.shape.apex_radius,
-                 s.shape.half_angle * 180.0 / pi, s.shape.arclength, s.converged ? 1 : 0,
+                 s.shape.half_angle * 180.0 / pi, s.shape.arclength, to_string(s.status),
                  s.iterations, s.residual);
   std::fclose(f);
 }

@@ -6,18 +6,13 @@
 #include <stdexcept>
 
 #include "es/constants.hpp"
+#include "es/emission.hpp"
 
 namespace es {
 namespace {
 
 using constants::eps0;
 using constants::pi;
-
-/// A ring macroparticle standing in for a piece of the steady-state beam.
-struct RingCharge {
-  Vec2 x{};
-  Real Q{0};
-};
 
 /// Does the segment a->b cross element e?  Returns the crossing parameter along
 /// a->b, or -1.  Plain 2D segment intersection in the meridian plane.
@@ -69,17 +64,12 @@ Vec2 ring_field(Real Q, Vec2 x, Vec2 xp) {
 namespace {
 
 /// Push one ray through the field with adaptive leapfrog-style steps.
-void push_ray(Ray& ray, const BemSolver& bem, const std::vector<RingCharge>* rings,
-              const BeamParams& p) {
+void push_ray(Ray& ray, const BemSolver& bem, const BeamParams& p) {
   const Mesh& mesh = bem.mesh();
   const Real qm = ray.qm;
 
-  auto field = [&](Vec2 x) {
-    Vec2 E = bem.field_at(x);
-    if (rings)
-      for (const RingCharge& rc : *rings) E += ring_field(rc.Q, x, rc.x);
-    return E;
-  };
+  // Laplace field only.  Space charge is disabled; see beam.hpp.
+  auto field = [&](Vec2 x) { return bem.field_at(x); };
 
   // Length scale for the step limiter: the smallest element near the launch
   // point sets how fast the field varies there.
@@ -149,21 +139,6 @@ void push_ray(Ray& ray, const BemSolver& bem, const std::vector<RingCharge>* rin
   ray.speed.push_back(norm(ray.v));
 }
 
-std::vector<RingCharge> rings_from_rays(const std::vector<Ray>& rays) {
-  std::vector<RingCharge> out;
-  for (const Ray& r : rays) {
-    for (std::size_t i = 1; i < r.path.size(); ++i) {
-      const Real dl = norm(r.path[i] - r.path[i - 1]);
-      const Real vbar = 0.5 * (r.speed[i] + r.speed[i - 1]);
-      if (!(vbar > 0.0) || !(dl > 0.0)) continue;
-      // Steady state: the charge sitting in this piece of the beam is the
-      // current times the time a particle spends crossing it.
-      out.push_back({0.5 * (r.path[i] + r.path[i - 1]), r.current * dl / vbar});
-    }
-  }
-  return out;
-}
-
 void finalise(BeamResult& res) {
   res.current_launched = 0;
   res.current_transmitted = 0;
@@ -210,6 +185,29 @@ BeamResult trace_beam_with_weights(BemSolver& bem, const std::vector<Real>& elem
     throw std::runtime_error("trace_beam_with_weights: weight vector length != element count");
   if (species.empty()) throw std::runtime_error("trace_beam_with_weights: no species");
 
+  // --- fail closed on everything whose physics is not implemented ----------
+  if (p.space_charge_iters > 0) {
+    throw NotImplementedInThisPhase(
+        "Raumladung im Strahltransport",
+        "Phase P4 (Poisson-FEM/FVM mit PIC-Formfunktionen)",
+        "Das vorhandene Ring-Makroteilchenmodell ist nicht wohlgestellt: das Eigenfeld eines "
+        "unendlich duennen Rings divergiert (nan/inf exakt am Ring), das Teilchen hat keine "
+        "Ausdehnung und damit auch keinen begruendbaren Abschneideradius. Eine improvisierte "
+        "Regularisierung waere ein freier Parameter ohne physikalische Festlegung.");
+  }
+  for (const BeamSpecies& sp : species) {
+    if (sp.kind == SpeciesKind::Droplet) {
+      throw NotImplementedInThisPhase(
+          "Tropfenstrahl (Spezies '" + sp.name + "')",
+          "Phase P6 (Kopplung des Cone-Jet-Modells an den Strahltransport)",
+          "Tropfen wuerden hier aus der Iribarne-Thomson-Ionenverdampfungsrate gestartet. "
+          "Deren raeumliche Verteilung und Absolutwert gehoeren zur Ionenemission, nicht zum "
+          "Cone-Jet: gemessen 4,744e-12 A gegen 3,945e-07 A aus der Cone-Jet-Korrelation, "
+          "Faktor 8,3e4.");
+    }
+  }
+  require_modelled_polarity(bem);
+
   BeamResult res;
   const Mesh& mesh = bem.mesh();
 
@@ -237,59 +235,7 @@ BeamResult trace_beam_with_weights(BemSolver& bem, const std::vector<Real>& elem
 #ifdef ES_HAVE_OPENMP
 #pragma omp parallel for schedule(dynamic, 1)
 #endif
-  for (Index k = 0; k < nr; ++k) push_ray(res.rays[static_cast<std::size_t>(k)], bem, nullptr, p);
-
-  // --- self-consistent space charge ----------------------------------------
-  std::vector<RingCharge> rings;
-  for (int it = 0; it < p.space_charge_iters; ++it) {
-    std::vector<RingCharge> fresh = rings_from_rays(res.rays);
-    if (rings.empty()) {
-      rings = std::move(fresh);
-    } else {
-      // Under-relax the ring charges.  The geometry has changed too, so blend
-      // by replacing the set and scaling the charges -- crude but stable.
-      for (RingCharge& rc : fresh) rc.Q *= p.space_charge_relax;
-      for (RingCharge& rc : rings) rc.Q *= (1.0 - p.space_charge_relax);
-      fresh.insert(fresh.end(), rings.begin(), rings.end());
-      rings = std::move(fresh);
-    }
-
-    // Electrodes respond to the beam: impose the ring potential as an external
-    // field on the BEM right-hand side and re-solve for the induced charge.
-    std::vector<Real> phi(static_cast<std::size_t>(bem.size()), 0.0);
-#ifdef ES_HAVE_OPENMP
-#pragma omp parallel for schedule(static)
-#endif
-    for (Index i = 0; i < bem.size(); ++i) {
-      const Vec2 xi = mesh.elems[static_cast<std::size_t>(i)].mid;
-      Real v = 0.0;
-      for (const RingCharge& rc : rings) v += ring_potential(rc.Q, xi, rc.x);
-      phi[static_cast<std::size_t>(i)] = v;
-    }
-    const std::array<Real, 3> applied = bem.applied();
-    bem.set_external_potential(std::move(phi));
-    bem.solve(applied);
-
-    for (Ray& r : res.rays) {
-      r.x = r.x0;
-      r.v = {0.0, 0.0};
-      r.status = RayStatus::Flying;
-      r.hit_tag = Tag::Other;
-    }
-#ifdef ES_HAVE_OPENMP
-#pragma omp parallel for schedule(dynamic, 1)
-#endif
-    for (Index k = 0; k < nr; ++k)
-      push_ray(res.rays[static_cast<std::size_t>(k)], bem, &rings, p);
-
-    res.space_charge_iterations = it + 1;
-    if (p.verbose) {
-      Real Qtot = 0.0;
-      for (const RingCharge& rc : rings) Qtot += rc.Q;
-      std::printf("  space charge iteration %d: %zu rings, Q_beam = %.4g C\n", it + 1,
-                  rings.size(), Qtot);
-    }
-  }
+  for (Index k = 0; k < nr; ++k) push_ray(res.rays[static_cast<std::size_t>(k)], bem, p);
 
   finalise(res);
   return res;
@@ -297,6 +243,7 @@ BeamResult trace_beam_with_weights(BemSolver& bem, const std::vector<Real>& elem
 
 BeamResult trace_beam(BemSolver& bem, const Fluid& f, Real T,
                       const std::vector<BeamSpecies>& species, const BeamParams& p) {
+  require_modelled_polarity(bem);
   std::vector<Real> w(static_cast<std::size_t>(bem.size()), 0.0);
   for (Index i = 0; i < bem.size(); ++i) {
     const Element& e = bem.mesh().elems[static_cast<std::size_t>(i)];
@@ -322,8 +269,7 @@ void BeamResult::print(std::FILE* out) const {
   std::fprintf(out, "  half-angle (50%% I)  : %10.2f deg\n", half_angle_50 * 180.0 / constants::pi);
   std::fprintf(out, "  half-angle (95%% I)  : %10.2f deg\n", half_angle_95 * 180.0 / constants::pi);
   std::fprintf(out, "  mean beam energy    : %10.1f eV\n", mean_energy_eV);
-  if (space_charge_iterations)
-    std::fprintf(out, "  space-charge passes : %10d\n", space_charge_iterations);
+  std::fprintf(out, "  space charge        : deaktiviert (Phase P4)\n");
 }
 
 void BeamResult::write_rays_csv(const std::string& path) const {

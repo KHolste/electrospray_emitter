@@ -35,10 +35,20 @@ Priorisierung, nicht der Terminplanung.
    umstellen. Insbesondere die Verifikationstabelle: was dort steht, gilt für
    die Elektrostatik und die Bahnintegration, nicht für die Emitterphysik.
 
-**Gate P0.** Sanitizer-Lauf ohne Befund **(erreicht)**; alle elf Befunde durch
-fehlschlagende Tests abgedeckt **(offen)**; Ausgabedateien selbstbeschreibend
-und je Anwendung eindeutig benannt **(offen)**; Haupt-README auf die
-Sprachregelung umgestellt **(erreicht)**.
+**Gate P0 — bestanden.**
+
+| Nachweis | Stand |
+|---|---|
+| Sanitizer-Lauf ohne Befund (ASan, UBSan, Float-Checks, `_GLIBCXX_DEBUG`, alle Tests und Anwendungen) | erreicht |
+| Alle elf Befunde durch Regressionstests abgedeckt (`tests/test_regressions.cpp`) | erreicht |
+| Ausgabedateien selbstbeschreibend und je Anwendung eindeutig benannt | erreicht |
+| Haupt-README auf die Sprachregelung umgestellt | erreicht |
+| Nicht implementierte Optionen schlagen geschlossen fehl | erreicht |
+| Vollständige Baseline grün (7/7) | erreicht |
+
+Offen und bewusst zurückgestellt: ein Reproduktionsfall des
+Codegenerierungsfehlers **ohne** Projektabhängigkeit; der Sanitizer-Lauf ist noch
+nicht als wiederholbarer Skript-/CI-Schritt eingerichtet.
 
 ---
 

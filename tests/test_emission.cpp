@@ -144,12 +144,12 @@ static void test_onset_formulas() {
   const Fluid f = fluid_by_name("EMI-BF4");
   for (Real rc : {5e-6, 1e-5, 5e-5}) {
     std::printf("  r_c = %5.1f um: E_hemisphere = %.3e V/m, V_Taylor(d=0.5mm) = %7.1f V\n",
-                rc * 1e6, onset_field_hemisphere(rc, f.gamma),
-                onset_voltage_taylor(rc, 5e-4, f.gamma));
+                rc * 1e6, hemisphere_balance_field(rc, f.gamma),
+                literature_onset_voltage_smith(rc, 5e-4, f.gamma));
   }
   // Both must scale as sqrt(r_c) in the appropriate sense.
   check("E_hemisphere scales as 1/sqrt(r)",
-        onset_field_hemisphere(4e-6, f.gamma) / onset_field_hemisphere(1e-6, f.gamma), 0.5, 1e-12);
+        hemisphere_balance_field(4e-6, f.gamma) / hemisphere_balance_field(1e-6, f.gamma), 0.5, 1e-12);
 }
 
 int main() {

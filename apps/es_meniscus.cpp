@@ -1,8 +1,8 @@
-// es_meniscus -- electrified meniscus shape and the onset of emission.
+// es_meniscus -- static meniscus branch and its turning point.
 //
 // Traces the equilibrium branch by prescribing the apex height and solving for
-// the voltage that sustains it.  The maximum of U(h) is the onset voltage: the
-// saddle-node beyond which no static meniscus exists.
+// the voltage that sustains it.  The maximum of U(h) is reported as the STATIC
+// FOLD.  It is not an emission onset: see docs/02_model_specification.md 2.4.
 
 #include <cstdio>
 #include <stdexcept>
@@ -17,12 +17,12 @@ using constants::pi;
 
 int main(int argc, char** argv) try {
   Config cfg;
-  // Files first, command line second: an override on the command line must win.
   const std::vector<std::string> rest = Config::positional_args(argc, argv);
   for (const std::string& a : rest) {
     if (a == "--help" || a == "-h") {
       std::printf("usage: es_meniscus [file.cfg] [key=value ...]\n\n"
-                  "Traces the meniscus equilibrium branch and reports the onset voltage.\n"
+                  "Traces the static meniscus branch and reports its turning point\n"
+                  "(static fold).  This is NOT an emission onset.\n"
                   "Extra keys: meniscus.h_min, meniscus.h_max (in units of r_contact),\n"
                   "            meniscus.steps\n\n");
       print_key_reference(stdout);
@@ -40,68 +40,92 @@ int main(int argc, char** argv) try {
   const Real h_max = cfg.num("meniscus.h_max", 2.5) * mp.r_contact;
   const int steps = cfg.integer("meniscus.steps", 24);
 
-  std::printf("\ntracing the equilibrium branch, h = %.3g .. %.3g m (%d steps)\n", h_min, h_max,
-              steps);
+  std::printf("\ntracing the static branch, h = %.3g .. %.3g m (%d steps)\n", h_min, h_max, steps);
   MeniscusSolver solver(s.electrodes, mp);
   const std::vector<MeniscusSolution> branch = solver.continuation(h_min, h_max, steps);
 
-  std::printf("\n   h/r_c        U [V]    E_apex [V/m]   R_apex/r_c  half-angle   I_ion [A]  conv\n");
-  for (const MeniscusSolution& m : branch) {
-    // Ion current the apex field would drive, if this were a wetted emitter.
-    Real Iion = 0.0;
-    if (m.converged) {
-      // Rough: apply the Iribarne-Thomson rate to the peak field over the
-      // apex cap.  The full integral is done by es_operate.
-      Iion = ion_current_density(m.apex_field, s.fluid, s.temperature) *
-             (2.0 * pi * m.shape.apex_radius * m.shape.apex_radius);
-    }
-    std::printf("  %6.3f  %11.1f  %14.4g  %11.4f  %8.2f  %11.3g  %s\n", m.shape.height / mp.r_contact,
-                m.voltage, m.apex_field, m.shape.apex_radius / mp.r_contact,
-                m.shape.half_angle * 180.0 / pi, Iion, m.converged ? "yes" : "NO");
-  }
+  std::printf("\n   h/r_c        U [V]    E_apex [V/m]   R_apex/r_c  half-angle  status\n");
+  for (const MeniscusSolution& m : branch)
+    std::printf("  %6.3f  %11.1f  %14.4g  %11.4f  %8.2f  %s (%d it)\n",
+                m.shape.height / mp.r_contact, m.voltage, m.apex_field,
+                m.shape.apex_radius / mp.r_contact, m.shape.half_angle * 180.0 / pi,
+                to_string(m.status), m.iterations);
 
-  const MeniscusSolver::Onset on = MeniscusSolver::find_onset(branch);
-  if (!on.found) {
-    std::fprintf(stderr, "\nno turning point found -- widen meniscus.h_max or loosen "
-                         "meniscus.tol\n");
+  const MeniscusSolver::StaticFold fold = MeniscusSolver::find_static_fold(branch);
+  const std::string prefix = cfg.str("output.prefix", "out");
+
+  if (!fold.found()) {
+    std::fprintf(stderr, "\nKEIN Umkehrpunkt nachgewiesen: %s\n  %s\n", to_string(fold.status),
+                 explain(fold.status));
+    std::fprintf(stderr, "  Es wird keine Faltenspannung ausgegeben. Bereich ueber "
+                         "meniscus.h_max erweitern oder meniscus.tol lockern.\n");
+    MeniscusSolver::write_branch_csv(
+        output_path(prefix, "meniscus", "branch-nofold", s.voltage, "branch"), branch,
+        meta_header("es_meniscus", "branch without demonstrated turning point", s.voltage,
+                    to_string(fold.status)));
     return 2;
   }
 
-  std::printf("\nonset of emission\n");
-  std::printf("  onset voltage         : %10.1f V\n", on.voltage);
-  std::printf("  apex height at onset  : %10.4g m  (= %.3f r_c)\n", on.height,
-              on.height / mp.r_contact);
-  std::printf("  apex radius at onset  : %10.4g m  (= %.3f r_c)\n", on.apex_radius,
-              on.apex_radius / mp.r_contact);
-  std::printf("  apex field at onset   : %10.4g V/m (= %.4f V/nm)\n", on.apex_field,
-              on.apex_field * 1e-9);
-  std::printf("  cone half-angle       : %10.2f deg   (Taylor equilibrium: 49.29)\n",
-              on.half_angle * 180.0 / pi);
+  std::printf("\nstatischer Umkehrpunkt (static fold)\n");
+  std::printf("  Faltenspannung        : %10.1f V\n", fold.voltage);
+  std::printf("  Apexhoehe             : %10.4g m  (= %.3f r_c)\n", fold.height,
+              fold.height / mp.r_contact);
+  std::printf("  Apexkruemmungsradius  : %10.4g m  (= %.3f r_c)\n", fold.apex_radius,
+              fold.apex_radius / mp.r_contact);
+  std::printf("  Apexfeld              : %10.4g V/m (= %.4f V/nm)\n", fold.apex_field,
+              fold.apex_field * 1e-9);
+  std::printf("  Kegelhalbwinkel       : %10.2f deg\n", fold.half_angle * 180.0 / pi);
   if (s.gap > 0.0) {
-    const Real vt = onset_voltage_taylor(mp.r_contact, s.gap, s.fluid.gamma);
-    std::printf("  Taylor/Smith estimate : %10.1f V   (ratio %.3f)\n", vt, on.voltage / vt);
+    const Real vt = literature_onset_voltage_smith(mp.r_contact, s.gap, s.fluid.gamma);
+    std::printf("\n  Literaturformel Smith (1986), NICHT aus diesem Modell:\n");
+    std::printf("    Emissions-Onset     : %10.1f V   (Verhaeltnis %.3f)\n", vt,
+                fold.voltage / vt);
+    std::printf("    Das ist eine andere Groesse als die Faltenspannung. Der Vergleich\n"
+                "    zeigt nur die Groessenordnung, er ist kein Nachweis.\n");
   }
-  std::printf("\n  Everything past the maximum of U(h) is the UNSTABLE branch: real\n"
-              "  solutions of the equations, but not reachable at fixed voltage.\n");
+  std::printf("\n  WAS DIESE ZAHL NICHT IST: kein Emissions-Onset und kein nachgewiesener\n"
+              "  Stabilitaetsverlust. Eine Stabilitaetsanalyse findet nicht statt; sie ist\n"
+              "  fuer Phase P3 vorgesehen. Alles jenseits des Maximums ist der zweite Ast.\n");
 
-  const std::string prefix = cfg.str("output.prefix", "meniscus");
-  MeniscusSolver::write_branch_csv(prefix + "_branch.csv", branch);
-  // Dump the shape at the turning point and at the last converged point.
-  for (const MeniscusSolution& m : branch)
-    if (m.converged && std::abs(m.shape.height - on.height) < 1e-12 + 0.5 * (h_max - h_min) / steps) {
-      write_shape_csv(m.shape, prefix + "_shape_onset.csv");
-      break;
-    }
-  for (auto it = branch.rbegin(); it != branch.rend(); ++it)
-    if (it->converged) { write_shape_csv(it->shape, prefix + "_shape_last.csv"); break; }
-  solver.bem().write_surface_csv(prefix + "_surface.csv");
-  solver.bem().mesh().write_csv(prefix + "_mesh.csv");
-  std::printf("\nwrote %s_branch.csv, %s_shape_onset.csv, %s_shape_last.csv,\n"
-              "      %s_surface.csv, %s_mesh.csv\n",
-              prefix.c_str(), prefix.c_str(), prefix.c_str(), prefix.c_str(), prefix.c_str());
+  // --- output, bound to states that were actually realised -----------------
+  const MeniscusSolution& at_fold = branch[fold.index];
+  MeniscusSolver::write_branch_csv(
+      output_path(prefix, "meniscus", "branch", fold.voltage, "branch"), branch,
+      meta_header("es_meniscus", "full traced branch", fold.voltage,
+                  "maximum over converged rows is the static fold"));
+
+  solver.realize(at_fold);
+  const std::string hdr = meta_header("es_meniscus", "static_fold", at_fold.voltage,
+                                      "sampled branch point at the turning point");
+  write_shape_csv(at_fold.shape,
+                  output_path(prefix, "meniscus", "fold", at_fold.voltage, "shape"), hdr);
+  solver.bem().write_surface_csv(
+      output_path(prefix, "meniscus", "fold", at_fold.voltage, "surface"), hdr);
+  solver.bem().mesh().write_csv(
+      output_path(prefix, "meniscus", "fold", at_fold.voltage, "mesh"), hdr);
+
+  // Last converged point of the branch, as a separate, separately named state.
+  for (auto it = branch.rbegin(); it != branch.rend(); ++it) {
+    if (!it->ok()) continue;
+    solver.realize(*it);
+    const std::string h2 = meta_header("es_meniscus", "last_converged", it->voltage,
+                                       "beyond the fold: second branch, not realisable "
+                                       "at fixed voltage");
+    write_shape_csv(it->shape,
+                    output_path(prefix, "meniscus", "last", it->voltage, "shape"), h2);
+    solver.bem().write_surface_csv(
+        output_path(prefix, "meniscus", "last", it->voltage, "surface"), h2);
+    break;
+  }
+
+  std::printf("\ngeschrieben mit Anwendung, Zustand und Spannung im Dateinamen, Praefix '%s'\n",
+              prefix.c_str());
 
   cfg.warn_about_unused(stdout, {"beam.", "operate."});
   return 0;
+} catch (const NotImplementedInThisPhase& e) {
+  std::fprintf(stderr, "\nes_meniscus: %s\n", e.what());
+  return 3;
 } catch (const std::exception& e) {
   std::fprintf(stderr, "es_meniscus: %s\n", e.what());
   return 1;

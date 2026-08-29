@@ -5,6 +5,7 @@
 #include "es/bem.hpp"
 #include "es/fluid.hpp"
 #include "es/geometry.hpp"
+#include "es/status.hpp"
 #include "es/types.hpp"
 
 namespace es {
@@ -23,6 +24,26 @@ namespace es {
 // azimuthal curvatures.  The electric term always pulls outward, so raising the
 // voltage inflates the meniscus.
 //
+// TERMINOLOGY -- READ THIS BEFORE USING ANY RESULT
+//
+// What this solver can locate is the TURNING POINT of a branch of static
+// solutions: the maximum of U(h) at fixed feed pressure.  It is called a
+// "static fold" throughout, never an "onset".  Three different things were
+// previously conflated under that word:
+//
+//   (a) loss of static stability -- a bifurcation.  The fold is a CANDIDATE for
+//       it, and only under assumptions about which parameter is held fixed and
+//       which perturbation mode is considered.  No stability analysis is
+//       performed here, so even (a) is not established.
+//   (b) onset of emission in the sense of a measurable current -- an instrument
+//       threshold.  In the pure ionic regime the evaporation rate is a smooth
+//       exponential of the field with no threshold at all.
+//   (c) transition to the cone-jet regime -- involves the flow and cannot be
+//       determined from a static model.
+//
+// An emission onset may only be reported once a physical stability criterion
+// has been implemented and checked; see docs/02_model_specification.md 2.4.
+//
 // WHAT IS AN INDEPENDENT VARIABLE, AND WHY IT MATTERS NUMERICALLY
 //
 // dp (the feed pressure) and U (the applied voltage) are the physical inputs;
@@ -34,10 +55,9 @@ namespace es {
 // the physics it is.
 //
 // So the solver inverts the roles: h is prescribed and U is solved for.  That
-// parameterisation is regular through the fold, the whole branch including its
-// turning point is traced, and the onset voltage is read off as the maximum of
-// U(h).  Everything past that maximum is the unstable branch -- real, but not
-// realisable at fixed voltage.
+// parameterisation is regular through the fold, and the whole branch including
+// its turning point is traced.  The maximum of U(h) is reported as the static
+// fold voltage -- not as an onset.
 //
 // ASSUMPTIONS
 //  * static: no flow.  Valid near onset and at the low flow rates of the pure
@@ -69,6 +89,10 @@ struct MeniscusParams {
   int max_outer{40};       ///< shape <-> field iterations
   Real relax{0.6};         ///< under-relaxation of the shape update
   Real tol{2.0e-4};        ///< convergence: max node motion / r_contact
+  /// Relative tolerance on the voltage for solve_at_voltage().  A result whose
+  /// voltage misses the request by more than this is reported as
+  /// SolveStatus::VoltageMismatch, never as converged.
+  Real voltage_tol{1.0e-3};
   bool verbose{false};
 };
 
@@ -90,16 +114,19 @@ MeniscusShape initial_shape(Real r_c, Real z_c, Real h, int n_nodes, Real cluste
 struct MeniscusSolution {
   MeniscusShape shape;
   Real voltage{0};        ///< emitter-to-extractor voltage sustaining this shape [V]
+  /// Voltage that was requested by solve_at_voltage(); 0 if the call was
+  /// solve_at_height(), where no voltage target exists.
+  Real target_voltage{0};
   Real apex_field{0};     ///< |E_n| at the apex [V/m]
   Real peak_field{0};     ///< max |E_n| on the free surface [V/m]
   Real delta_p{0};
-  bool converged{false};
-  /// Set when the feed pressure alone already lifts the meniscus past the
-  /// requested height, so no voltage was needed.  The achieved height is then
-  /// shape.height, which will not equal the h that was asked for.
-  bool voltage_clamped{false};
+  SolveStatus status{SolveStatus::NotAttempted};
   int iterations{0};
   Real residual{0};       ///< final max node motion / r_contact
+
+  /// The only admissible success test.  Anything else must be treated as a
+  /// failure, however plausible the numbers look.
+  bool ok() const { return is_usable(status); }
 };
 
 /// Couples the Young-Laplace shape solver to the BEM field solver.
@@ -115,27 +142,43 @@ class MeniscusSolver {
   /// cheap; pass a shape explicitly to override.
   MeniscusSolution solve_at_height(Real h, const MeniscusShape* start = nullptr);
 
-  /// Solve for the STABLE meniscus that a given voltage sustains.  Runs a
-  /// coarse continuation to locate the fold, then bisects on apex height along
-  /// the stable side of the branch.  Returns converged == false if U exceeds
-  /// the onset voltage, because then no static meniscus exists at all.
+  /// Solve for the meniscus on the rising side of the branch that a given
+  /// voltage sustains.  Runs a coarse continuation to locate the static fold,
+  /// then bisects on apex height below it.
+  ///
+  /// Returns SolveStatus::Converged ONLY if the voltage of the returned shape
+  /// agrees with U to within params().voltage_tol (relative).  If U lies above
+  /// the fold voltage or below the lowest voltage on the traced branch, the
+  /// status is VoltageNotBracketed and the shape must not be used.
   MeniscusSolution solve_at_voltage(Real U, Real h_max, int scout_steps = 14);
+
+  /// Put the solver's BEM into the state described by `sol`, so that any
+  /// surface or mesh dump provably belongs to that state rather than to
+  /// whatever the last internal iteration happened to leave behind.
+  void realize(const MeniscusSolution& sol);
 
   /// Trace the branch h = h_min ... h_max.  The onset voltage is the maximum of
   /// `voltage` over the returned branch; everything beyond it is unstable.
   std::vector<MeniscusSolution> continuation(Real h_min, Real h_max, int n_steps);
 
-  /// Convenience: run a continuation and return the peak of U(h), refined by a
-  /// parabolic fit through the three points around the maximum.
-  struct Onset {
-    Real voltage{0};
+  /// Turning point of the traced branch: the maximum of U(h).
+  ///
+  /// This is a STATIC FOLD, not an emission onset -- see the terminology note
+  /// at the top of this header.  It is only reported when it is a genuine
+  /// INTERIOR maximum: at least three converged points, strictly rising before
+  /// and strictly falling after.  A branch with a single point, or one that is
+  /// monotone throughout, has no turning point and says so.
+  struct StaticFold {
+    FoldStatus status{FoldStatus::NotAttempted};
+    Real voltage{0};      ///< fold voltage [V], parabolically refined
     Real height{0};
     Real apex_field{0};
     Real apex_radius{0};
     Real half_angle{0};
-    bool found{false};
+    std::size_t index{0}; ///< index of the sampled maximum in the branch
+    bool found() const { return status == FoldStatus::Found; }
   };
-  static Onset find_onset(const std::vector<MeniscusSolution>& branch);
+  static StaticFold find_static_fold(const std::vector<MeniscusSolution>& branch);
 
   /// The solver keeps the last assembled system, so callers can post-process
   /// (ion emission, beam launch) without rebuilding it.
@@ -145,7 +188,8 @@ class MeniscusSolver {
   const MeniscusParams& params() const { return params_; }
 
   static void write_branch_csv(const std::string& path,
-                               const std::vector<MeniscusSolution>& branch);
+                               const std::vector<MeniscusSolution>& branch,
+                               const std::string& header = {});
 
  private:
   Mesh electrodes_;

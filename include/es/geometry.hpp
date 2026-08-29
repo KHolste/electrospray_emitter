@@ -62,7 +62,9 @@ class Mesh {
 
   /// Diagnostics
   Real total_area() const;
-  void write_csv(const std::string& path) const;
+  /// `header` is written as leading '#'-prefixed comment lines, so that a
+  /// stray file still says which run and which state it belongs to.
+  void write_csv(const std::string& path, const std::string& header = {}) const;
 
  private:
   std::vector<Vec2> nodes_pending_;

@@ -32,7 +32,27 @@ FieldGrid sample_field(const BemSolver& bem, int nr, int nz, Real r0, Real r1, R
 void write_grid_csv(const FieldGrid& g, const std::string& path);
 /// Legacy ASCII VTK structured points -- opens directly in ParaView.
 void write_grid_vtk(const FieldGrid& g, const std::string& path);
-void write_shape_csv(const MeniscusShape& s, const std::string& path);
+void write_shape_csv(const MeniscusShape& s, const std::string& path,
+                     const std::string& header = {});
+
+// ---------------------------------------------------------------------------
+// Output identity
+// ---------------------------------------------------------------------------
+//
+// Every output file must say which application wrote it, which state it
+// belongs to and at which voltage.  In the prototype es_meniscus and es_beam
+// wrote the same names under the same output.prefix and overwrote each other
+// silently, and the surface dump belonged to the last non-converged branch
+// point rather than to the state the report announced.
+
+/// <prefix>_<app>_<state>_U<voltage>V_<what>.csv
+std::string output_path(const std::string& prefix, const std::string& app,
+                        const std::string& state, Real voltage,
+                        const std::string& what, const std::string& ext = "csv");
+
+/// Leading '#'-comment block identifying the run and the state.
+std::string meta_header(const std::string& app, const std::string& state,
+                        Real voltage, const std::string& note = {});
 
 // ---------------------------------------------------------------------------
 // Building a run from a config file

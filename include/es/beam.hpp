@@ -5,6 +5,7 @@
 #include "es/bem.hpp"
 #include "es/emission.hpp"
 #include "es/fluid.hpp"
+#include "es/status.hpp"
 #include "es/types.hpp"
 
 namespace es {
@@ -26,15 +27,31 @@ namespace es {
 //      the electrodes carry the charge induced by the beam
 //   4. re-trace in (induced BEM field + direct ring field), under-relaxed
 //
-// Space charge is off by default: at the 10-100 nA of a single emitter it is a
-// small correction, and each iteration costs roughly as much as the whole
-// Laplace trace.  It matters for emitter arrays and for the near-apex region.
+// SPACE CHARGE IS DISABLED.  The ring model above is not a well-posed model:
+// an infinitely thin ring has a divergent self-field (measured: nan/inf exactly
+// at the ring, |E| = 5.7e12 V/m at 1e-14 m), the macroparticle has no extent,
+// and therefore no principled cut-off radius exists.  No regularisation is
+// improvised here.  Requesting space charge fails closed; the replacement is a
+// Poisson FEM/FVM solver with PIC shape functions in phase P4.
+
+/// Where a species' launch distribution legitimately comes from.
+enum class SpeciesKind {
+  /// Weighted by the local Iribarne-Thomson evaporation rate.  The only kind
+  /// that may be traced in this phase.
+  IonEvaporated = 0,
+  /// Droplets from a cone-jet.  Their spatial distribution and their absolute
+  /// current come from the cone-jet model, NOT from the ion evaporation rate --
+  /// the prototype used the latter and was a factor 8e4 off.  Locked until the
+  /// cone-jet coupling of phase P6.
+  Droplet,
+};
 
 /// One population launched from the surface, as a fraction of the local current.
 struct BeamSpecies {
   std::string name{"ion"};
   Real qm{5.0e5};      ///< charge-to-mass ratio [C/kg]
   Real fraction{1.0};  ///< share of the emitted CURRENT carried by this species
+  SpeciesKind kind{SpeciesKind::IonEvaporated};
 };
 
 enum class RayStatus : int {
@@ -69,6 +86,8 @@ struct BeamParams {
   Real cfl{0.05};           ///< step limiter: fraction of the local scale per step
   Real launch_offset{0.05}; ///< launch height above the surface, in element lengths
   int path_samples{80};     ///< trajectory points stored per ray
+  /// Must remain 0.  Any positive value throws NotImplementedInThisPhase; see
+  /// the note at the top of this header.
   int space_charge_iters{0};
   Real space_charge_relax{0.5};
   bool include_wetted_metal{false};
@@ -93,6 +112,9 @@ struct BeamResult {
 
 /// Launch weights taken from the Iribarne-Thomson rate on the solved surface.
 /// `bem` must already carry a solution.
+///
+/// Throws NotImplementedInThisPhase if space charge is requested, if any
+/// species is a Droplet, or if the applied polarity would emit anions.
 BeamResult trace_beam(BemSolver& bem, const Fluid& f, Real T,
                       const std::vector<BeamSpecies>& species, const BeamParams& p);
 

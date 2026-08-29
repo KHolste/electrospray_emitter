@@ -353,9 +353,11 @@ Real BemSolver::peak_emitter_field(Index* which) const {
   return best;
 }
 
-void BemSolver::write_surface_csv(const std::string& path) const {
+void BemSolver::write_surface_csv(const std::string& path,
+                                  const std::string& header) const {
   std::FILE* f = std::fopen(path.c_str(), "w");
   if (!f) throw std::runtime_error("cannot open " + path);
+  if (!header.empty()) std::fputs(header.c_str(), f);
   std::fprintf(f, "i,r,z,arclen_hint,sigma,En,p_electric,tag\n");
   Real s = 0.0;
   for (Index i = 0; i < mesh_.size(); ++i) {

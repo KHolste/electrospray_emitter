@@ -101,9 +101,11 @@ void write_grid_vtk(const FieldGrid& g, const std::string& path) {
   std::fclose(f);
 }
 
-void write_shape_csv(const MeniscusShape& s, const std::string& path) {
+void write_shape_csv(const MeniscusShape& s, const std::string& path,
+                     const std::string& header) {
   std::FILE* f = std::fopen(path.c_str(), "w");
   if (!f) throw std::runtime_error("cannot open " + path);
+  if (!header.empty()) std::fputs(header.c_str(), f);
   std::fprintf(f, "i,r,z\n");
   for (std::size_t i = 0; i < s.nodes.size(); ++i)
     std::fprintf(f, "%zu,%.9e,%.9e\n", i, s.nodes[i].r, s.nodes[i].z);
@@ -111,6 +113,31 @@ void write_shape_csv(const MeniscusShape& s, const std::string& path) {
 }
 
 // ---------------------------------------------------------------------------
+
+std::string output_path(const std::string& prefix, const std::string& app,
+                        const std::string& state, Real voltage, const std::string& what,
+                        const std::string& ext) {
+  char buf[64];
+  std::snprintf(buf, sizeof buf, "%.1f", voltage);
+  std::string v(buf);
+  for (char& c : v)
+    if (c == '.') c = 'p';  // keep the name shell- and glob-friendly
+  return prefix + "_" + app + "_" + state + "_U" + v + "V_" + what + "." + ext;
+}
+
+std::string meta_header(const std::string& app, const std::string& state, Real voltage,
+                        const std::string& note) {
+  char buf[1024];
+  std::snprintf(buf, sizeof buf,
+                "# application : %s\n"
+                "# state       : %s\n"
+                "# voltage     : %.6g V (emitter minus extractor)\n"
+                "# note        : %s\n"
+                "# WARNUNG     : Prototyp, keine validierte Simulation. Siehe docs/.\n",
+                app.c_str(), state.c_str(), voltage,
+                note.empty() ? "-" : note.c_str());
+  return std::string(buf);
+}
 
 void Setup::print(std::FILE* out) const {
   std::fprintf(out, "geometry\n");

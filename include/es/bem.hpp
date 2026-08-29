@@ -46,7 +46,18 @@ class BemSolver {
   BemSolver() = default;
   explicit BemSolver(Mesh mesh) : mesh_(std::move(mesh)) {}
 
-  void set_mesh(Mesh mesh) { mesh_ = std::move(mesh); factored_ = false; }
+  /// Replacing the mesh invalidates EVERYTHING derived from the old one.
+  /// Failing to clear the basis here meant that a later solve() silently
+  /// superposed the previous mesh's basis vectors onto the new geometry --
+  /// wrong by a factor of 30 when the two shapes differ substantially, and
+  /// quietly wrong by a small amount when they nearly agree.
+  void set_mesh(Mesh mesh) {
+    mesh_ = std::move(mesh);
+    factored_ = false;
+    basis_.clear();
+    sigma_.clear();
+    applied_ = {{0.0, 0.0, 0.0}};
+  }
   Mesh& mesh() { return mesh_; }
   const Mesh& mesh() const { return mesh_; }
 
@@ -107,7 +118,7 @@ class BemSolver {
   bool is_factored() const { return factored_; }
 
   /// Dump element-wise sigma, E_n and Maxwell stress.
-  void write_surface_csv(const std::string& path) const;
+  void write_surface_csv(const std::string& path, const std::string& header = {}) const;
 
  private:
   Mesh mesh_;

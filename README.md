@@ -55,38 +55,56 @@ Young-Laplace-Lösers, liegt auf dem *instabilen* Ast und ist kein Nachweis übe
 Emissionsphysik, Betriebspunkt oder Stabilität. In einer früheren Fassung dieses
 README stand er in dieser Rolle — das war überzogen.
 
-## 3. Was nicht geprüft ist, und was nachweislich falsch ist
+## 3. Was nicht geprüft ist — und was in Phase P0 korrigiert wurde
 
-Ausführlich in [docs/01_gap_analysis.md](docs/01_gap_analysis.md), hier die
-Punkte, die man kennen muss, bevor man dem Code eine Zahl glaubt:
+Ausführlich in [docs/01_gap_analysis.md](docs/01_gap_analysis.md). Die elf
+bestätigten Befunde sind testgetrieben bearbeitet
+(`tests/test_regressions.cpp`); die inhaltlichen Grenzen bleiben bestehen.
+
+**Weiterhin gültig — daran hat P0 nichts geändert:**
 
 * **Der emittierende Betrieb ist nicht modelliert.** Der Meniskus wird statisch
   und perfekt leitend gerechnet, die Ionenrate danach auf dessen Feld
-  angewandt. Higuera (2008) zeigt, dass im rein ionischen Regime die Strömung
-  viskositätsdominiert ist und der Strom von der endlichen Leitfähigkeit
-  kontrolliert wird — die Perfect-Conductor-Annahme trifft dort den
-  kontrollierenden Mechanismus nicht. Die ausgegebenen Ionenströme sind keine
-  Vorhersage.
-* **„Onset" ist im Code nicht das, was der Name behauptet.** Ausgegeben wird das
-  Maximum eines statischen Lösungsastes. Verlust der statischen Stabilität,
-  messbarer Emissionsbeginn und Cone-Jet-Übergang sind drei verschiedene Dinge;
-  eine Stabilitätsanalyse findet nicht statt. `find_onset()` meldet zudem auch
-  dann einen Umkehrpunkt, wenn der Ast streng monoton steigt.
-* **`solve_at_voltage()` ist unzuverlässig.** Bei 500 V liefert es eine als
-  konvergiert gekennzeichnete Form, deren Feld zu 872 V gehört.
-* **Das Raumladungsmodell ist nicht wohlgestellt.** Ring-Makroteilchen ohne
-  Regularisierung; das Eigenfeld divergiert, am eigenen Ring entstehen
-  `inf`/`NaN`. Wird durch Poisson-FEM/FVM mit PIC ersetzt.
-* **Tropfen werden mit der Ionenverdampfungsrate gewichtet**, um einen Faktor
-  8·10⁴ neben dem Cone-Jet-Strom. Das Cone-Jet-Modell ist nicht an den
-  Strahltransport gekoppelt.
-* **Negative Emission ist nicht umgesetzt.** Beide Polaritäten liefern
-  identischen Strom und identisches q/m.
+  angewandt. Higuera (2008) zeigt, dass im rein ionischen Regime der Strom von
+  der endlichen Leitfähigkeit kontrolliert wird; Collins et al. (2008) zeigen,
+  dass Tip Streaming im perfekt leitenden Grenzfall gar nicht auftritt. Die
+  ausgegebenen Ionenströme sind **keine Vorhersage** — `es_operate` sagt das
+  jetzt in jedem Lauf ausdrücklich.
+* **Der berechnete Umkehrpunkt ist kein Emissions-Onset.** Er heißt im Code
+  jetzt „static fold". Eine Stabilitätsanalyse findet nicht statt; ein Onset
+  darf erst nach physikalischem Nachweis ausgewiesen werden (Phase P3).
 * **Stoffdaten ohne Einzelnachweis.** Die Werte in `src/fluid.cpp` sind
-  literaturtypisch, aber nicht quellenbelegt und nicht zitierfähig.
-* **Empirische Korrelationen stehen gleichrangig neben feldgekoppelten
-  Rechnungen.** Die Cone-Jet-Formeln sind an ε_r ≳ 40 etabliert; ionische
-  Flüssigkeiten liegen bei ε_r ≈ 12.
+  literaturtypisch, aber nicht quellenbelegt und nicht zitierfähig (Phase P1).
+* **Die statische Rechnung löst die nm-Emissionsstruktur nicht auf**, aus der
+  im PIR tatsächlich emittiert wird.
+
+**Bewusst deaktiviert — schlägt geschlossen fehl statt scheinbar zu rechnen:**
+
+| Funktion | Verhalten | vorgesehen |
+|---|---|---|
+| Raumladung (`beam.space_charge_iters > 0`) | `NotImplementedInThisPhase`, Exit 3 | P4, Poisson-FEM/FVM mit PIC |
+| Tropfenstrahl (`beam.species = droplet\|both`) | `NotImplementedInThisPhase`, Exit 3 | P6, Kopplung an das Cone-Jet-Modell |
+| Negative Polarität (U < 0) | `NotImplementedInThisPhase`, Exit 3 | P4/P5, Anionenspezies |
+
+Das Ring-Makroteilchenmodell wurde **nicht** notdürftig regularisiert. Sein
+Eigenfeld divergiert weiterhin; genau das ist der Grund für die Sperre.
+
+**In P0 korrigiert:**
+
+* `solve_at_voltage` meldet Erfolg nur noch, wenn die gelieferte Spannung die
+  angeforderte trifft; sonst ein eindeutiger Status mit Ursache.
+* `find_static_fold` verlangt ein nachgewiesenes inneres Maximum. Ein einzelner
+  oder monotoner Ast liefert keinen Umkehrpunkt mehr.
+* Ausgabedateien tragen Anwendung, Zustand und Spannung im Namen plus einen
+  Provenienzkopf; `es_meniscus` und `es_beam` überschreiben einander nicht mehr.
+  Oberflächen- und Meshdaten gehören nachweislich zum ausgewiesenen Zustand.
+* Die emittierende Fläche ist das stetige Funktional
+  `A_eff = (∫j dA)² / ∫j² dA` statt einer Summe ganzer Elemente.
+* Netzkonvergenz wird für Faltenspannung, Apexfeld, Apexradius, Ionenstrom und
+  `A_eff` geprüft, nicht mehr nur für die Spannung.
+* Neu gefunden und behoben: `BemSolver::set_mesh` invalidierte die
+  Basislösung nicht, wodurch ein späteres `solve()` die Basis des alten Netzes
+  auf die neue Geometrie superponierte.
 
 ## 4. Netzerzeugung
 

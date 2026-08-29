@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Plot the CSV output of es_meniscus / es_field.
+"""Plot the CSV output of es_meniscus.
 
-    python python/plot.py out_capillary
+    python python/plot.py chk
 
-Reads <prefix>_branch.csv, <prefix>_shape_*.csv, <prefix>_surface.csv and
-<prefix>_mesh.csv, whichever exist.  Pure post-processing -- nothing here
-computes physics.
+File names carry application, state and voltage, e.g.
+    chk_meniscus_fold_U1180p2V_surface.csv
+so the files are located by glob rather than by a fixed name.  Pure
+post-processing -- nothing here computes physics.
 """
 import csv
+import glob
 import os
 import sys
 
@@ -18,7 +20,9 @@ def read_csv(path):
     if not os.path.exists(path):
         return None
     with open(path, newline="") as fh:
-        rows = list(csv.DictReader(fh))
+        # Output files carry a '#'-prefixed provenance header (application,
+        # state, voltage); skip it before the CSV starts.
+        rows = list(csv.DictReader(l for l in fh if not l.startswith("#")))
     if not rows:
         return None
     cols = {k: [] for k in rows[0]}
@@ -31,11 +35,17 @@ def read_csv(path):
     return cols
 
 
+def first(pattern):
+    hits = sorted(glob.glob(pattern))
+    return read_csv(hits[0]) if hits else None
+
+
 def main(prefix):
-    branch = read_csv(prefix + "_branch.csv")
-    surf = read_csv(prefix + "_surface.csv")
-    mesh = read_csv(prefix + "_mesh.csv")
-    shapes = [(lab, read_csv(f"{prefix}_shape_{lab}.csv")) for lab in ("onset", "last")]
+    branch = first(f"{prefix}_meniscus_branch*_branch.csv")
+    surf = first(f"{prefix}_meniscus_fold_*_surface.csv")
+    mesh = first(f"{prefix}_meniscus_fold_*_mesh.csv")
+    shapes = [(lab, first(f"{prefix}_meniscus_{lab}_*_shape.csv"))
+              for lab in ("fold", "last")]
     shapes = [(l, s) for l, s in shapes if s]
 
     npanel = sum(x is not None for x in (branch, surf)) + (1 if (mesh or shapes) else 0)
@@ -52,7 +62,7 @@ def main(prefix):
         a = next(ax)
         h = [x * 1e6 for x in branch["height"]]
         u = branch["voltage"]
-        conv = branch["converged"]
+        conv = [st == "converged" for st in branch["status"]]
         a.plot(h, u, "-", color="0.6", lw=1)
         a.plot([hi for hi, c in zip(h, conv) if c], [ui for ui, c in zip(u, conv) if c],
                "o", ms=4, label="konvergiert")
@@ -61,11 +71,11 @@ def main(prefix):
             a.plot(*zip(*bad), "x", ms=6, color="crimson", label="nicht konvergiert")
         imax = max(range(len(u)), key=lambda i: u[i] if conv[i] else -1e30)
         a.axhline(u[imax], ls="--", lw=0.8, color="crimson")
-        a.annotate(f"Onset {u[imax]:.0f} V", (h[imax], u[imax]),
+        a.annotate(f"statische Falte {u[imax]:.0f} V", (h[imax], u[imax]),
                    textcoords="offset points", xytext=(6, 8), color="crimson")
         a.set_xlabel("Apex-Höhe h  [µm]")
         a.set_ylabel("Spannung U  [V]")
-        a.set_title("Gleichgewichtsast U(h)\nMaximum = Onset, danach instabil")
+        a.set_title("Statischer Ast U(h)\nMaximum = statische Falte, KEIN Emissions-Onset")
         a.legend(fontsize=8)
         a.grid(alpha=0.3)
 
@@ -80,7 +90,7 @@ def main(prefix):
                 a.plot([r0 * 1e6, r1 * 1e6], [z0 * 1e6, z1 * 1e6], "-", color=c, lw=1.2)
         for lab, s in shapes:
             a.plot([r * 1e6 for r in s["r"]], [z * 1e6 for z in s["z"]], "-", lw=2,
-                   label={"onset": "am Onset", "last": "letzter Ast-Punkt"}[lab])
+                   label={"fold": "an der Falte", "last": "letzter Ast-Punkt"}[lab])
         a.set_xlabel("r  [µm]")
         a.set_ylabel("z  [µm]")
         a.set_title("Geometrie und Meniskusform (Zoom auf den Emitter)")
@@ -133,4 +143,4 @@ def main(prefix):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "out_capillary")
+    main(sys.argv[1] if len(sys.argv) > 1 else "out")

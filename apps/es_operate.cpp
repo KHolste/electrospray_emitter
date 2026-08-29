@@ -1,8 +1,11 @@
-// es_operate -- complete operating point of a wetted emitter at a given voltage.
+// es_operate -- non-coupled diagnostic estimate for a wetted emitter.
 //
-// Solves the meniscus that the applied voltage sustains, integrates the
-// Iribarne-Thomson rate over that surface, compares against the cone-jet
-// correlation at the requested flow rate, and reports thrust / Isp / efficiency.
+// This program does NOT compute an operating point.  It solves a static,
+// perfectly conducting, non-emitting meniscus at the requested voltage and then
+// applies the Iribarne-Thomson rate to that field.  In the pure ionic regime
+// the flow is viscosity-dominated and the current is controlled by the finite
+// conductivity (Higuera 2008), so the field used here is not the field that
+// would actually be present.  The self-consistent model is due in phase P5.
 
 #include <cstdio>
 #include <stdexcept>
@@ -17,14 +20,14 @@ using constants::pi;
 
 int main(int argc, char** argv) try {
   Config cfg;
-  // Files first, command line second: an override on the command line must win.
   const std::vector<std::string> rest = Config::positional_args(argc, argv);
   for (const std::string& a : rest) {
     if (a == "--help" || a == "-h") {
       std::printf("usage: es_operate [file.cfg] [key=value ...]\n\n"
-                  "Reports the full operating point at solve.voltage.\n"
-                  "Extra keys: operate.flow_rate (e.g. 0.5nL/s), operate.sweep_max,\n"
-                  "            operate.sweep_steps\n\n");
+                  "Reports a NON-COUPLED DIAGNOSTIC ESTIMATE at solve.voltage.\n"
+                  "Not an operating point, not a current prediction.\n"
+                  "Extra keys: operate.flow_rate (cone-jet correlation, printed\n"
+                  "            separately and marked empirical)\n\n");
       print_key_reference(stdout);
       return 0;
     }
@@ -36,104 +39,84 @@ int main(int argc, char** argv) try {
   MeniscusParams mp = meniscus_params_from(cfg, s);
   s.print(stdout);
 
+  // Refuse the unmodelled polarity here, with its own reason, rather than
+  // letting it surface later as an unrelated symptom.
+  require_modelled_polarity(s.voltage);
+
   const Real h_max = cfg.num("meniscus.h_max", 2.5) * mp.r_contact;
+  const std::string prefix = cfg.str("output.prefix", "out");
   MeniscusSolver solver(s.electrodes, mp);
 
-  // ---- locate the onset first: it bounds everything below ------------------
-  std::printf("\nlocating the onset ...\n");
+  std::printf("\nsuche den statischen Umkehrpunkt ...\n");
   const std::vector<MeniscusSolution> branch =
       solver.continuation(0.15 * mp.r_contact, h_max, cfg.integer("meniscus.steps", 20));
-  const MeniscusSolver::Onset on = MeniscusSolver::find_onset(branch);
-  if (!on.found) throw std::runtime_error("no onset found -- widen meniscus.h_max");
-  std::printf("  onset voltage         : %10.1f V\n", on.voltage);
-
-  auto report_at = [&](Real U) {
-    std::printf("\n=====================================================================\n");
-    std::printf("operating point at U = %.1f V   (%.1f %% of onset)\n", U, 100.0 * U / on.voltage);
-    std::printf("=====================================================================\n");
-    if (U > on.voltage) {
-      std::printf("  U exceeds the onset voltage: no static meniscus exists here.  The\n"
-                  "  liquid is emitting; use the cone-jet block below for the droplet\n"
-                  "  mode, and note that the static model cannot supply the apex field.\n");
-      return;
-    }
-    MeniscusSolution m = solver.solve_at_voltage(U, h_max);
-    if (!m.converged) {
-      std::printf("  meniscus did not converge at this voltage.\n");
-      return;
-    }
-    std::printf("\nmeniscus\n");
-    std::printf("  apex height           : %10.4g m  (= %.3f r_c)\n", m.shape.height,
-                m.shape.height / mp.r_contact);
-    std::printf("  apex radius           : %10.4g m  (= %.3f r_c)\n", m.shape.apex_radius,
-                m.shape.apex_radius / mp.r_contact);
-    std::printf("  apex field            : %10.4g V/m (= %.4f V/nm)\n", m.apex_field,
-                m.apex_field * 1e-9);
-    std::printf("  cone half-angle       : %10.2f deg\n", m.shape.half_angle * 180.0 / pi);
-
-    const IonEmission ion = integrate_ion_emission(solver.bem(), s.fluid, s.temperature,
-                                                  cfg.flag("operate.wetted_metal", false));
-
-    // Cone-jet comparison at the requested flow rate.
-    const Real Q = cfg.num("operate.flow_rate", 0.0);
-    ConeJetState cj;
-    const bool have_flow = (Q > 0.0);
-    if (have_flow) cj = cone_jet(s.fluid, Q);
-
-    std::vector<Species> mix;
-    if (ion.mdot > 0.0) mix.push_back({"ion clusters", ion.mdot, s.fluid.qm_cluster()});
-    if (have_flow && cj.qm > 0.0) mix.push_back({"droplets", cj.mdot, cj.qm});
-    BeamFigures fig;
-    if (!mix.empty()) fig = beam_figures(mix, U);
-
-    print_operating_point(stdout, s.fluid, have_flow ? &cj : nullptr, &ion,
-                          mix.empty() ? nullptr : &fig);
-
-    if (!mix.empty()) {
-      std::printf("\n  beam composition\n");
-      for (const Species& sp : mix)
-        std::printf("    %-14s mdot = %10.4g kg/s, q/m = %10.4g C/kg, I = %10.4g A\n",
-                    sp.name.c_str(), sp.mdot, sp.qm, sp.mdot * sp.qm);
-    }
-  };
-
-  report_at(s.voltage);
-
-  // ---- optional voltage sweep ---------------------------------------------
-  if (cfg.has("operate.sweep_max")) {
-    const Real v1 = cfg.num("operate.sweep_max", on.voltage);
-    const Real v0 = cfg.num("operate.sweep_min", 0.6 * on.voltage);
-    const int n = cfg.integer("operate.sweep_steps", 10);
-    const std::string path = cfg.str("output.prefix", "operate") + "_iv.csv";
-    std::FILE* f = std::fopen(path.c_str(), "w");
-    if (!f) throw std::runtime_error("cannot open " + path);
-    std::fprintf(f, "voltage,apex_height,apex_radius,apex_field,ion_current,emitting_area,"
-                    "thrust,Isp,converged\n");
-    std::printf("\nI-V sweep\n");
-    std::printf("  %10s %14s %14s %12s %10s\n", "U [V]", "E_apex [V/m]", "I_ion [A]", "F [uN]",
-                "Isp [s]");
-    for (int i = 0; i < n; ++i) {
-      const Real U = v0 + (v1 - v0) * i / std::max(1, n - 1);
-      MeniscusSolution m = solver.solve_at_voltage(U, h_max);
-      IonEmission ion{};
-      BeamFigures fig{};
-      if (m.converged) {
-        ion = integrate_ion_emission(solver.bem(), s.fluid, s.temperature,
-                                     cfg.flag("operate.wetted_metal", false));
-        if (ion.mdot > 0.0) fig = beam_figures({{"ion", ion.mdot, s.fluid.qm_cluster()}}, U);
-      }
-      std::fprintf(f, "%.9e,%.9e,%.9e,%.9e,%.9e,%.9e,%.9e,%.9e,%d\n", U, m.shape.height,
-                   m.shape.apex_radius, m.apex_field, ion.current, ion.emitting_area, fig.thrust,
-                   fig.Isp, m.converged ? 1 : 0);
-      std::printf("  %10.1f %14.4g %14.4g %12.4g %10.1f%s\n", U, m.apex_field, ion.current,
-                  fig.thrust * 1e6, fig.Isp, m.converged ? "" : "   (not converged)");
-    }
-    std::fclose(f);
-    std::printf("wrote %s\n", path.c_str());
+  const MeniscusSolver::StaticFold fold = MeniscusSolver::find_static_fold(branch);
+  if (!fold.found()) {
+    std::fprintf(stderr, "\nKEIN Umkehrpunkt nachgewiesen: %s\n  %s\n", to_string(fold.status),
+                 explain(fold.status));
+    return 2;
   }
+  std::printf("  Faltenspannung        : %10.1f V  (kein Emissions-Onset)\n", fold.voltage);
+
+  // --- meniscus at the requested voltage -----------------------------------
+  const Real U = s.voltage;
+  std::printf("\nloese den Meniskus bei U = %.1f V (%.1f %% der Faltenspannung) ...\n", U,
+              100.0 * U / fold.voltage);
+  MeniscusSolution m = solver.solve_at_voltage(U, h_max);
+  if (!m.ok()) {
+    std::fprintf(stderr, "\nKEINE verwertbare Loesung: %s\n  %s\n", to_string(m.status),
+                 explain(m.status));
+    if (m.status == SolveStatus::VoltageMismatch)
+      std::fprintf(stderr, "  angefordert %.1f V, erreicht %.1f V\n", m.target_voltage, m.voltage);
+    std::fprintf(stderr, "  Es werden keine Zahlen ausgegeben.\n");
+    return 2;
+  }
+  solver.realize(m);
+
+  std::printf("\nMeniskus (statisch, perfekt leitend, nicht emittierend)\n");
+  std::printf("  Apexhoehe             : %10.4g m  (= %.3f r_c)\n", m.shape.height,
+              m.shape.height / mp.r_contact);
+  std::printf("  Apexkruemmungsradius  : %10.4g m  (= %.3f r_c)\n", m.shape.apex_radius,
+              m.shape.apex_radius / mp.r_contact);
+  std::printf("  Apexfeld              : %10.4g V/m (= %.4f V/nm)\n", m.apex_field,
+              m.apex_field * 1e-9);
+  std::printf("  Kegelhalbwinkel       : %10.2f deg\n", m.shape.half_angle * 180.0 / pi);
+
+  // --- diagnostic estimate --------------------------------------------------
+  const IonEmission ion = integrate_ion_emission(solver.bem(), s.fluid, s.temperature,
+                                                 cfg.flag("operate.wetted_metal", false));
+  BeamFigures fig;
+  std::vector<Species> mix;
+  if (ion.mdot > 0.0) {
+    mix.push_back({"ion clusters", ion.mdot, s.fluid.qm_cluster()});
+    fig = beam_figures(mix, U);
+  }
+  print_diagnostic_estimate(stdout, s.fluid, &ion, mix.empty() ? nullptr : &fig);
+
+  const Real E_evap = characteristic_evaporation_field(s.fluid);
+  std::printf("\n  Einordnung: das Apexfeld betraegt %.3f V/nm, das Feld fuer G(E) = dG\n"
+              "  liegt bei %.3f V/nm (Verhaeltnis %.3f). Die statische Rechnung loest die\n"
+              "  nanometrische Emissionsstruktur nicht auf, aus der im PIR tatsaechlich\n"
+              "  emittiert wird.\n",
+              m.apex_field * 1e-9, E_evap * 1e-9, m.apex_field / E_evap);
+
+  // --- cone-jet correlation, entirely separate ------------------------------
+  const Real Q = cfg.num("operate.flow_rate", 0.0);
+  if (Q > 0.0) print_cone_jet_correlation(stdout, s.fluid, cone_jet(s.fluid, Q));
+
+  const std::string hdr =
+      meta_header("es_operate", "static_meniscus_at_requested_voltage", m.voltage,
+                  "diagnostic estimate only -- not an operating point");
+  write_shape_csv(m.shape, output_path(prefix, "operate", "meniscus", m.voltage, "shape"), hdr);
+  solver.bem().write_surface_csv(
+      output_path(prefix, "operate", "meniscus", m.voltage, "surface"), hdr);
+  std::printf("\ngeschrieben mit Praefix '%s'\n", prefix.c_str());
 
   cfg.warn_about_unused(stdout, {"beam."});
   return 0;
+} catch (const NotImplementedInThisPhase& e) {
+  std::fprintf(stderr, "\nes_operate: %s\n", e.what());
+  return 3;
 } catch (const std::exception& e) {
   std::fprintf(stderr, "es_operate: %s\n", e.what());
   return 1;

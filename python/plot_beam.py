@@ -6,6 +6,7 @@
 Reads <prefix>_paths.csv, <prefix>_rays.csv and <prefix>_mesh.csv.
 """
 import csv
+import glob
 import os
 import sys
 from collections import defaultdict
@@ -17,7 +18,9 @@ def read_csv(path):
     if not os.path.exists(path):
         return None
     with open(path, newline="") as fh:
-        rows = list(csv.DictReader(fh))
+        # Output files carry a '#'-prefixed provenance header (application,
+        # state, voltage); skip it before the CSV starts.
+        rows = list(csv.DictReader(l for l in fh if not l.startswith("#")))
     if not rows:
         return None
     cols = {k: [] for k in rows[0]}
@@ -30,12 +33,17 @@ def read_csv(path):
     return cols
 
 
+def first(pattern):
+    hits = sorted(glob.glob(pattern))
+    return read_csv(hits[0]) if hits else None
+
+
 def main(prefix):
-    paths = read_csv(prefix + "_paths.csv")
-    rays = read_csv(prefix + "_rays.csv")
-    mesh = read_csv(prefix + "_mesh.csv")
+    paths = first(f"{prefix}_beam_*_paths.csv")
+    rays = first(f"{prefix}_beam_*_rays.csv")
+    mesh = first(f"{prefix}_beam_*_mesh.csv")
     if not rays:
-        sys.exit(f"no {prefix}_rays.csv found")
+        sys.exit(f"no {prefix}_beam_*_rays.csv found")
 
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(11, 4.6))
 
@@ -94,4 +102,4 @@ def main(prefix):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1] if len(sys.argv) > 1 else "out_capillary")
+    main(sys.argv[1] if len(sys.argv) > 1 else "out")

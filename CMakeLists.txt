@@ -36,6 +36,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 add_library(es_core STATIC
+  src/status.cpp
   src/elliptic.cpp
   src/linalg.cpp
   src/fluid.cpp
@@ -61,7 +62,7 @@ endforeach()
 
 # ----------------------------------------------------------------------- tests
 enable_testing()
-foreach(t test_elliptic test_bem test_meniscus test_emission test_beam test_config)
+foreach(t test_elliptic test_bem test_meniscus test_emission test_beam test_config test_regressions)
   add_executable(${t} tests/${t}.cpp)
   target_link_libraries(${t} PRIVATE es_core)
   add_test(NAME ${t} COMMAND ${t})

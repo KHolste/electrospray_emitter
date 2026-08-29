@@ -23,6 +23,40 @@ Bohrung, 40 µm außen, Extraktor 500 µm entfernt, Apertur ∅ 400 µm, EMI-BF4
 | 10 | OpenMP + `-march=native` nicht als Compilerfehler abschließbar | **bestätigt; inzwischen aufgeklärt** | Die Kritik traf zu: der Punkt war unbelegt geschlossen. Inzwischen mit Minimalfall, Faktorexperiment (je 30 Läufe) und Disassemblat aufgeklärt — OpenMP ist unbeteiligt, Auslöser ist AVX-Stack-Ausrichtung. Siehe 1.2. |
 | 11 | Empirische Skalengesetze ≠ selbstkonsistente Betriebspunktrechnung | **bestätigt als Konstruktionsfehler** | `cone_jet()` ist eine reine Formelauswertung ohne Kopplung an Geometrie, Feld oder Meniskus. Sie steht im selben Ausgabeblock wie die feldgekoppelte Ionenrechnung, was Gleichrangigkeit suggeriert. |
 
+## 1.1b Stand nach Phase P0
+
+Alle elf Befunde sind testgetrieben bearbeitet. Die Tests liegen in
+`tests/test_regressions.cpp` und laufen dauerhaft mit.
+
+| # | Korrektur | Regressionstest |
+|---|---|---|
+| 1 | `solve_at_voltage` liefert `SolveStatus::Converged` nur, wenn die gelieferte Spannung die angeforderte innerhalb `voltage_tol` (rel. 1e-3) trifft. Nicht erreichbare Spannungen: `VoltageNotBracketed`. Vorher wurde bei 500 V eine Form zu 871,8 V als konvergiert gemeldet; jetzt wird 500 V tatsächlich getroffen, weil unterhalb des Scout-Bereichs weitergesucht wird. | B1 |
+| 2 | `find_onset` → `find_static_fold`. Verlangt mindestens drei konvergierte Punkte, ein **inneres** Maximum und strengen Anstieg davor und Abfall danach. Sonst `FoldStatus::TooFewPoints` / `Monotone` / `MaximumAtBoundary`. Der Test enthält den alten Algorithmus als Gegenprobe und zeigt, dass dieser genau die jetzt abgelehnten Fälle akzeptiert hätte. | B2 |
+| 3 | Dateinamen tragen Anwendung, Zustand und Spannung (`chk_meniscus_fold_U1179p1V_surface.csv`), dazu einen `#`-Provenienzkopf. `MeniscusSolver::realize()` versetzt den Löser vor jedem Schreiben nachweislich in den ausgewiesenen Zustand. | B3 |
+| 4, 5 | Raumladung schlägt geschlossen fehl (`NotImplementedInThisPhase`, Phase P4). Keine improvisierte Regularisierung; die Ringkerne bleiben als Testfall erhalten. | B4 |
+| 6 | Tropfen als eigene `SpeciesKind::Droplet`; jede Anforderung wird abgelehnt (Phase P6), auch im Mischbetrieb. | B6 |
+| 7 | `es_operate` behauptet keinen Betriebspunkt mehr. `print_operating_point` → `print_diagnostic_estimate` mit ausdrücklicher Kennzeichnung als nicht gekoppelte Abschätzung, Begründung über Higuera (2008) und Angabe der dG-Empfindlichkeit. | B7 |
+| 8 | Negative Polarität schlägt geschlossen fehl, mit eigener Begründung und vor der Meniskusrechnung. | B8 |
+| 9 | „99-%-Fläche" ersetzt durch das stetige Funktional `A_eff = (∫j dA)² / ∫j² dA`. Exakttest: für uniformes j (Kugel) ist `A_eff` die Gesamtfläche. Netzkonvergenz prüft jetzt Faltenspannung, Apexfeld, Apexradius, Ionenstrom und `A_eff`. | B9, test_meniscus |
+| 10 | `-march=native` bleibt abgeschaltet; Diagnose und Reproduktionsfall dokumentiert (1.2). Keine weitere Arbeit am Bugreport. | — |
+| 11 | Cone-Jet in eigenem Ausgabeblock, `ConeJetState::empirical`, Warnung bei ε_r < 40, ausdrücklicher Hinweis, dass die Werte nicht in den Strahltransport eingehen. | B11 |
+
+Ein überladenes `converged`-Flag gibt es nicht mehr: `MeniscusSolution::status`
+ist ein `SolveStatus`, und `ok()` ist der einzige zulässige Erfolgstest.
+
+### Neu gefunden während P0
+
+**`BemSolver::set_mesh` invalidierte die Basislösung nicht.** Ein anschließendes
+`solve()` fand `basis_` nicht leer und superponierte die Basisvektoren des
+**alten** Netzes auf die neue Geometrie. Aufgefallen ist es erst durch den
+B3-Test: `realize()` lieferte 1,49·10⁹ V/m statt 5,04·10⁷ V/m, also Faktor 29.
+
+Im Prototyp blieb der Fehler unbemerkt, weil die abschließende Feldauswertung in
+`solve_at_height` ein Netz benutzte, das sich vom vorhergehenden nur um einen
+Relaxationsschritt unterschied — der Fehler war klein und wanderte still in
+`apex_field` und `peak_field` jeder Lösung. `set_mesh` löscht jetzt Basis,
+Lösung und angelegte Potentiale.
+
 ### Zusatzbefund, nicht in der Liste
 
 **Ausgabepräfixe kollidieren.** `es_meniscus` und `es_beam` schreiben bei
