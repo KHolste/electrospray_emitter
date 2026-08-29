@@ -1,0 +1,9 @@
+# feste Auswertepunkte; clearance = Abstand zur naechsten unverrundeten Kante
+name,r_m,z_m,clearance_m,phi_V,Ez_V_per_m,Emag_V_per_m,note
+axis_2_bore_radii,0.000000000e+00,1.000000000e-05,1.118033989e-05,9.536072749e+02,3.285546044e+07,3.285618072e+07,"auf der Achse ueber der Referenzflaeche"
+axis_10_bore_radii,0.000000000e+00,5.000000000e-05,5.024937811e-05,4.503423630e+02,5.358300516e+06,5.358310257e+06,"auf der Achse"
+axis_gap_quarter,0.000000000e+00,1.250000000e-04,1.250999600e-04,2.352293467e+02,1.610784205e+06,1.610784746e+06,"Achse, ein Viertel der Extraktionsstrecke"
+axis_gap_mid,0.000000000e+00,2.500000000e-04,2.500499950e-04,1.121256627e+02,6.234522031e+05,6.234522562e+05,"Achse, halbe Extraktionsstrecke"
+axis_gap_three_quarter,0.000000000e+00,3.750000000e-04,2.358495283e-04,5.350769970e+01,3.544826519e+05,3.544826691e+05,"Achse, drei Viertel"
+flank_beside_taper,2.500000000e-05,-3.000000000e-05,3.354101966e-05,1.044754251e+03,4.293318203e+06,2.111144162e+07,"im Vakuum neben der Kegelflanke, auf halber Hoehe"
+off_axis_half_aperture,1.000000000e-04,2.500000000e-04,2.657066051e-04,1.042890633e+02,5.503864857e+05,5.694378134e+05,"ausserhalb der Achse"

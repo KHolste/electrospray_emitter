@@ -1,0 +1,20 @@
+# selbstbeschreibender Parametersatz des P2b-Modells, SI
+name,value_SI,unit,role
+phi_3,4.000000000e-05,m,Aussendurchmesser am Emitterfuss
+phi_1,2.000000000e-05,m,Aussendurchmesser der Stirnflaeche
+phi_2,1.000000000e-05,m,Bohrungsdurchmesser
+emitter_height,6.000000000e-05,m,axiale Laenge der Verjuengung
+extraction_distance,5.000000000e-04,m,Stirnebene bis Extraktor
+extractor_aperture_diameter,4.000000000e-04,m,
+extractor_thickness,1.000000000e-04,m,
+extractor_outer_radius,2.000000000e-03,m,Pflichtangabe
+liquid_feed_z,-2.000000000e-04,m,Lage der Zulaufgrenze; BEISPIELWERT, keine gemessene Abmessung
+domain_radius,1.200000000e-02,m,offene Rechendomaene
+domain_z_min,-5.000000000e-03,m,offene Rechendomaene
+domain_z_max,9.000000000e-03,m,offene Rechendomaene
+r_bore,5.000000000e-06,m,abgeleitet
+r_land,1.000000000e-05,m,abgeleitet
+r_foot,2.000000000e-05,m,abgeleitet
+r_aperture,2.000000000e-04,m,abgeleitet
+mesh_level,3,-,Netzstufe
+mesh_size_scale,3.535533906e-01,-,Groessenfeldfaktor 2^(-Stufe/2)

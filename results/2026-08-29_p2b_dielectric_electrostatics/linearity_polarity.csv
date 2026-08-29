@@ -1,0 +1,7 @@
+# Linearitaet und Polaritaetsumkehr des linearen Randwertproblems
+quantity,value
+max_rel_error_phi_scaled_2.5,1.121710132e-14
+max_rel_error_phi_reversed,0.000000000e+00
+Q_emitter_V,6.962768787e-12
+Q_emitter_2.5V,1.740692197e-11
+Q_emitter_minus_V,-6.962768787e-12

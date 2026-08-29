@@ -1,0 +1,12 @@
+# Pruefliste des Volumenvernetzers
+check,passed,measured,bound,note
+zeilen_auf_konstantem_z,1,0.000000000e+00,0.000000000e+00,"Voraussetzung der exakten Punktlokalisierung"
+jacobi_determinante_positiv,1,1.304415141e-14,0.000000000e+00,"kein verdrehtes Element"
+knoten_streng_monoton,1,0.000000000e+00,0.000000000e+00,"kein ueberschlagenes Gitter"
+rotationsvolumen_der_domaene,1,1.337395640e-15,1.000000000e-12,"Summe der Zellen = Zylinder"
+gebietsvolumen_liquid,1,2.008817800e-16,1.000000000e-11,"geschlossene Formel gegen Netzsumme"
+gebietsvolumen_emitter_solid,1,0.000000000e+00,1.000000000e-11,"geschlossene Formel gegen Netzsumme"
+gebietsvolumen_extractor_solid,1,1.163572201e-15,1.000000000e-11,"geschlossene Formel gegen Netzsumme"
+gebietszuordnung_geometrisch_geprueft,1,0.000000000e+00,0.000000000e+00,"Indexlogik gegen geschlossene Geometrie"
+elementgroessenverhaeltnis,1,1.116715590e+00,1.600000000e+00,"benachbarte Elementgroessen"
+keine_entarteten_zellen,1,0.000000000e+00,0.000000000e+00,"positives Rotationsvolumen ueberall"

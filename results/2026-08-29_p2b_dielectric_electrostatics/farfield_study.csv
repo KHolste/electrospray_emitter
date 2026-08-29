@@ -1,0 +1,7 @@
+# Der offene Rand: asymptotische Monopolbedingung gegen geerdete Huelle.
+# Die Differenz der beiden ist ein direktes Mass des Trunkierungsfehlers.
+domain_radius_m,phi_mid_asymptotic_V,phi_mid_grounded_V,Q_emitter_asymptotic_C,Q_emitter_grounded_C
+3.000000000e-03,1.127207199e+02,1.103211339e+02,6.959395710e-12,6.992668419e-12
+1.200000000e-02,1.124324361e+02,1.122714878e+02,6.962768787e-12,6.964826889e-12
+2.400000000e-02,1.124339472e+02,1.123748088e+02,6.963571810e-12,6.964319634e-12
+4.800000000e-02,1.124297097e+02,1.124041482e+02,6.963139833e-12,6.963461544e-12
