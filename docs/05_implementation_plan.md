@@ -283,8 +283,51 @@ Netzunabhängigkeit von Kapazität und kantenfernem Feld ist über vier Stufen
 gezeigt. Offen bleibt der Vergleich an Kugel und Rotationsellipsoid **auf dem
 P1-Netz** — die dortigen Testfälle laufen weiterhin auf den P0-Geometrien.
 
-**Gate P2b — offen.** Alle Fälle der Kategorie A der Validierungsmatrix
-bestanden, mit angegebenen Toleranzen.
+### P2b — dielektrische Elektrostatik des kapillaren Kunze-Emitters  *(erledigt)*
+
+**Korrektur des Modellvertrags, nicht Verfeinerung.** P2a behandelte den
+Emitterkörper als Metall. Der Emitter ist ein 3D-gedruckter, nichtleitender
+Photopolymer; auf Hochspannung liegt die ionische Flüssigkeit, und der Extraktor
+ist ein Polymerträger mit metallisierter Fläche. Vollständiges Audit, Verfahren,
+Materialwerte und Prüfliste: [08_dielectric_model.md](08_dielectric_model.md).
+
+Gebaut: `materials.hpp` (Wert + Herkunft + Status, IP-Q und IPx-Q registriert
+ohne Zahl), `axisym_fem.hpp` (achsensymmetrische Q1-FEM für ∇·(ε∇φ) = 0 mit
+Banddirektlöser und asymptotischem Fernrand), `volume_mesh.hpp`
+(blockstrukturierter, radial gewarpter Vernetzer aus den Geräteparametern),
+`dielectric_device.hpp` (Modellvertrag, `liquid_feed_boundary`, Metallisierung,
+Randbedingungs-Audit), `apps/es_dielectric.cpp`, `python/plot_dielectric.py`.
+Die BEM ist unverändert erhalten und dient als unabhängige Vergleichsrechnung.
+
+**Gate P2b — bestanden, mit einem ausdrücklich benannten offenen Befund.**
+Bestanden: geschichtete Dielektrika analytisch; 2πr-Gewichtung gegen den
+Koaxialkondensator und gegen $z^2-r^2/2$; Stetigkeit von φ (exakt) und von $D_n$
+(O(h), fallend); Linearität und Polaritätsumkehr auf Rundungsniveau; FEM gegen
+BEM bei ε_r = 1 auf 2,8·10⁻⁴ der Spannweite; Netzkonvergenz über fünf Stufen;
+Sensitivität gegenüber ε_r über einen aus Quellen begründeten Bereich; **null**
+festgehaltene Knoten auf allen benannten Polymerflächen, mit einem Gegentest,
+der einen absichtlich verfälschten Rollenvektor findet; 13/13 Tests ohne
+Regression.
+
+Ausdrücklich **nicht** bestanden und auch nicht behauptet:
+
+* ein konvergiertes Spitzenfeld an den unverrundeten Kanten — unverändert
+  gegenüber P2a, Verrundungsradien sind ein P3-Parameter;
+* **Trunkierungskonvergenz gegen die Lage der `liquid_feed_boundary`.** Eine
+  Verdopplung der modellierten Säulenlänge verfehlt die vorab festgelegten
+  Grenzen um mehr als eine Größenordnung. Ursache ist die Selbstkapazität der
+  energetisierten Flüssigkeitssäule, nicht der offene Rand (eine geerdete Hülle
+  ändert nichts). Es ist derselbe Mechanismus wie bei `emitter_back_length` in
+  P2a. Beheben würde ihn der in 04_geometry_model.md, 4.1, vorgesehene
+  **Emitterhalter auf Emitterpotential** — eine Geometrieentscheidung für eine
+  spätere Phase. Jede P2b-Zahl gilt für den angegebenen `liquid_feed_z`;
+* eine Aussage über den Emissionsbetrieb. Die Flüssigkeit ist ein idealer
+  Leiter; das Leaky-Dielectric-Verhalten unter Strom gehört zu P3/P4;
+* eine Validierung des SU-8-Werts. Der Nominalwert ist vorläufig.
+
+**Gate P2c — offen.** Verbleibende Fälle der Kategorie A (A6 Kugel im homogenen
+Feld, A10, A15, A17, A18) sowie die Frage, ob ein Emitterhalter die
+Zulauftrunkierung schließt.
 
 ---
 

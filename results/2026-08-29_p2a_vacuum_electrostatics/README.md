@@ -1,3 +1,33 @@
+# UEBERHOLT DURCH P2b — 2026-08-29
+
+> **Dieser Ordner beschreibt ein anderes Geraet als das, das modelliert werden
+> soll.** P2a behandelte den Emitterkoerper als **Metall**. Der kapillare
+> Kunze-Emitter ist ein 3D-gedruckter, **nichtleitender** Photopolymer; auf
+> Hochspannung liegt die ionische Fluessigkeit beziehungsweise ihr metallischer
+> Kontakt, und der Extraktor ist ein Polymertraeger mit metallisierter Flaeche.
+>
+> **Jede Zahl in diesem Ordner, in die der Emitterkoerper eingeht, ist damit
+> ueberholt** — nicht ungenauer, sondern fuer eine andere Anordnung gueltig. Das
+> betrifft Kapazitaetsmatrix, Emitterladung, Oberflaechenladungsdichte,
+> Spitzen- und Referenzfelder und die Trunkierungsstudie ueber
+> `emitter_back_length`, deren leitende Abschlussscheibe es im korrigierten
+> Modell nicht mehr gibt.
+>
+> **Was bestehen bleibt:** die BEM selbst und ihre analytischen Pruefungen. Sie
+> ist nicht geloescht und nicht ersetzt worden; sie dient in P2b als
+> unabhaengige Vergleichsrechnung fuer den Sonderfall eps_r = 1, rho_f = 0, und
+> die Uebereinstimmung dort ist besser als 3e-4 der angelegten Spannweite.
+>
+> **Was ebenfalls bestehen bleibt:** der Befund, dass die Laenge eines
+> energetisierten Leiters eine Abmessung des Modells ist und kein
+> Konvergenzparameter. P2b trifft denselben Mechanismus an der Zulaufgrenze
+> wieder.
+>
+> Korrigierter Modellvertrag und Audit: [docs/08_dielectric_model.md](../../docs/08_dielectric_model.md).
+> Aktueller Ergebnisordner: [../2026-08-29_p2b_dielectric_electrostatics/](../2026-08-29_p2b_dielectric_electrostatics/).
+
+---
+
 # P2a — statische Vakuum-Elektrostatik auf der P1-Geometrie — 2026-08-29
 
 Alle Daten und Abbildungen in diesem Ordner sind in diesem Lauf frisch erzeugt,

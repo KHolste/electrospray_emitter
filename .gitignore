@@ -6,6 +6,13 @@ out_*
 *.png
 __pycache__/
 
+# Quellendokumente, die nicht zum Projekt gehoeren: eine Dissertation ist eine
+# Literaturstelle, kein Artefakt dieses Repositoriums, und sie hier abzulegen
+# waere eine Weiterverbreitung. Zitiert wird sie in docs/references.md.
+# Ohne diesen Eintrag wuerde python/provenance.py den Arbeitsbaum als DIRTY
+# stempeln und jede Abbildung als nicht freigegeben markieren.
+KunzeFynn-*.pdf
+
 # Ergebnisordner sind bewusst versioniert (siehe results/*/README.md)
 !results/**/*.csv
 !results/**/*.png

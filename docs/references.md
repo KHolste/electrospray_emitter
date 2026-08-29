@@ -244,6 +244,47 @@ Maxwell-Spannungstensor, Randbedingungen an Leitern.
 
 ---
 
+## Dielektrische Eigenschaften von SU-8 — trägt das P2b-Materialmodell
+
+Diese vier Quellen tragen den in `include/es/materials.hpp` eingetragenen Wert
+und, wichtiger, seine **Einschränkung**. Keine von ihnen gibt eine statische
+Permittivität für einen zweiphotonengedruckten, hartgebackenen Teil im Vakuum;
+alle messen bei 1 GHz oder darüber. Deshalb ist der verwendete Wert
+ausdrücklich als **vorläufig** geführt und wird von einer Sensitivitätsrechnung
+begleitet (siehe [08_dielectric_model.md](08_dielectric_model.md), 8.3).
+
+**B I** **Ghalichechian, N. & Sertel, K. (2015).** *Permittivity and loss
+characterization of SU-8 films for mmW and terahertz applications.* IEEE
+Antennas and Wireless Propagation Letters **14**, 723–726.
+doi:10.1109/LAWP.2014.2377695 — vollständig vernetzter 430-µm-Film,
+ε_r = 3,24 / 3,23 / 2,92 bei 1 GHz / 200 GHz / 1 THz.
+
+**B I** **Melai, J., Salm, C., Smits, S., Visschers, J. & Schmitz, J. (2009).**
+*The electrical conduction and dielectric strength of SU-8.* Journal of
+Micromechanics and Microengineering **19**, 065012.
+doi:10.1088/0960-1317/19/6/065012 — Durchschlagfestigkeit 4,4 MV/cm, Leckstrom
+thermionisch dominiert. Trägt die Prämisse, dass SU-8 bei den auftretenden
+Feldern ein Isolator ist.
+
+**B** MicroChem / Kayaku Advanced Materials, **Datenblatt *SU-8 3000 Permanent
+Epoxy Negative Photoresist***, Eigenschaftstabelle: Dielektrizitätszahl 3,28
+bei **1 GHz**, Durchgangswiderstand 7,8·10¹⁴ Ω·cm. Herstellerdokument, keine
+Messbedingungen jenseits der Frequenz angegeben.
+
+**B** MicroChem / Kayaku Advanced Materials, **Datenblatt *SU-8 2000***:
+Dielektrizitätszahl 4,1 bei **1 GHz**, 50 % relative Feuchte. Herstellerdokument;
+der Wert wurde aus Sekundärwiedergaben der Eigenschaftstabelle übernommen, das
+Datenblatt selbst war nicht direkt abrufbar — deshalb **B** und nicht **B I**.
+
+**Kunze, F. (2024).** Dissertation, Justus-Liebig-Universität Gießen. Nennt
+SU-8, IP-Q und IPx-Q als verwendete Harze und die kleine Geometriegeneration
+(Kapillaren um 8–10 µm) als in SU-8 gefertigt. **Enthält keine dielektrischen
+Daten** — der Volltext führt weder „permittivity" noch „dielectric constant".
+Für IP-Q und IPx-Q liegt damit überhaupt kein Wert vor; sie sind im Code
+registriert, tragen bewusst keine Zahl und brechen bei Verwendung ab.
+
+---
+
 ## Stoffdaten ionischer Flüssigkeiten — noch zu erschließen
 
 Für den in Phase P1 vorgesehenen Umbau von `src/fluid.cpp` auf Werte mit Quelle

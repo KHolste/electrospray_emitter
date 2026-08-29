@@ -102,6 +102,26 @@ abgeleitet werden darf.
 
 ## 7.3 Entscheidung — Volumenvernetzung: Frist vor P3, nicht P4
 
+> **Nachtrag 2026-08-29 (P2b): das Verfahren für die STATISCHE Geometrie ist
+> getroffen, die Frist bleibt.** Gebaut ist ein *blockstrukturierter, radial
+> gewarpter* Vernetzer, `include/es/volume_mesh.hpp`, der eine reine Funktion
+> der Geräteparameter ist. Er verletzt keine der beiden Bindungen unten: er ist
+> **kein** allgemeiner unstrukturierter Vernetzer (kein Delaunay, kein Octree,
+> keine Qualitätsgarantien für beliebige Eingaben — er kennt genau diese
+> Geometrieklasse), und er führt **keine** externe Abhängigkeit ein. Weil die
+> einzige nicht achsenparallele Grenze dieses Geräts die gerade Kegelflanke ist,
+> genügt ein Tensorproduktgitter, dessen Radien so verzerrt sind, dass eine
+> Gitterlinie exakt auf der Flanke liegt; jede Materialgrenze fällt damit exakt
+> auf Gitterlinien, und jedes Gebietsvolumen wird exakt reproduziert.
+>
+> **Die Frist aus diesem Abschnitt ist damit nicht erledigt.** Dieser Vernetzer
+> adaptiert nicht, verfeinert nicht a posteriori und führt keine bewegte freie
+> Oberfläche. P3 braucht alle drei. Die Entscheidung unten ist weiterhin vor
+> Beginn von P3 zu treffen; der hier gebaute Vernetzer ist billig wegzuwerfen.
+>
+> Begründung, Prüfliste und die beiden beim Bau gemessenen Fehler:
+> [08_dielectric_model.md](08_dielectric_model.md), Abschnitt 8.5.
+
 **Getroffen ist die Frist, nicht das Verfahren.**
 
 Die frühere Fassung dieses Dokuments schlug vor, die Volumenfrage bis P4

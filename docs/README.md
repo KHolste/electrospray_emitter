@@ -14,7 +14,8 @@ Dokumente hier beschreiben, was fehlt, was falsch ist und was gebaut werden soll
 | [04_geometry_model.md](04_geometry_model.md) | Parametrisches Geometriemodell zur Skizze |
 | [05_implementation_plan.md](05_implementation_plan.md) | Stufenplan mit Freigabe-Gates |
 | [06_validation_matrix.md](06_validation_matrix.md) | Analytische, numerische, experimentelle Referenzen |
-| [07_mesher_decision.md](07_mesher_decision.md) | Vernetzung: Randvernetzer entschieden und gebaut, Volumenfrage vor P3 |
+| [07_mesher_decision.md](07_mesher_decision.md) | Vernetzung: Randvernetzer entschieden und gebaut; Volumenvernetzung in P2b entschieden (siehe 08) |
+| [08_dielectric_model.md](08_dielectric_model.md) | P2b: korrigierter dielektrischer Modellvertrag, Materialwerte, Volumenvernetzung, offener Befund zur Zulaufgrenze |
 | [references.md](references.md) | Literaturverzeichnis mit Prüfstatus |
 
 ---

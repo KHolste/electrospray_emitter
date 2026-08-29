@@ -25,10 +25,15 @@ Statusspalte: `offen` / `geprüft (Abweichung)` / `fehlgeschlagen`.
 | A2 | Kapazität isolierte Kugel | $4\pi\varepsilon_0R$ | 10⁻⁴ | P2 | geprüft (2,5·10⁻⁶) |
 | A3 | Spitzenfeld Rotationsellipsoid | prolat-sphäroidale Lösung | 10⁻³ | P2 | geprüft (1,8·10⁻³, Aspekt 20) |
 | A4 | Feldverteilung Rotationsellipsoid, elementweise | dito, $E_n(\eta)$ | 5·10⁻³ | P2 | geprüft (1,8·10⁻³) |
-| A5 | Kapazität koaxiale Zylinder | $2\pi\varepsilon_0 L/\ln(b/a)$ | 10⁻³ | P2 | offen |
+| A5 | Kapazität koaxiale Zylinder | $2\pi\varepsilon_0 L/\ln(b/a)$ | 10⁻³ | P2 | geprüft (6,3·10⁻⁶, P2b-FEM) |
+| A5b | Koaxial mit **zwei Dielektrikumsschichten** | $2\pi L/\big[\ln(c/a)/\varepsilon_1+\ln(b/c)/\varepsilon_2\big]$ | 10⁻³ | P2b | geprüft (6,3·10⁻⁶) |
+| A5c | Axial geschichtetes Dielektrikum, Q1 exakt | $\varepsilon_0\pi R^2/\big[c/\varepsilon_1+(h-c)/\varepsilon_2\big]$ | 10⁻¹² | P2b | geprüft (1,6·10⁻¹⁴) |
+| A5d | Stetigkeit von $D_n$ an der Materialgrenze | $\varepsilon_1E_1=\varepsilon_2E_2$ | O(h), fallend | P2b | geprüft (8,3·10⁻³ → 4,2·10⁻³) |
+| A5e | Achsensymmetrisch harmonisch, $z^2-r^2/2$ | exakte Lösung; prüft die 2πr-Gewichtung | O(h²) | P2b | geprüft (Ordnung 1,9) |
 | A6 | Kugel im homogenen Feld | $E_\mathrm{max}=3E_0$ | 10⁻³ | P2 | offen |
 | A7 | Randbedingungsresiduum | Dirichletdaten an Kollokationspunkten | 10⁻¹⁰ | P2 | geprüft (1,5·10⁻¹⁵) |
 | A8 | Fernfeld-Monopol | $Q/4\pi\varepsilon_0R$ | 10⁻² | P2 | geprüft (10⁻³) |
+| A8b | FEM gegen BEM, $\varepsilon_r=1$, kantenfern | unabhängiges Verfahren ohne Trunkierungsrand | 10⁻² | P2b | geprüft (2,8·10⁻⁴ in φ, 4,4·10⁻³ in \|E\|) |
 | A9 | Meniskus ohne Feld | Kugelkappe $R=2\gamma/\Delta p$ | 10⁻⁵ | P3 | geprüft (4·10⁻⁶) |
 | A10 | Hängender Tropfen ohne Feld | Bashforth-Adams-Tafeln | 10⁻³ | P3 | offen |
 | A11 | Taylor-Kegelwinkel | 49,29°, Nullstelle von $P_{1/2}(\cos\theta)$ | 0,2° | P3 | geprüft (49,16°) — **siehe Anmerkung** |
