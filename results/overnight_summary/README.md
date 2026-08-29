@@ -1,11 +1,11 @@
 # Nachtlauf 2026-08-29/30 — Übersicht
 
-20 lokale Commits, **nichts gepusht**. Vollständiger Build aus sauberem
+21 lokale Commits, **nichts gepusht**. Vollständiger Build aus sauberem
 Zustand: fehlerfrei. `ctest`: **26/26 grün**. Sanitizerlauf unter WSL
 (GCC 13.3, ASan + UBSan, `detect_leaks=1`): **26/26 grün**, 385 s.
 
-`origin/main` steht auf `a932ff1`; HEAD ist **22 Commits voraus** (die zwei
-P3b-Commits `0677e3b` und `6dc833b` plus die 20 dieses Laufs).
+`origin/main` steht auf `a932ff1`; HEAD ist **23 Commits voraus** (die zwei
+P3b-Commits `0677e3b` und `6dc833b` plus die 21 dieses Laufs).
 
 ## Die Punkte
 
