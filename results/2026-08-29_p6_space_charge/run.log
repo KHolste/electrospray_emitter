@@ -1,0 +1,17 @@
+P6 -- Poisson mit freier Raumladung auf dem achsensymmetrischen Volumennetz
+
+DIE LADUNGSVERTEILUNG IST EINE VORGESCHRIEBENE TESTQUELLE.  P5 ist
+blockiert, es gibt keine physikalische Teilchenquelle, und aus keiner Zahl
+dieses Laufs darf ein emittierter Strom gelesen werden.
+
+Kein Ringmodell: die Ladung wird mit den Formfunktionen auf die Knoten
+deponiert und geht in den FEM-Lastvektor.  Die Loesung ist stueckweise
+bilinear und hat gar keine Singularitaet, die regularisiert werden muesste.
+  manufactured.csv geschrieben
+
+  Testquelle: 400 Makropartikel, Summe 0.000000 C, deponiert 0.000000 C, Erhaltungsfehler 0.000000
+  Potentialverschiebung gegen rho = 0: 16.949945 V; Feldverschiebung 1706040.489164 V/m
+  fields.csv geschrieben
+  conservation.csv und approach.csv geschrieben
+
+Alle deklarierten Pruefungen dieses Laufs bestanden.

@@ -1,0 +1,10 @@
+# Ladungserhaltung der Deposition ueber die Netzstufen, und das
+# Spitzenpotential eines EINZELNEN Makropartikels.  Letzteres waechst
+# unter Verfeinerung: das Selbstfeld ist eine NETZGROESSE.  Eine
+# PIC-Schleife darf ein Teilchen sein eigenes deponiertes Feld nicht
+# ungefiltert fuehlen lassen.
+nr,nz,n_nodes,deposited_C,particles_C,conservation_error,partition_of_unity_error,single_particle_peak_phi_V
+21,41,861,2.000000000e-14,2.000000000e-14,4.575393250e-15,2.220446049e-16,1.938016022e+00
+41,81,3321,2.000000000e-14,2.000000000e-14,5.048709793e-15,2.220446049e-16,2.222398144e+00
+81,161,13041,2.000000000e-14,2.000000000e-14,3.944304526e-15,2.220446049e-16,2.505995836e+00
+161,321,51681,2.000000000e-14,2.000000000e-14,4.733165431e-15,2.220446049e-16,2.789366718e+00

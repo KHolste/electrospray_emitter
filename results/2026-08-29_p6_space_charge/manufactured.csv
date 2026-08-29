@@ -1,0 +1,12 @@
+# Hergestellte Poisson-Loesung:
+#   phi = phi0 (R^2-r^2)(L^2-z^2)/(R^2 L^2),
+#   rho = -eps0 lap phi = (2 eps0 phi0/(R^2 L^2)) [2(L^2-z^2)+(R^2-r^2)].
+# Der Feldfehler ist NACH RADIUS getrennt: die volumengewichtete
+# Knotenrekonstruktion traegt in Achsensymmetrie einen Faktor 2 pi r und
+# ist deshalb achsennah nur erster Ordnung.  Ein einziger Wert fuer das
+# ganze Gebiet wuerde das verstecken.
+nr,nz,n_nodes,h_over_R,phi_error,E_error_far,E_error_near
+21,41,861,5.000000000e-02,2.014633088e-03,5.984336439e-03,6.656965866e-02
+41,81,3321,2.500000000e-02,5.759248856e-04,1.497717007e-03,3.332090649e-02
+81,161,13041,1.250000000e-02,1.620375202e-04,3.745320114e-04,1.666507571e-02
+161,321,51681,6.250000000e-03,4.502252203e-05,9.363946926e-05,8.333129763e-03

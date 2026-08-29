@@ -1,0 +1,14 @@
+app=es_space_charge (P6)
+phase=P6
+status=validated_subset
+commit=8de4558e2c42cef127c4d010f7e5f7cd3a31834b
+box_radius_m=2.000000000e-05
+box_half_length_m=4.000000000e-05
+box_voltage_V=2.500000000e+02
+n_particles=400
+total_charge_C=2.000000000e-14
+conservation_error=4.890937612e-15
+max_potential_shift_V=1.694994534e+01
+max_field_shift_V_per_m=1.706040489e+06
+source=prescribed test source; P5 is blocked, there is no physical particle source
+exit_code=0

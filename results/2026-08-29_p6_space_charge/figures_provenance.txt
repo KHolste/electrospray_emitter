@@ -1,0 +1,16 @@
+stamp=8de4558e2c42
+head_commit=8de4558e2c42cef127c4d010f7e5f7cd3a31834b
+data_commit=8de4558e2c42cef127c4d010f7e5f7cd3a31834b
+working_tree_dirty=no
+releasable=yes
+ignored_prefix=results/2026-08-29_p6_space_charge
+ignored_file=results/2026-08-29_p6_space_charge/README.md
+ignored_file=results/2026-08-29_p6_space_charge/approach.csv
+ignored_file=results/2026-08-29_p6_space_charge/conservation.csv
+ignored_file=results/2026-08-29_p6_space_charge/fields.csv
+ignored_file=results/2026-08-29_p6_space_charge/fig1_space_charge.png
+ignored_file=results/2026-08-29_p6_space_charge/fig2_checks.png
+ignored_file=results/2026-08-29_p6_space_charge/figures_provenance.txt
+ignored_file=results/2026-08-29_p6_space_charge/manufactured.csv
+ignored_file=results/2026-08-29_p6_space_charge/meta.txt
+ignored_file=results/2026-08-29_p6_space_charge/run.log
