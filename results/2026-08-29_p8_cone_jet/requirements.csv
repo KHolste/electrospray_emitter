@@ -1,0 +1,11 @@
+# Welches Teilmodell eine Cone-Jet-Rechnung braucht, und ob dieses
+# Projekt es hat.  Die Verfuegbarkeit ist gegen die anderen Phasen
+# gemessen, nicht behauptet.
+requirement,available,provided_by,why
+"Zweiphasenstroemung mit freier Oberflaeche",no,"fehlt; P4 spezifiziert den Vertrag (docs/15)","Ein Cone-Jet HAT einen Jet: ein schlankes geladenes Filament, das in Tropfen zerfaellt.  Ohne einen Loeser fuer die Innenstroemung mit beweglicher Oberflaeche gibt es weder Jet noch Zerfall."
+"endliche Leitfaehigkeit mit Oberflaechenladungstransport",no,"fehlt; P3 spezifiziert den Vertrag (docs/14, 14.5)","Der Strom eines Cone-Jets wird vom Leitungsstrom in den Jet hinein und von der Konvektion der Flaechenladung getragen.  Im Perfect-Conductor-Grenzfall existiert die dafuer noetige tangentiale Traktion q_s E_t nicht einmal."
+"belegte relative Permittivitaet",no,"MissingMaterialData (P2, docs/13)","Sie geht in die Ladungsrelaxationszeit und in jede elektrohydrodynamische Laenge ein."
+"belegte Leitfaehigkeit",yes,"P2, gewaehlte Quelle mit Methode, Reinheit und Wassergehalt","dieselbe Rolle wie die Permittivitaet."
+"belegte Oberflaechenspannung, Dichte, Viskositaet",yes,"P2","Sie setzen alle kapillaren und viskosen Zeitskalen."
+"Zerfallsmodell des Jets",no,"fehlt; P4 ist infrastructure_only","Der Tropfendurchmesser folgt aus einer Instabilitaet des Jets, nicht aus dem Jet selbst.  Ohne Zeitintegration einer freien Oberflaeche gibt es das nicht."
+"gepruefte empirische Skalierung",no,"nicht geprueft","Zulaessig nur nach Pruefung von Originalgleichung, Erratum, Vorfaktor und Gueltigkeitsbereich an der Quelle.  In diesem Lauf war weder Ganan-Calvo (1997) noch das Erratum (2000) im Volltext erreichbar."

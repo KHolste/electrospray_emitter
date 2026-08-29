@@ -1,0 +1,21 @@
+P8 -- Cone-Jet und Tropfenbetrieb.  Status: BLOCKED.
+
+STRIKT GETRENNT von der Pure-Ion-Emission (P5) und vom statischen
+Meniskus (P3a/P3b).  Ein Cone-Jet HAT einen Jet; ein gepinnter statischer
+Meniskus hat keinen.  Die beiden sind verschiedene Zustaende derselben
+Fluessigkeit und lassen sich nicht auseinander berechnen.
+
+  Der Cone-Jet-Strom ist in dieser Phase nicht implementiert und wurde deshalb abgelehnt.
+  Grund : Zwei getrennte Gruende, und keiner davon ist Zeitmangel.  ERSTENS ist der Modus physikalisch nicht gerechnet: ein Cone-Jet hat einen Jet, und dafuer braucht es die Zweiphasenstroemung mit freier Oberflaeche und den Oberflaechenladungstransport, die P3 und P4 als fehlend festgestellt haben.  ZWEITENS wird auch die empirische Skalierung nicht uebernommen: der Auftrag erlaubt das nur nach Pruefung von Originalgleichung, Erratum, Vorfaktor und Gueltigkeitsbereich an der Quelle, und in diesem Lauf war weder Ganan-Calvo, Phys. Rev. Lett. 79, 217 (1997), noch das Erratum, Phys. Rev. Lett. 85, 4193 (2000), im Volltext erreichbar.  Zahlen aus Suchtreffer-Schnipseln gelten in diesem Projekt nicht als Quelle.  Der alte ConeJetModel in emission.hpp bleibt unangetastet und wird von hier aus nicht benutzt.
+  Geplant: nach einer Zweiphasenstroemung mit freier Oberflaeche, einem Oberflaechenladungstransport und einem geprueften Zerfallsmodell; der Vertrag steht in docs/19_cone_jet.md
+  Siehe docs/05_implementation_plan.md.
+
+  requirements.csv: 5 Teilmodelle fehlen.
+  Cone-Jet-Diagnose: MissingMaterialData
+    Stoffwerte: gamma measured, rho measured, mu measured, K measured, eps_r MissingMaterialData
+    Zeitskalen [s]: tau_e nan, kapillar 1.7218e-06, viskos 3.3670e-06, Verweilzeit 5.2360e-03
+    Laengen [m]: a 5.0000e-06, r* nan
+    dimensionslos: Oh 1.9555e+00, Bo_E 1.0246e+00, Re 4.4842e-04, Ca 8.5740e-04
+    Eine Stoffgroesse, die die Diagnose braucht, ist MissingMaterialData.  Es wird kein Ersatzwert gesetzt; die betroffenen Kennzahlen bleiben nan.  Fehlend: eps_r  -- die davon abhaengigen Kennzahlen bleiben nan.
+
+Die Verweigerung haelt; es wurde kein Strom und kein Tropfendurchmesser erzeugt.

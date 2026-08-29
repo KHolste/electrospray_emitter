@@ -1,0 +1,14 @@
+stamp=42744536afd5
+head_commit=42744536afd58293af515d5681cc181e2487ee34
+data_commit=42744536afd58293af515d5681cc181e2487ee34
+working_tree_dirty=no
+releasable=yes
+ignored_prefix=results/2026-08-29_p8_cone_jet
+ignored_file=results/2026-08-29_p8_cone_jet/README.md
+ignored_file=results/2026-08-29_p8_cone_jet/diagnosis.csv
+ignored_file=results/2026-08-29_p8_cone_jet/electric_bond.csv
+ignored_file=results/2026-08-29_p8_cone_jet/fig1_status.png
+ignored_file=results/2026-08-29_p8_cone_jet/figures_provenance.txt
+ignored_file=results/2026-08-29_p8_cone_jet/meta.txt
+ignored_file=results/2026-08-29_p8_cone_jet/requirements.csv
+ignored_file=results/2026-08-29_p8_cone_jet/run.log
