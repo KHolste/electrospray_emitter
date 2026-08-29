@@ -53,6 +53,11 @@ enum class BoundaryId {
   FreeSurfaceReference,   ///< flat plane closing the liquid column at z = 0
   LiquidInlet,            ///< upstream cut through the liquid column
   ExtractorSurface,       ///< aperture wall and the two faces of the electrode
+  /// NOT a part of the device.  The disc that closes the emitter conductor at
+  /// the rear end of its NUMERICAL continuation, so that the boundary-integral
+  /// formulation sees a closed perfect conductor instead of an open sheet.
+  /// It is never a computational-domain edge and never a real component.
+  NumericalEmitterBackClosure,
   OpenBoundary,           ///< outer edges of the computational domain
 };
 const char* to_string(BoundaryId b);
@@ -64,6 +69,11 @@ enum class FeatureId {
   EmitterOuterEdge,           ///< outer edge of the tip land
   ExtractorApertureEdgeFront, ///< aperture edge on the emitter-facing side
   ExtractorApertureEdgeBack,
+  /// Rim where the numerical rearward continuation meets its closing disc.
+  /// An artefact of the closure, not a device edge: it exists only so that the
+  /// conductor is closed, it lies far behind the physically evaluated region,
+  /// and no field value from it is ever reported.
+  NumericalBackClosureEdge,
 };
 const char* to_string(FeatureId f);
 
@@ -95,6 +105,47 @@ struct DeviceParameters {
   ///
   /// The value below is an EXAMPLE VALUE, not a measured dimension.
   Real extractor_outer_radius{2.0e-3};
+
+  /// Axial length of the modelled emitter conductor behind the tip plane z = 0
+  /// [m].  A DIMENSION OF THE DEVICE, and mandatory for every P2a result.
+  ///
+  ///   0  -- off.  The emitter solid and the liquid column then run down to
+  ///         domain_z_min and are cut there, exactly as in P1: the conductor
+  ///         ends as an OPEN sheet.  That is a legitimate geometric sketch, but
+  ///         it is not a boundary-integral conductor, and vacuum_bem_mesh()
+  ///         refuses it.
+  ///   > 0 -- the emitter solid and the liquid column end at z = -this value and
+  ///         are closed there by a full conducting disc from r = 0 out to the
+  ///         foot radius, tagged NumericalEmitterBackClosure.
+  ///
+  /// WHY IT IS A GEOMETRY PARAMETER AND NOT A CONVERGENCE KNOB.  The intention
+  /// was the opposite: extend the conductor backwards far enough that the local
+  /// tip field stops moving, quote the local field, and admit only the total
+  /// capacitance as length dependent.  The measurement says that is not
+  /// available in this model.  Doubling the length from 200 um to 3.2 mm moves
+  /// E_z at the axial reference point by 5.6, 4.0, 2.5 and 1.5 per cent per
+  /// doubling -- a 1/L tail that would need centimetres of emitter to reach one
+  /// part in a thousand -- and moves c_EX by about a third per doubling with no
+  /// sign of settling at all.
+  ///
+  /// The reason is in the boundary condition, not in the discretisation.  With
+  /// V -> 0 at infinity and only two conductors, the system carries net charge:
+  /// there is no return electrode and no enclosure anywhere in the model, so a
+  /// longer emitter simply holds more charge, and that charge is felt at the tip
+  /// as well as at the extractor.  Truncating the conductor is therefore not a
+  /// numerical detail that can be made to disappear; it fixes a dimension of the
+  /// device.  Whether the local field becomes insensitive once a grounded
+  /// enclosure is present is a question for the phase that adds one.
+  ///
+  /// Consequence for the results: NOTHING in P2a is truncation-converged.
+  /// E_z(ref), c_EX, C_m and c_EE are all reported as functions of this
+  /// parameter, and the value used is an EXAMPLE VALUE, not a measured
+  /// dimension -- exactly like extractor_outer_radius above.
+  ///
+  /// The closing disc itself remains numerical and is tagged as such: a flat cap
+  /// is a stand-in for whatever really terminates the emitter, its rim is marked
+  /// as a non-evaluable edge, and no field is ever read off it.
+  Real emitter_back_length{0.0};
 
   // --- reserved for later phases -------------------------------------------
   //
@@ -164,6 +215,17 @@ class DeviceGeometry {
   Real cone_half_angle() const;      ///< of the outer taper [rad]
   Real extractor_outer_radius() const;
   Real domain_revolved_volume() const;
+
+  /// Is the emitter conductor closed by the numerical rearward continuation?
+  bool has_back_closure() const { return p_.emitter_back_length > 0.0; }
+  /// z of the closing disc [m].  Throws if there is no closure.
+  Real back_closure_z() const;
+  /// Rear limit of the region in which a field value is a physical result.
+  /// The taper foot: everything behind it is a shank of arbitrary, numerically
+  /// chosen length and carries no device meaning.
+  Real evaluation_z_min() const { return -p_.emitter_height; }
+  /// Axial distance between the closing disc and that region [m].
+  Real back_closure_clearance() const;
 
   void print(std::FILE* out) const;
   /// Write the geometry as CSV into `dir` for plotting.  Nothing is read back.

@@ -42,9 +42,13 @@ const char* boundary_long_name(BoundaryId b) {
       return "Zulaufschnitt durch die Fluessigkeitssaeule";
     case BoundaryId::ExtractorSurface:
       return "Extraktorflaechen und Aperturwand";
-    default:
+    case BoundaryId::NumericalEmitterBackClosure:
+      return "NUMERISCHE Rueckschliessung des Emitterleiters "
+             "- kein Bauteil, kein Domaenenrand";
+    case BoundaryId::OpenBoundary:
       return "offener Domaenenrand";
   }
+  return "offener Domaenenrand";
 }
 
 // ---------------------------------------------------------------------------
@@ -855,7 +859,8 @@ void BoundaryMesh::print(std::FILE* out, const DeviceGeometry& g) const {
   for (BoundaryId id : {BoundaryId::SymmetryAxis, BoundaryId::EmitterOuterSurface,
                         BoundaryId::EmitterTipLand, BoundaryId::BoreWall,
                         BoundaryId::FreeSurfaceReference, BoundaryId::LiquidInlet,
-                        BoundaryId::ExtractorSurface, BoundaryId::OpenBoundary}) {
+                        BoundaryId::ExtractorSurface,
+                        BoundaryId::NumericalEmitterBackClosure, BoundaryId::OpenBoundary}) {
     const LengthStats s = stats_of(id);
     std::fprintf(out, "  %-24s n=%-5d min=%10.4g median=%10.4g max=%10.4g\n", to_string(id),
                  s.count, s.min, s.median, s.max);
@@ -916,7 +921,8 @@ void BoundaryMesh::write_csv(const std::string& dir, const DeviceGeometry& g) co
     for (BoundaryId id : {BoundaryId::SymmetryAxis, BoundaryId::EmitterOuterSurface,
                           BoundaryId::EmitterTipLand, BoundaryId::BoreWall,
                           BoundaryId::FreeSurfaceReference, BoundaryId::LiquidInlet,
-                          BoundaryId::ExtractorSurface, BoundaryId::OpenBoundary}) {
+                          BoundaryId::ExtractorSurface,
+                          BoundaryId::NumericalEmitterBackClosure, BoundaryId::OpenBoundary}) {
       const LengthStats s = stats_of(id);
       std::fprintf(f, "boundary_id,%s,%s,\"%s\",%d,%.9e,%.9e,%.9e,%.9e,%.9e\n", to_string(id),
                    to_string(id), boundary_long_name(id), s.count, s.min, s.median, s.max,

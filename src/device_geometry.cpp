@@ -33,8 +33,10 @@ const char* to_string(BoundaryId b) {
     case BoundaryId::FreeSurfaceReference: return "free_surface_reference";
     case BoundaryId::LiquidInlet: return "liquid_inlet";
     case BoundaryId::ExtractorSurface: return "extractor_surface";
-    default: return "open_boundary";
+    case BoundaryId::NumericalEmitterBackClosure: return "numerical_emitter_back_closure";
+    case BoundaryId::OpenBoundary: return "open_boundary";
   }
+  return "open_boundary";
 }
 
 const char* to_string(FeatureId f) {
@@ -42,8 +44,10 @@ const char* to_string(FeatureId f) {
     case FeatureId::PinnedContactEdge: return "pinned_contact_edge";
     case FeatureId::EmitterOuterEdge: return "emitter_outer_edge";
     case FeatureId::ExtractorApertureEdgeFront: return "extractor_aperture_edge_front";
-    default: return "extractor_aperture_edge_back";
+    case FeatureId::ExtractorApertureEdgeBack: return "extractor_aperture_edge_back";
+    case FeatureId::NumericalBackClosureEdge: return "numerical_back_closure_edge";
   }
+  return "numerical_back_closure_edge";
 }
 
 // ---------------------------------------------------------------------------
@@ -156,6 +160,19 @@ DeviceGeometry DeviceGeometry::build(const DeviceParameters& p) {
           "domain_radius must exceed the extractor aperture radius");
   require(p.domain_z_min < -p.emitter_height,
           "domain_z_min must lie below the emitter foot");
+  // The numerical rearward continuation.  Either it is off, or it is long
+  // enough to have a cylindrical shank behind the taper and short enough to
+  // stay strictly inside the plotted domain.
+  require(p.emitter_back_length >= 0.0,
+          "emitter_back_length must not be negative");
+  if (p.emitter_back_length > 0.0) {
+    require(p.emitter_back_length > p.emitter_height,
+            "emitter_back_length must exceed emitter_height, otherwise the closing "
+            "disc would cut into the taper instead of closing a cylindrical shank");
+    require(p.domain_z_min < -p.emitter_back_length,
+            "domain_z_min must lie STRICTLY below the numerical back closure: the closure is a "
+            "conductor, the open domain edge is not, and the two must not coincide");
+  }
   require(p.domain_z_max > p.extraction_distance + p.extractor_thickness,
           "domain_z_max must lie above the extractor");
   // The electrode's outer radius is a physical dimension of the device and is
@@ -189,9 +206,15 @@ DeviceGeometry DeviceGeometry::build(const DeviceParameters& p) {
   // so the two cannot collide.  Assert it anyway rather than assume it.
   require(ze > 0.0, "extractor would intersect the emitter");
 
+  // Rear end of the emitter conductor.  Without the numerical closure it is the
+  // domain floor and the conductor is cut open there; with it the conductor
+  // ends at z_back, strictly above the floor, and is capped by a disc.
+  const bool closed = p.emitter_back_length > 0.0;
+  const Real z_back = closed ? -p.emitter_back_length : zmin;
+
   // --- regions --------------------------------------------------------------
-  std::vector<Vec2> emitter{{r2, zmin}, {r2, 0.0}, {r1, 0.0}, {r3, -H}, {r3, zmin}};
-  std::vector<Vec2> liquid{{0.0, zmin}, {r2, zmin}, {r2, 0.0}, {0.0, 0.0}};
+  std::vector<Vec2> emitter{{r2, z_back}, {r2, 0.0}, {r1, 0.0}, {r3, -H}, {r3, z_back}};
+  std::vector<Vec2> liquid{{0.0, z_back}, {r2, z_back}, {r2, 0.0}, {0.0, 0.0}};
   std::vector<Vec2> extractor{{ra, ze}, {rext, ze}, {rext, zt}, {ra, zt}};
   std::vector<Vec2> domain{{0.0, zmin}, {R, zmin}, {R, zmax}, {0.0, zmax}};
   make_ccw(emitter);
@@ -209,22 +232,45 @@ DeviceGeometry DeviceGeometry::build(const DeviceParameters& p) {
     g.boundaries_.push_back({id, std::move(name), std::move(pts), a, b});
   };
 
-  add(BoundaryId::SymmetryAxis, "symmetry_axis.liquid", {{0.0, zmin}, {0.0, 0.0}},
+  add(BoundaryId::SymmetryAxis, "symmetry_axis.liquid", {{0.0, z_back}, {0.0, 0.0}},
       Region::Liquid, Region::Liquid);
   add(BoundaryId::SymmetryAxis, "symmetry_axis.vacuum", {{0.0, 0.0}, {0.0, zmax}},
       Region::Vacuum, Region::Vacuum);
+  if (closed)
+    // Behind the closed conductor the axis runs through vacuum again.  It is a
+    // symmetry line there like everywhere else, not an interface.
+    add(BoundaryId::SymmetryAxis, "symmetry_axis.vacuum_behind_closure",
+        {{0.0, zmin}, {0.0, z_back}}, Region::Vacuum, Region::Vacuum);
 
   add(BoundaryId::FreeSurfaceReference, "free_surface_reference", {{0.0, 0.0}, {r2, 0.0}},
       Region::Liquid, Region::Vacuum);
-  add(BoundaryId::BoreWall, "bore_wall", {{r2, 0.0}, {r2, zmin}}, Region::Liquid,
+  add(BoundaryId::BoreWall, "bore_wall", {{r2, 0.0}, {r2, z_back}}, Region::Liquid,
       Region::EmitterSolid);
-  add(BoundaryId::LiquidInlet, "liquid_inlet", {{0.0, zmin}, {r2, zmin}}, Region::Liquid,
-      Region::Outside);
+  if (!closed)
+    add(BoundaryId::LiquidInlet, "liquid_inlet", {{0.0, zmin}, {r2, zmin}}, Region::Liquid,
+        Region::Outside);
 
   add(BoundaryId::EmitterTipLand, "emitter_tip_land", {{r2, 0.0}, {r1, 0.0}},
       Region::EmitterSolid, Region::Vacuum);
   add(BoundaryId::EmitterOuterSurface, "emitter_outer_surface",
-      {{r1, 0.0}, {r3, -H}, {r3, zmin}}, Region::EmitterSolid, Region::Vacuum);
+      {{r1, 0.0}, {r3, -H}, {r3, z_back}}, Region::EmitterSolid, Region::Vacuum);
+
+  if (closed) {
+    // The closing disc.  It spans the WHOLE cross section, r = 0 out to the
+    // foot radius, because the conductor it closes is the union of the emitter
+    // metal and the liquid column: both are at V_emitter in P2a.  It is split
+    // at the bore radius only because a boundary curve carries one pair of
+    // adjacent regions, not because the two halves differ physically.
+    //
+    // In the closed configuration there is no liquid inlet: the liquid column
+    // is terminated by this cap.  A hydraulic feed boundary belongs to the flow
+    // model and returns with it; pretending to have one here, on a surface that
+    // is simultaneously a conductor facing vacuum, would be a contradiction.
+    add(BoundaryId::NumericalEmitterBackClosure, "numerical_emitter_back_closure.liquid",
+        {{0.0, z_back}, {r2, z_back}}, Region::Liquid, Region::Vacuum);
+    add(BoundaryId::NumericalEmitterBackClosure, "numerical_emitter_back_closure.solid",
+        {{r2, z_back}, {r3, z_back}}, Region::EmitterSolid, Region::Vacuum);
+  }
 
   add(BoundaryId::ExtractorSurface, "extractor_surface.aperture", {{ra, ze}, {ra, zt}},
       Region::ExtractorSolid, Region::Vacuum);
@@ -239,10 +285,16 @@ DeviceGeometry DeviceGeometry::build(const DeviceParameters& p) {
 
   // Outer edges of the open domain.  The pieces are split where a solid or the
   // liquid crosses them, so every piece knows what it touches.
-  add(BoundaryId::OpenBoundary, "open_boundary.z_min.emitter", {{r2, zmin}, {r3, zmin}},
-      Region::EmitterSolid, Region::Outside);
-  add(BoundaryId::OpenBoundary, "open_boundary.z_min.vacuum", {{r3, zmin}, {R, zmin}},
-      Region::Vacuum, Region::Outside);
+  if (closed) {
+    // Nothing reaches the floor any more: the conductor stops at z_back.
+    add(BoundaryId::OpenBoundary, "open_boundary.z_min", {{0.0, zmin}, {R, zmin}},
+        Region::Vacuum, Region::Outside);
+  } else {
+    add(BoundaryId::OpenBoundary, "open_boundary.z_min.emitter", {{r2, zmin}, {r3, zmin}},
+        Region::EmitterSolid, Region::Outside);
+    add(BoundaryId::OpenBoundary, "open_boundary.z_min.vacuum", {{r3, zmin}, {R, zmin}},
+        Region::Vacuum, Region::Outside);
+  }
   // r = R is now vacuum along its whole length: no solid reaches the box edge.
   add(BoundaryId::OpenBoundary, "open_boundary.r_max", {{R, zmin}, {R, zmax}},
       Region::Vacuum, Region::Outside);
@@ -254,6 +306,10 @@ DeviceGeometry DeviceGeometry::build(const DeviceParameters& p) {
   g.features_.push_back({FeatureId::EmitterOuterEdge, {r1, 0.0}});
   g.features_.push_back({FeatureId::ExtractorApertureEdgeFront, {ra, ze}});
   g.features_.push_back({FeatureId::ExtractorApertureEdgeBack, {ra, zt}});
+  if (closed)
+    // Not a device edge.  It is where the numerical continuation is capped, and
+    // it is marked so that no field value can be read off it by accident.
+    g.features_.push_back({FeatureId::NumericalBackClosureEdge, {r3, z_back}});
 
   return g;
 }
@@ -285,6 +341,19 @@ Real DeviceGeometry::cone_half_angle() const {
 
 Real DeviceGeometry::extractor_outer_radius() const { return p_.extractor_outer_radius; }
 
+Real DeviceGeometry::back_closure_z() const {
+  if (!has_back_closure())
+    throw std::runtime_error(
+        "DeviceGeometry: there is no numerical back closure (emitter_back_length = 0)");
+  return -p_.emitter_back_length;
+}
+
+Real DeviceGeometry::back_closure_clearance() const {
+  return has_back_closure()
+             ? evaluation_z_min() - back_closure_z()
+             : evaluation_z_min() - p_.domain_z_min;
+}
+
 Real DeviceGeometry::domain_revolved_volume() const {
   return pi * p_.domain_radius * p_.domain_radius * (p_.domain_z_max - p_.domain_z_min);
 }
@@ -300,6 +369,16 @@ void DeviceGeometry::print(std::FILE* out) const {
   std::fprintf(out, "  extractor_thickness       : %10.4g m\n", p_.extractor_thickness);
   std::fprintf(out, "  extractor_outer_radius    : %10.4g m  (Pflichtangabe, < domain_radius)\n",
                p_.extractor_outer_radius);
+  if (has_back_closure())
+    std::fprintf(out,
+                 "  emitter_back_length: %8.4g m  NUMERISCHE Rueckverlaengerung,\n"
+                 "      Abschlussscheibe bei z = %.4g m, Abstand zur ausgewerteten Region\n"
+                 "      (z >= %.4g m) = %.4g m.  KEINE physikalische Emitterlaenge.\n",
+                 p_.emitter_back_length, back_closure_z(), evaluation_z_min(),
+                 back_closure_clearance());
+  else
+    std::fprintf(out, "  emitter_back_length: 0        -- keine Rueckschliessung, der "
+                      "Leiter endet offen am Modellschnitt\n");
   std::fprintf(out, "  Domaene r x z             : %10.4g m x [%.4g, %.4g] m\n", p_.domain_radius,
                p_.domain_z_min, p_.domain_z_max);
   std::fprintf(out, "  abgeleitet: Kegelhalbwinkel %.3f deg, Stirnflaechenbreite %.4g m,\n"
@@ -383,6 +462,17 @@ void DeviceGeometry::write_csv(const std::string& dir) const {
     std::fprintf(f, "extractor_thickness,%.9e,m,\n", p_.extractor_thickness);
     std::fprintf(f, "extractor_outer_radius,%.9e,m,mandatory; strictly inside domain_radius\n",
                  p_.extractor_outer_radius);
+    std::fprintf(f, "emitter_back_length,%.9e,m,NUMERICAL rearward continuation of the "
+                    "emitter conductor; 0 = none. Not a physical emitter length\n",
+                 p_.emitter_back_length);
+    if (has_back_closure()) {
+      std::fprintf(f, "back_closure_z,%.9e,m,z of the conducting end cap; derived\n",
+                   back_closure_z());
+      std::fprintf(f, "evaluation_z_min,%.9e,m,rear limit of the physically evaluated region "
+                      "(taper foot); derived\n", evaluation_z_min());
+      std::fprintf(f, "back_closure_clearance,%.9e,m,distance from the end cap to that "
+                      "region; derived\n", back_closure_clearance());
+    }
     std::fprintf(f, "domain_radius,%.9e,m,open computational domain\n", p_.domain_radius);
     std::fprintf(f, "domain_z_min,%.9e,m,open computational domain\n", p_.domain_z_min);
     std::fprintf(f, "domain_z_max,%.9e,m,open computational domain\n", p_.domain_z_max);

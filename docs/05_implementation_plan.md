@@ -190,17 +190,41 @@ unverändert; die P0-BEM behält ihre eigenen Geometrien und Netze.
 Mathematische Klärung des Kerns, aus `src/bem.cpp` abgelesen: indirekte
 Einfachschicht mit Kollokation in den Elementmitten; Randbedingung im
 Unendlichen `V -> 0`, in der Freiraum-Greensfunktion enthalten, keine
-Abschneidefläche; geschlossene Leiter sind **nicht** erforderlich, auf einer
-offenen Fläche ist `sigma` aber die Summe beider Seiten; mehrere Leiter über
-`es::Tag` mit einer Einheitspotential-Basis je Elektrode. `Tag::Other` bildet
-auf `Electrode::Collector` ab — der Adapter erzeugt diese Kennung nie.
+Abschneidefläche; für die *Lösbarkeit* sind geschlossene Leiter nicht
+erforderlich, für die *Auswertung* schon, denn auf einer offenen Fläche ist
+`sigma` die Summe beider Seiten; mehrere Leiter über `es::Tag` mit einer
+Einheitspotential-Basis je Elektrode. `Tag::Other` bildet auf
+`Electrode::Collector` ab — der Adapter erzeugt diese Kennung nie.
 
 In die Vakuum-BEM gehen ausschließlich die tatsächlich an Vakuum grenzenden
 Leiterflächen ein, ausgewählt über Rand- und Gebietskennungen: Emitteraußen-
 und Stirnfläche, die anfängliche ebene Flüssigkeitsoberfläche als
 Perfect-Conductor-Referenz und die Extraktorflächen einschließlich Apertur.
-Symmetrieachse, offene Domänenränder, Bohrungswand und Zulaufschnitt gehen
-nicht ein; die offene Rechendomäne wird an keiner Stelle als BEM-Rand benutzt.
+Symmetrieachse, offene Domänenränder und Bohrungswand gehen nicht ein; die
+offene Rechendomäne wird an keiner Stelle als BEM-Rand benutzt.
+
+**Der Emitterleiter ist geschlossen.** `device.emitter_back_length` gibt dem
+Leiter aus Emittermetall und Flüssigkeitssäule eine rückwärtige Länge; dort
+schließt eine volle leitende Scheibe auf `V_emitter` ihn ab (Randkennung
+`numerical_emitter_back_closure`, eigene Kantenmarkierung, aus jeder
+Feldauswertung ausgeschlossen). `vacuum_bem_mesh()` lehnt ein Netz mit offenem
+Leiter ab, statt es zu dokumentieren: `open_arc_ends()` findet freie Blechenden
+aus der Panelkonnektivität. Im geschlossenen Aufbau gibt es keinen
+`liquid_inlet` — ein hydraulischer Zulauf gehört zum Strömungsmodell.
+
+**Die Trunkierungsstudie ist die eigentliche Erkenntnis.** Die Absicht war, den
+Leiter so weit nach hinten zu verlängern, dass das lokale Spitzenfeld stehen
+bleibt, und nur die Gesamtkapazität als längenabhängig zu führen. Die Messung
+gibt das nicht her: über 200 µm bis 3.2 mm trägt `E_z(ref)` einen `1/L`-Schwanz
+(5.6, 4.0, 2.5, 1.5 Prozent je Verdopplung) und `c_EX` wächst um rund ein
+Drittel je Verdopplung, gegen vorab festgelegte Toleranzen von je 1e-3. Der
+Grund steckt in der Randbedingung: mit `V -> 0` im Unendlichen und nur zwei
+Leitern trägt das System Nettoladung, es gibt keine Rückelektrode und keine
+Umhausung, also hält ein längerer Emitter schlicht mehr Ladung. Folglich ist
+`emitter_back_length` eine **Pflichtangabe der Geometrie**, kein
+Konvergenzparameter, und keine P2a-Größe wird als von ihr unabhängig
+ausgegeben. Ob das lokale Feld unempfindlich wird, sobald eine geerdete
+Umhausung im Modell ist, gehört in die Phase, die eine hinzufügt.
 
 `device.extractor_outer_radius` ist dadurch zur **Pflichtangabe** geworden.
 `0` bedeutete bisher „bis zum Domänenrand" und setzte einen Leiter mit der
@@ -211,6 +235,15 @@ als Beispielwert gekennzeichnet, und der Einfluss des Außenradius ist beziffert
 `SizeField::from_geometry` und `BoundaryMesh::generate` haben einen
 `size_scale`-Faktor bekommen — ausschließlich ein Konvergenzwerkzeug, damit ein
 Vernetzer ohne Benutzerparameter überhaupt verfeinert werden kann.
+
+**Provenienz.** Der Commit auf einer Abbildung wird von `python/provenance.py`
+zur Zeichenzeit aus git gemessen, nicht aus einem Argument übernommen; ein
+schmutziger Arbeitsbaum wird als `DIRTY` quer über die Abbildung geschrieben,
+und `plot_vacuum.py` endet dann mit Code 1. Eine frühere Fassung dieser
+Abbildungen nannte einen Commit, der die gezeigte Implementierung gar nicht
+enthielt — dafür ist die Messung da. Reihenfolge für eine Freigabe: Code und
+Plot-Skripte fertigstellen, Tests laufen lassen, committen, Arbeitsbaum prüfen,
+erst danach Daten und Abbildungen erzeugen.
 
 Ergebnisse: `results/2026-08-29_p2a_vacuum_electrostatics`.
 
@@ -228,15 +261,22 @@ Netzstufe; Maxwell-Kapazitätsmatrix gegen zwei weit getrennte Kugeln
 analytisch geprüft, Reziprozität `c_EX = c_XE` auf 1e-8; Abfall des Potentials
 wie `Q/(4 pi eps0 d)` bis 5000 Radien, was die Randbedingung im Unendlichen
 belegt; exakte Linearität und vollständige Polaritätsumkehr auf Rundungsniveau;
-vier Netzstufen mit relativer Änderung 8.0e-05 in `c_EE`, 7.8e-05 in `C_m` und
-2.6e-05 im kantenfernen Axialfeld; Abschirmung des offenen Emitterbogens auf
-2.6e-05 relativ gemessen, womit `sigma/eps0` an der Spitze das einseitige
-Vakuumfeld ist.
+vier Netzstufen mit relativer Änderung von wenigen 1e-05 in `c_EE`, `C_m` und
+im kantenfernen Axialfeld; geschlossener Emitterleiter mit feldfreiem Inneren,
+dessen Restfeld mit der Verfeinerung fällt, womit `sigma/eps0` auf den
+Geräteflächen das einseitige Vakuumfeld ist; kein einziges offenes Bogenende
+im gelösten Netz, geprüft aus der Panelkonnektivität.
 
-Ausdrücklich **nicht** bestanden und auch nicht behauptet: ein konvergiertes
-Spitzenfeld an den unverrundeten Kanten. Austritts-, Stirn- und Aperturkanten
-sowie das offene Bogenende des Modellschnitts sind markiert und aus jeder
-Feldauswertung ausgeschlossen; Verrundungsradien sind ein P3-Parameter.
+Ausdrücklich **nicht** bestanden und auch nicht behauptet:
+
+* ein konvergiertes Spitzenfeld an den unverrundeten Kanten. Austritts-, Stirn-
+  und Aperturkanten sind markiert und aus jeder Feldauswertung ausgeschlossen;
+  Verrundungsradien sind ein P3-Parameter;
+* **Trunkierungskonvergenz**. Weder `E_z(ref)` noch `c_EX` erreicht die vorab
+  festgelegte Toleranz von 1e-3 gegen wachsende rückwärtige Emitterlänge. Kein
+  P2a-Wert ist von `emitter_back_length` unabhängig; alle gelten für den
+  angegebenen Beispielwert. `c_EE` konvergiert erwartungsgemäß gar nicht und
+  ist keine Geräteaussage.
 
 Damit ist auch der bei Gate P1b offen gebliebene Punkt teilweise erledigt: die
 Netzunabhängigkeit von Kapazität und kantenfernem Feld ist über vier Stufen

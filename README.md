@@ -166,7 +166,7 @@ Konfigurationsdatei plus `key=value`-Overrides auf der Kommandozeile
 | `es_meniscus` | Fortsetzung des statischen Astes | Ast ja, „Onset"-Etikett nein |
 | `es_operate` | Betriebspunkt, Ionenstrom, Schub/Isp | **nicht belastbar**, siehe Abschnitt 3 |
 | `es_beam` | Strahltransport, Divergenz, Interzeption | ohne Raumladung brauchbar, mit nicht |
-| `es_vacuum` | P2a: statische Vakuum-Elektrostatik auf der P1-Geometrie | Kapazitäten und kantenfernes Feld netzkonvergent; Kantenfelder ausdrücklich nicht |
+| `es_vacuum` | P2a: statische Vakuum-Elektrostatik auf der P1-Geometrie | Kapazitäten und kantenfernes Feld **netz**konvergent; Kantenfelder nicht; **trunkierungs**konvergent ist nichts — jede Größe gilt für das angegebene `emitter_back_length` |
 
 ```sh
 ./build/es_field --help          # Schlüsselreferenz

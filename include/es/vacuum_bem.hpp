@@ -49,9 +49,15 @@ namespace es {
 //   The open rectangular computational domain is not a conductor.  Feeding its
 //   edges to a Dirichlet solver would impose a grounded box that does not
 //   exist.  The symmetry axis is not a surface either (it carries no area),
-//   and the bore wall and the liquid inlet lie inside the conductor union.
-//   The selection below is made from region and boundary tags only -- never
-//   from coordinates and never from element order.
+//   and the bore wall lies inside the conductor union.  The selection below is
+//   made from region and boundary tags only -- never from coordinates and
+//   never from element order.
+//
+//   The numerical back closure is the one surface that IS a conductor without
+//   being a device part.  It enters the solve, because a conductor with a hole
+//   in it is a different mathematical object; it does not enter any result,
+//   because it is not a piece of hardware.  The two roles are kept apart by
+//   VacuumPanel::numerical and VacuumPanel::evaluable, not by a comment.
 
 /// Which conductor an accepted element belongs to, and why it was accepted.
 struct VacuumPanel {
@@ -60,6 +66,14 @@ struct VacuumPanel {
   BoundaryId boundary{BoundaryId::OpenBoundary};
   Region material{Region::Vacuum};  ///< the non-vacuum side
   Tag tag{Tag::Other};
+  /// Part of the NUMERICAL rearward closure rather than of the device.  It
+  /// carries charge and must be solved for -- leaving it out would reopen the
+  /// conductor -- but no field value from it is a result.
+  bool numerical{false};
+  /// May sigma/eps0 on this panel be read as a physical one-sided vacuum field?
+  /// False on the numerical closure, on the arbitrary-length shank behind the
+  /// taper foot, and on panels inside a marked edge zone.
+  bool evaluable{false};
 };
 
 /// Full account of the selection: what went in, what stayed out and why.
@@ -78,11 +92,13 @@ struct VacuumSelectionReport {
   int n_mesh_elements{0};
   int n_selected{0};
   int n_emitter{0}, n_free_surface{0}, n_extractor{0};
+  int n_numerical_closure{0};   ///< of the emitter panels, how many are the cap
 
   /// Meridian-length-weighted totals, for cross-checking against the mesher.
   Real revolved_area_emitter{0.0};
   Real revolved_area_free_surface{0.0};
   Real revolved_area_extractor{0.0};
+  Real revolved_area_numerical_closure{0.0};
 
   void print(std::FILE* out) const;
   void write_csv(const std::string& path) const;
@@ -96,15 +112,27 @@ struct VacuumSelectionReport {
 /// vacuum-facing interface carries a boundary identifier that this phase does
 /// not know how to charge -- silence would be worse than a stop.
 ///
-/// The emitter panels form an arc that is closed through the symmetry axis at
-/// one end and OPEN at the other, where the domain floor cuts the shank.  That
-/// open end is a truncation of a feed-through, not a surface; it is left open
-/// rather than capped with the domain edge.  The cavity behind it is a tube of
-/// radius phi_3/2 and length emitter_height, so the interior is screened many
-/// e-foldings over; test_vacuum_bem checks that numerically, which is what
-/// makes En() = sigma/eps0 usable on the tip.
+/// THE CONDUCTOR MUST BE CLOSED.  Every accepted arc has to close, either onto
+/// itself or through the symmetry axis, which for the emitter conductor means
+/// that DeviceParameters::emitter_back_length must be set.  An arc
+/// that stops in mid-vacuum is an open sheet: the single-layer density there is
+/// the SUM over both faces, sigma/eps0 is then not a one-sided vacuum field
+/// anywhere on that conductor, and the free edge carries a 1/sqrt(d) density
+/// singularity that dominates every peak-field number on it.  Earlier phases
+/// left the emitter shank cut open at the domain floor and relied on the cavity
+/// behind it being screened; that argument bounds the error but does not remove
+/// it, and it produced exactly the artificial field maximum this closure
+/// exists to eliminate.  vacuum_bem_mesh() now REFUSES an open conductor
+/// instead of documenting one.
 Mesh vacuum_bem_mesh(const BoundaryMesh& bm, const DeviceGeometry& g,
                      VacuumSelectionReport* report = nullptr);
+
+/// Endpoints of the conductor contour that exactly one panel touches and that
+/// do not lie on r = 0.  An endpoint on the axis is where the surface of
+/// revolution closes on itself and is not an edge at all.  Empty means the
+/// conductor is closed.  Found from panel connectivity, never from coordinates,
+/// so it cannot be fooled by a geometry whose numbers happen to look right.
+std::vector<Vec2> open_arc_ends(const Mesh& bem_mesh);
 
 // ---------------------------------------------------------------------------
 // Capacitance -- named, not just "C"
@@ -125,6 +153,29 @@ Mesh vacuum_bem_mesh(const BoundaryMesh& bm, const DeviceGeometry& g,
 //
 // The last one equals C_m only when the system is charge neutral.  Every
 // number this module reports is labelled with which of these it is.
+//
+// WHAT DEPENDS ON WHICH DIMENSION
+//
+//   c_EE is the charge on the emitter conductor at unit potential.  A conductor
+//   that is made longer holds more charge, full stop.  It does NOT converge as
+//   the emitter is extended rearwards, and it must not be expected to: quoting
+//   c_EE without stating emitter_back_length would be inventing a dimension.
+//
+//   c_EX is the charge induced on the EXTRACTOR by the emitter.  The intention
+//   was that this one converges, because the far end of the shank points away
+//   from the electrode.  It does not: it grows by about a third per doubling of
+//   emitter_back_length over the whole range that can be meshed here.  With no
+//   return electrode anywhere in the model, the emitter's charge grows nearly
+//   linearly with its length and the electrode intercepts a roughly constant
+//   share of it.
+//
+//   The local field quantities -- E_z at the axial reference point, the potential
+//   at fixed points between the electrodes -- move more slowly (a 1/L tail) but
+//   likewise do not reach the tolerance fixed in advance.
+//
+//   So: every one of these numbers is a function of the stated geometry, and the
+//   run reports it as such.  See truncation::kTol* below for the tolerances, and
+//   results/.../truncation.csv for the measurement they failed.
 struct CapacitanceMatrix {
   Real c_EE{0.0}, c_EX{0.0}, c_XE{0.0}, c_XX{0.0};  ///< [F]
 
@@ -138,6 +189,31 @@ struct CapacitanceMatrix {
 /// Maxwell coefficients from the unit-potential basis.  Calls solve_basis() if
 /// needed; leaves the solver's active solution untouched apart from that.
 CapacitanceMatrix maxwell_capacitance(BemSolver& bem);
+
+// ---------------------------------------------------------------------------
+// Truncation tolerances -- fixed BEFORE the measurement, not after it
+// ---------------------------------------------------------------------------
+//
+// A quantity counts as independent of emitter_back_length when doubling that
+// length changes it by less than the bound below.  The bounds were chosen from
+// what the numbers are for and what else limits them, before the study was run:
+//
+//   * the mesh discretisation error of the reference level is a few times 1e-5,
+//     so a bound at 1e-3 keeps the two error sources an order apart instead of
+//     chasing round-off;
+//   * the axial reference field is wanted to about a per cent, because that is
+//     the accuracy at which a field-dependent emission law is worth evaluating,
+//     so 1e-3 is an order of magnitude below what the answer is used for;
+//   * the same bound is applied to c_EX, and to the potential at the fixed probe
+//     points relative to the applied span |V_E - V_X|.
+//
+// The study reports pass or fail against these numbers.  It fails.  That is a
+// result about the model, not a licence to move the bound.
+namespace truncation {
+inline constexpr Real kTolEzRef = 1.0e-3;
+inline constexpr Real kTolCEX = 1.0e-3;
+inline constexpr Real kTolVProbe = 1.0e-3;
+}  // namespace truncation
 
 /// Charge on one electrode for a given applied voltage pair [C].
 Real electrode_charge(const BemSolver& bem, Electrode e);
@@ -155,16 +231,25 @@ const char* electrode_label(Tag t);
 /// Sampling at the midpoints would return round-off by construction, so the
 /// samples sit at t = 1/4 and 3/4 along every element.
 ///
-/// Reported twice: over the whole conductor, and over the part outside the
-/// marked edge zones.  The first is dominated by the integrable density
-/// singularities at the unrounded edges and at the open truncation rim, where a
-/// piecewise-constant density cannot represent sigma at all; the second is the
-/// error of the solution in the region where the answer is meant to be used.
+/// Reported three times, because the three answer different questions:
+///
+///   * over the whole conductor -- dominated by the integrable density
+///     singularities at the unrounded edges, where a piecewise-constant density
+///     cannot represent sigma at all;
+///   * outside the marked edge zones;
+///   * over the EVALUABLE panels only -- the device surfaces in front of the
+///     taper foot.  This is the error of the solution where the answer is
+///     actually read off, and it is the only one that has to fall under
+///     refinement for the reported numbers to mean anything.  The numerical
+///     closure is excluded from it: its own discretisation error is a property
+///     of a surface that does not exist on the device.
 struct PotentialResidual {
   Real max_emitter{0.0};      ///< [V], everywhere
   Real max_extractor{0.0};
   Real max_emitter_clear{0.0};    ///< [V], outside every marked edge zone
   Real max_extractor_clear{0.0};
+  Real max_physical{0.0};     ///< [V], over the evaluable panels only
+  Real rms_physical{0.0};     ///< [V], likewise -- the one that must fall with h
   Real rms_emitter{0.0};
   Real rms_extractor{0.0};
   Vec2 worst_position{};      ///< where max over both conductors sits
@@ -178,8 +263,23 @@ struct PotentialResidual {
     const Real m = std::max(max_emitter, max_extractor);
     return reference_span > 0.0 ? m / reference_span : 0.0;
   }
+  Real relative_physical() const {
+    return reference_span > 0.0 ? max_physical / reference_span : 0.0;
+  }
+  /// The maximum sits on whichever element happens to lie just outside an edge
+  /// zone, so it is a max over a set that changes with the mesh and need not
+  /// fall monotonically.  The root mean square over the evaluable surfaces does,
+  /// and it is the quantity to judge refinement by.
+  Real relative_rms_physical() const {
+    return reference_span > 0.0 ? rms_physical / reference_span : 0.0;
+  }
 };
-PotentialResidual potential_residual(const BemSolver& bem, const std::vector<struct EdgeZone>& zones);
+
+/// `evaluable` is the mask from mark_evaluable_panels(); pass an empty vector to
+/// leave max_physical at zero.
+PotentialResidual potential_residual(const BemSolver& bem,
+                                     const std::vector<struct EdgeZone>& zones,
+                                     const std::vector<char>& evaluable = {});
 
 // ---------------------------------------------------------------------------
 // Sharp edges
@@ -192,17 +292,22 @@ PotentialResidual potential_residual(const BemSolver& bem, const std::vector<str
 // of the local feature size the mesher already computed for that edge.
 
 ///
-/// A second, different kind of place has to be marked as well.  The emitter
-/// panels form an arc that is OPEN where the domain floor cuts the shank.  In a
-/// single-layer formulation the density at the free edge of an open sheet
-/// diverges like 1/sqrt(distance) -- an artefact of truncating a feed-through,
-/// not a property of the device.  It is integrable, so charges and capacitances
-/// converge, but |E_n| next to it does not, and it is by far the largest value
-/// on the emitter.  It is marked exactly like a sharp edge, and for the same
-/// reason: nothing there may be reported as a field.
+/// The rim of the numerical back closure is marked the same way, for a
+/// different reason: it is a perfectly ordinary convex conducting edge, but it
+/// belongs to a surface that was invented to close the conductor, so its field
+/// is not a device field at any mesh density.
+///
+/// TruncationEnd is the third kind and no longer occurs in a solved problem.
+/// It flags the free edge of an OPEN conductor arc, where the single-layer
+/// density diverges like 1/sqrt(distance).  It is integrable, so charges and
+/// capacitances still converge, but |E_n| beside it does not, and it used to be
+/// the largest value anywhere on the emitter.  edge_zones() still detects it,
+/// and vacuum_bem_mesh() refuses any mesh in which one appears -- detecting the
+/// defect is what proves the closure did its job.
 enum class EdgeKind {
-  SharpFeature = 0,  ///< unrounded geometric edge of the device
-  TruncationEnd,     ///< open end of a modelled conductor arc
+  SharpFeature = 0,     ///< unrounded geometric edge of the device
+  TruncationEnd,        ///< open end of a conductor arc -- rejected, never solved
+  NumericalClosure,     ///< rim of the numerical rearward closure
 };
 const char* to_string(EdgeKind k);
 
@@ -229,5 +334,30 @@ bool in_edge_zone(const std::vector<EdgeZone>& zones, Vec2 x);
 /// OUTSIDE every edge zone.  Returns the element index through `which`.
 Real peak_field_outside_edges(const BemSolver& bem, Electrode e,
                               const std::vector<EdgeZone>& zones, Index* which = nullptr);
+
+// ---------------------------------------------------------------------------
+// Where a surface field may be read off at all
+// ---------------------------------------------------------------------------
+//
+// After the closure, sigma/eps0 is the one-sided vacuum normal field exactly
+// where the panel bounds the closed perfect-conductor region against vacuum.
+// That is every device panel -- and it is NOT the closing disc, whose other
+// side is the conductor's own hollow interior, nor the shank behind the taper
+// foot, whose length was chosen numerically and whose surface field therefore
+// answers a question about the closure rather than about the emitter, nor any
+// panel inside a marked edge zone.
+//
+// Fills `report.panels[k].evaluable` and returns the same information indexed by
+// BEM element, so a caller can mask a field sweep without re-deriving the rule.
+
+/// Mark which panels may yield a physical field value.  Modifies `report`.
+std::vector<char> mark_evaluable_panels(const Mesh& bem_mesh, VacuumSelectionReport& report,
+                                        const DeviceGeometry& g,
+                                        const std::vector<EdgeZone>& zones);
+
+/// Largest |E_n| over the evaluable panels of one electrode.  `ok` is the mask
+/// returned by mark_evaluable_panels().
+Real peak_field_evaluable(const BemSolver& bem, Electrode e, const std::vector<char>& ok,
+                          Index* which = nullptr);
 
 }  // namespace es

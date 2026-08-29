@@ -82,3 +82,14 @@ foreach(t test_elliptic test_bem test_meniscus test_emission test_beam test_conf
   target_link_libraries(${t} PRIVATE es_core)
   add_test(NAME ${t} COMMAND ${t})
 endforeach()
+
+# The provenance stamp on every figure is produced by python/provenance.py, so
+# its test is a Python one.  It builds throw-away git repositories and checks
+# that a dirty tree is detected -- a mocked git would test nothing.
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_Interpreter_FOUND)
+  add_test(NAME test_provenance
+           COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_provenance.py)
+else()
+  message(WARNING "Kein Python3 gefunden: test_provenance wird nicht ausgefuehrt.")
+endif()

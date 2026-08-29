@@ -34,6 +34,8 @@ BSTYLE = {
     "free_surface_reference": ("#0f9d58", "anfängliche ebene Flüssigkeitsoberfläche"),
     "liquid_inlet":           ("#66c2a5", "Zulaufschnitt"),
     "extractor_surface":      ("#e6550d", "Extraktorflächen / Apertur"),
+    "numerical_emitter_back_closure":
+                              ("#1f6fb4", "numerische Rückschließung (kein Bauteil)"),
     "open_boundary":          ("#7b3294", "offener Domänenrand"),
 }
 ORDER = list(BSTYLE)
