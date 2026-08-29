@@ -1,0 +1,17 @@
+# Welche Groessen sich zwischen einer achsensymmetrischen Rechnung und
+# einem dreidimensionalen Geraet ueberhaupt vergleichen lassen, unter
+# welcher Bedingung, und was dieses Projekt davon rechnet.
+quantity,unit,comparability,condition,computed_by,status,measurable
+"Extraktorspannung","V",Direct,"Eine angelegte Spannung ist eine Randbedingung und in beiden Geometrien dieselbe Zahl.","P2a/P2b/P2c/P3b","geprueft",yes
+"Gesamtstrom","A",Direct,"Ein Gesamtstrom ist ein Integral ueber die ganze Anordnung; er hat in beiden Geometrien dieselbe Bedeutung.  Dieses Projekt sagt ihn NICHT voraus (P5 blockiert).","-","blocked (P5)",yes
+"Transmission durch die Blende","-",AfterStatedReduction,"Vergleichbar, sobald gesagt ist, ueber welche Startverteilung gemittelt wurde.  In 3D kann die Blende ausserdem exzentrisch sein, was achsensymmetrisch nicht darstellbar ist.","P7","validated_subset (Transportantwort)",yes
+"integrierte Maxwell-Kraft","N",Direct,"Ein Flaechenintegral; die 2 pi r-Wichtung IST das 3D-Integral, und die Rotationsreferenz prueft genau das.","P3b, P0","DiscretizationNotConverged",no
+"Apexhoehe h/a","-",Direct,"Auf der Achse, wo beide Geometrien uebereinstimmen -- SOFERN die reale Anordnung achsensymmetrisch ist.","P3a/P3b","qualitativ (P0: 1-%-Ziel verfehlt)",no
+"Oberflaechenfeld am Apex","V/m",Direct,"Auf der Achse.  P6 hat allerdings gemessen, dass die Feldrekonstruktion dort nur erster Ordnung ist.","P2b/P2c/P3b","erster Ordnung achsennah (P6)",no
+"Strahldivergenz","rad",AfterStatedReduction,"Achsensymmetrisch ist sie ein einziger Winkel; in 3D ist sie eine Verteilung ueber den Azimut.  Vergleichbar nur nach einer ausgesprochenen Mittelung.","P7","validated_subset",yes
+"Auftreffverteilung auf dem Extraktor","A/m^2",AfterStatedReduction,"Achsensymmetrisch ist sie eine Funktion von r allein.  Jede azimutale Struktur -- die in einer realen Anordnung genau die interessante ist -- fehlt.","P7","validated_subset",yes
+"azimutale Asymmetrie des Strahls","-",NotComparable,"Sie IST die Groesse, die eine achsensymmetrische Rechnung nicht hat.  Sie kann nur gemessen und nur in 3D gerechnet werden.","-","nicht gerechnet",yes
+"Versatz von Emitter und Blende","m",NotComparable,"Eine Exzentrizitaet bricht die Rotationssymmetrie.  Achsensymmetrisch ist sie nicht darstellbar, auch nicht naeherungsweise.","-","nicht gerechnet",yes
+"Neigung des Emitters","rad",NotComparable,"Wie der Versatz: sie bricht die Symmetrie.","-","nicht gerechnet",yes
+"Emitter-zu-Emitter-Uebersprechen im Array","-",NotComparable,"Ein Array ist nicht rotationssymmetrisch.  Ein einzelner achsensymmetrischer Emitter kann es grundsaetzlich nicht abbilden.","-","nicht gerechnet",yes
+"Ladungsrelaxationszeit","s",Direct,"Eine Stoffgroesse, unabhaengig von der Geometrie.  Nicht berechenbar, weil eps_r fehlt.","P3","MissingMaterialData",yes

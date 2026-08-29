@@ -1,0 +1,14 @@
+stamp=e8713eef2c42
+head_commit=e8713eef2c421eba81f49b4159fd7f8a569d5cdc
+data_commit=e8713eef2c421eba81f49b4159fd7f8a569d5cdc
+working_tree_dirty=no
+releasable=yes
+ignored_prefix=results/2026-08-29_p9_validation
+ignored_file=results/2026-08-29_p9_validation/README.md
+ignored_file=results/2026-08-29_p9_validation/fig1_validation.png
+ignored_file=results/2026-08-29_p9_validation/figures_provenance.txt
+ignored_file=results/2026-08-29_p9_validation/import_contract.csv
+ignored_file=results/2026-08-29_p9_validation/meta.txt
+ignored_file=results/2026-08-29_p9_validation/revolution.csv
+ignored_file=results/2026-08-29_p9_validation/run.log
+ignored_file=results/2026-08-29_p9_validation/validation_matrix.csv

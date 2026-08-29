@@ -1,0 +1,7 @@
+app=es_validation (P9)
+phase=P9
+status=infrastructure_only
+commit=e8713eef2c421eba81f49b4159fd7f8a569d5cdc
+three_dimensional_solver=none
+revolution_reference=yes
+exit_code=0

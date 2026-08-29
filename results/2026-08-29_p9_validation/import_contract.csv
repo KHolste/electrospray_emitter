@@ -1,0 +1,10 @@
+# Der Importvertrag, an einem absichtlich unvollstaendigen Beispielsatz
+# vorgefuehrt.  KEINER dieser Punkte ist eine Messung: sie zeigen, was
+# ein Datensatz tragen muss und woran ein Import scheitert.
+case,quantity,value,unit,uncertainty,uncertainty_type,geometry,status
+vollstaendig,"Extraktionsspannung",1.250000000e+03,"V",1.500000000e+01,TypeB,ThreeDimensional,Ok
+ohne_Einheit,"Extraktionsspannung",1.250000000e+03,"",1.500000000e+01,TypeB,ThreeDimensional,MissingUnit
+ohne_Unsicherheit,"Extraktionsspannung",1.250000000e+03,"V",0.000000000e+00,TypeB,ThreeDimensional,MissingUncertainty
+ohne_Unsicherheitstyp,"Extraktionsspannung",1.250000000e+03,"V",1.500000000e+01,NotStated,ThreeDimensional,MissingUncertainty
+ohne_Fundstelle,"Extraktionsspannung",1.250000000e+03,"V",1.500000000e+01,TypeB,ThreeDimensional,MissingProvenance
+ohne_Geometrieart,"Extraktionsspannung",1.250000000e+03,"V",1.500000000e+01,TypeB,NICHT ANGEGEBEN,MissingGeometryKind
