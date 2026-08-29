@@ -48,13 +48,20 @@ gab 0 zurück, alle 18 Prüfungen bestanden.
 | `bore_wall` | 48 | 0.173 | 5.450 | 40.228 |
 | `free_surface_reference` | 10 | 0.166 | 0.483 | 0.864 |
 | `liquid_inlet` | 6 | 0.650 | 0.819 | 1.031 |
-| `extractor_surface` | 105 | 3.504 | 68.002 | 87.759 |
-| `open_boundary` | 125 | 0.664 | 87.005 | 88.235 |
-| **gesamt** | **434** | **0.166** | **18.393** | **88.235** |
+| `extractor_surface` | 89 | 3.460 | 28.800 | 86.770 |
+| `open_boundary` | 111 | 0.664 | 87.005 | 88.235 |
+| **gesamt** | **404** | **0.166** | **14.990** | **88.235** |
 
-431 Knoten, größtes Verhältnis benachbarter Elementgrößen 1.283
+403 Knoten, größtes Verhältnis benachbarter Elementgrößen 1.283
 (Schranke 1.5). Die Aufschlüsselung je einzelner Randkurve steht in
 `mesh_boundaries.csv` und `mesh_report.txt`.
+
+> Neu erzeugt zusammen mit P2a. Gegenüber dem ersten Lauf dieser Stufe ist
+> `device.extractor_outer_radius` jetzt eine Pflichtangabe mit dem Beispielwert
+> 2 mm statt 0 („bis zum Domänenrand"). Die Elektrode hat dadurch eine eigene
+> Mantelfläche `extractor_surface.rim` und berührt den offenen Domänenrand
+> nirgends mehr; `open_boundary.r_max` ist eine durchgehende Kurve. Daher die
+> geänderten Elementzahlen.
 
 ## Zur Lesart
 

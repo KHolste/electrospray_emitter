@@ -166,11 +166,16 @@ Konfigurationsdatei plus `key=value`-Overrides auf der Kommandozeile
 | `es_meniscus` | Fortsetzung des statischen Astes | Ast ja, „Onset"-Etikett nein |
 | `es_operate` | Betriebspunkt, Ionenstrom, Schub/Isp | **nicht belastbar**, siehe Abschnitt 3 |
 | `es_beam` | Strahltransport, Divergenz, Interzeption | ohne Raumladung brauchbar, mit nicht |
+| `es_vacuum` | P2a: statische Vakuum-Elektrostatik auf der P1-Geometrie | Kapazitäten und kantenfernes Feld netzkonvergent; Kantenfelder ausdrücklich nicht |
 
 ```sh
 ./build/es_field --help          # Schlüsselreferenz
 ./build/es_meniscus examples/capillary_emibf4.cfg
 python python/plot.py out_capillary
+
+./build/es_vacuum examples/device_p1.cfg examples/vacuum_p2a.cfg \
+    results/2026-08-29_p2a_vacuum_electrostatics meta.commit=$(git rev-parse HEAD)
+python python/plot_vacuum.py results/2026-08-29_p2a_vacuum_electrostatics
 ```
 
 Bekanntes Problem: verschiedene Anwendungen überschreiben bei gleichem
@@ -181,10 +186,11 @@ nicht zwingend zu dem Zustand, den der Bericht ausweist.
 
 ```
 include/es/  types constants elliptic linalg geometry bem fluid
-             emission meniscus beam config io
+             emission meniscus beam config io status
+             device_geometry boundary_mesh vacuum_bem
 src/         Implementierungen
-apps/        es_field es_meniscus es_operate es_beam
-tests/       6 Testprogramme
+apps/        es_field es_meniscus es_operate es_beam es_vacuum
+tests/       10 Testprogramme
 examples/    Konfigurationsbeispiele
 python/      Auswertung und Plots (keine Rechnung)
 docs/        Neuausrichtung, Modellspezifikation, Umbauplan

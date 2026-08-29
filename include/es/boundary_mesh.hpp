@@ -159,7 +159,13 @@ class SizeField {
     std::string origin;  ///< human-readable provenance
   };
 
-  static SizeField from_geometry(const DeviceGeometry& g);
+  /// `size_scale` multiplies every target size uniformly.  It is a
+  /// CONVERGENCE-STUDY knob and nothing else: 1.0 is the automatic mesh, and
+  /// production code must not pass anything else.  It exists because a mesh
+  /// with no user parameters cannot otherwise be refined to demonstrate
+  /// discretisation convergence.  It changes no shape, no source and no
+  /// gradation -- only the overall element size.
+  static SizeField from_geometry(const DeviceGeometry& g, Real size_scale = 1.0);
 
   /// Target element size at x [m].  Strictly positive.
   Real operator()(Vec2 x) const;
@@ -205,10 +211,14 @@ struct LengthStats {
 
 class BoundaryMesh {
  public:
-  /// Deterministic: identical DeviceParameters give a bitwise identical mesh.
-  /// Throws std::runtime_error on a degenerate element (zero length, negative
-  /// radius) or an ambiguous material assignment.
-  static BoundaryMesh generate(const DeviceGeometry& g);
+  /// Deterministic: identical DeviceParameters and size_scale give a bitwise
+  /// identical mesh.  Throws std::runtime_error on a degenerate element (zero
+  /// length, negative radius) or an ambiguous material assignment.
+  /// See SizeField::from_geometry for what `size_scale` is and is not for.
+  static BoundaryMesh generate(const DeviceGeometry& g, Real size_scale = 1.0);
+
+  /// The uniform size multiplier this mesh was generated with; 1.0 = automatic.
+  Real size_scale() const { return size_scale_; }
 
   const std::vector<MeshNode>& nodes() const { return nodes_; }
   const std::vector<BoundaryElement>& elements() const { return elements_; }
@@ -237,6 +247,7 @@ class BoundaryMesh {
   std::vector<MeshNode> nodes_;
   std::vector<BoundaryElement> elements_;
   SizeField size_;
+  Real size_scale_{1.0};
 };
 
 }  // namespace es

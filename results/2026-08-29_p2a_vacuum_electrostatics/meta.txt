@@ -1,0 +1,10 @@
+app=es_vacuum (P2a)
+commit=66583c46a569bc66bd32f52b9022276f0f118d2d
+config=examples/device_p1.cfg + examples/vacuum_p2a.cfg
+V_emitter_V=1.500000000e+03
+V_extractor_V=0.000000000e+00
+reference_level=2
+reference_size_scale=0.25
+n_bem_panels=341
+z_ref_m=5.000000000e-07
+state=vacuum electrostatics, rho=0, flat perfect-conductor reference, no emission

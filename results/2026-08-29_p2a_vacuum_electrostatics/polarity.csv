@@ -1,0 +1,6 @@
+quantity,value,note
+max_rel_sigma_sum,0.000000000e+00,sigma(+V) + sigma(-V) relative to max|sigma|
+max_rel_abs_sigma_diff,0.000000000e+00,||sigma(+V)| - |sigma(-V)||
+rel_field_sum_at_ref,0.000000000e+00,|E(+V) + E(-V)| / |E(+V)|
+Emag_plus_V_per_m,4.931963963e+07,|E| at the reference point for +V
+Emag_minus_V_per_m,4.931963963e+07,|E| at the reference point for -V

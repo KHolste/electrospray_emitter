@@ -84,9 +84,17 @@ struct DeviceParameters {
   Real domain_z_min{-4.0e-4};
   Real domain_z_max{1.5e-3};
 
-  /// Radial extent of the electrode; 0 means "out to the domain boundary",
-  /// which is how the drawing shows it.
-  Real extractor_outer_radius{0.0};
+  /// Radial extent of the modelled electrode [m].  MANDATORY.
+  ///
+  /// It used to be optional, with 0 meaning "out to the domain boundary".  That
+  /// silently identified a conductor with the open edge of the computational
+  /// box, which is not a conductor.  A boundary-integral vacuum solve has no
+  /// truncation boundary at all (the free-space kernel decays on its own), so
+  /// the electrode needs a real outer radius or it has none.  Zero is now
+  /// rejected, and domain_radius must be STRICTLY larger.
+  ///
+  /// The value below is an EXAMPLE VALUE, not a measured dimension.
+  Real extractor_outer_radius{2.0e-3};
 
   // --- reserved for later phases -------------------------------------------
   //

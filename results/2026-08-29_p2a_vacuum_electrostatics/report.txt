@@ -1,0 +1,73 @@
+P2a -- statische Vakuum-Elektrostatik auf der P1-Geometrie
+=========================================================
+
+rho = 0.  Emittermetall und die ANFAENGLICHE EBENE FLUESSIGKEITSOBERFLAECHE
+bei z = 0 liegen auf V_emitter, die ebene Flaeche ausschliesslich als
+Perfect-Conductor-Referenz.  Das ist kein berechneter Meniskus, kein
+emittierender Meniskus und keine Aussage ueber das Pure-Ion-Regime.
+Keine Meniskusverformung, keine endliche Fluessigkeitsleitfaehigkeit,
+keine Emission, keine Stroemung, keine Raumladung.
+
+Randbedingung im Unendlichen
+  V -> 0.  Der BEM-Kern benutzt die azimutal integrierte Freiraum-
+  Greensfunktion; es gibt keine Abschneideflaeche und nichts, worauf
+  eine Bedingung gesetzt werden koennte.  Die angelegten Potentiale
+  sind absolut gegen unendlich, und die Gesamtladung ist nicht null.
+
+Angelegt: V_emitter = 1500 V, V_extractor = 0 V
+Referenzpunkt: r = 0, z = 5e-07 m (kantenfern, netzunabhaengig)
+
+Netzkonvergenz
+  Stufe    n_Netz    n_BEM         c_EE [F]          C_m [F]   E_z(ref) [V/m]    Residuum*
+  (* relativ, ausserhalb der markierten Kantenzonen)
+  0           404      161  8.661339165e-15  6.842876442e-15  4.933072204e+07    8.885e-04
+  1           593      228  8.664083722e-15  6.845054570e-15  4.932282924e+07    4.678e-04
+  2           942      341  8.665508961e-15  6.846168749e-15  4.931963963e+07    3.269e-04
+  3          1611      544  8.666203562e-15  6.846704111e-15  4.931834120e+07    3.365e-04
+
+  relative Aenderung zwischen den beiden feinsten Stufen
+    c_EE      : 8.015e-05
+    C_m       : 7.819e-05
+    E_z(ref)  : 2.633e-05
+
+Kapazitaetsgroessen auf der Referenzstufe 2 -- benannt, nicht "C"
+  c_EE (Maxwell-Selbstkoeffizient Emitter) : 8.665508961e-15 F
+  c_EX = c_XE (Influenzkoeffizient)        : -6.846168706e-15 / -6.846168792e-15 F
+  Reziprozitaetsfehler |c_EX-c_XE|/|c_EX|  : 1.249e-08
+  c_XX (Maxwell-Selbstkoeffizient Extraktor): 1.537010769e-13 F
+  C_m = -c_EX (Gegenkapazitaet)            : 6.846168749e-15 F
+  C_E,inf = c_EE + c_EX (gegen unendlich)  : 1.819340255e-15 F
+  Q_emitter/(V_E - V_X) am Arbeitspunkt    : 8.665508961e-15 F
+    Bei V_extractor = 0 ist dieses Verhaeltnis identisch c_EE und
+    NICHT die Gegenkapazitaet C_m.
+  Q_emitter = 1.299826344e-11 C, Q_extractor = -1.026925319e-11 C, Summe = 2.729010254e-12 C
+  Die Summe ist nicht null: bei V(unendlich) = 0 traegt das System
+  Nettoladung, und Q_E/(V_E-V_X) ist deshalb NICHT C_m.
+
+Felder auf der Referenzstufe (Kantenzonen ausgeschlossen)
+  E_z am Referenzpunkt                     : 4.931963963e+07 V/m
+  groesstes |E_n| auf der ebenen Flaeche   : 5.173834812e+07 V/m
+  groesstes |E_n| am Emitter               : 8.425256510e+07 V/m
+  groesstes |E_n| am Extraktor             : 5.225791087e+05 V/m
+  groesstes |E_n| INNERHALB der Kantenzonen: 3.674518766e+08 V/m
+    Der letzte Wert ist KEINE konvergierte Groesse.  Die Austritts-,
+    Stirn- und Aperturkanten sind unverrundet; das Feld einer scharfen
+    Kante divergiert und folgt der Elementgroesse.  Verrundungsradien
+    sind ein P3-Parameter.
+
+Offener Emitterbogen und Abschirmung
+  Der Emitterbogen ist am Schnitt durch die Domaenensohle offen; der
+  offene Domaenenrand wurde NICHT als Deckel benutzt.  Der dahinter
+  liegende Hohlraum ist ein Rohr vom Radius 2e-05 m und der Laenge 0.0004 m
+  und daher stark abgeschirmt: max |V - V_emitter| = 3.906e-02 V von 1.5e+03 V.
+  Deshalb ist sigma/eps0 auf Stirnflaeche und ebener Fluessigkeits-
+  oberflaeche das einseitige Vakuumfeld.
+
+Residuum der Dirichlet-Bedingung (Viertelpunkte, nicht Kollokation)
+  ausserhalb der Kantenzonen : max |V - V_soll| = 4.903e-01 V, relativ 3.269e-04
+  einschliesslich Kantenzonen: max |V - V_soll| = 1.318e+01 V, relativ 8.786e-03
+  groesstes Residuum bei r = 2e-05 m, z = -0.0003999 m
+  Das grosse Residuum sitzt dort, wo eine stueckweise konstante Dichte
+  eine Singularitaet nicht darstellen kann.  Es faellt mit der
+  Verfeinerung (siehe convergence.csv), und die Felder an diesen Stellen
+  werden ohnehin nicht als Ergebnis berichtet.

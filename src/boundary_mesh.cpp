@@ -130,7 +130,9 @@ std::vector<Seg> all_segments(const DeviceGeometry& g) {
 // Size field
 // ---------------------------------------------------------------------------
 
-SizeField SizeField::from_geometry(const DeviceGeometry& g) {
+SizeField SizeField::from_geometry(const DeviceGeometry& g, Real size_scale) {
+  if (!(size_scale > 0.0) || !std::isfinite(size_scale))
+    throw std::runtime_error("SizeField: size_scale must be positive and finite");
   const DeviceParameters& p = g.parameters();
   const Real diag = domain_diagonal(p);
   const Real snap = mesher::kNodeSnapRelative * diag;
@@ -178,16 +180,16 @@ SizeField SizeField::from_geometry(const DeviceGeometry& g) {
     s.local_feature_size = lfs;
     s.is_named_feature = (feature >= 0);
     if (feature >= 0) {
-      s.h = lfs / mesher::kFeatureDivisions;
+      s.h = size_scale * lfs / mesher::kFeatureDivisions;
       s.origin = std::string("Merkmal ") + to_string(g.features()[feature].id);
     } else {
-      s.h = lfs / mesher::kCornerDivisions;
+      s.h = size_scale * lfs / mesher::kCornerDivisions;
       s.origin = "Geometrieecke";
     }
     f.sources_.push_back(std::move(s));
   }
 
-  f.h_max_ = diag / mesher::kDomainDivisions;
+  f.h_max_ = size_scale * diag / mesher::kDomainDivisions;
   f.h_min_ = f.h_max_;
   for (const Source& s : f.sources_) f.h_min_ = std::min(f.h_min_, s.h);
   if (!(f.h_min_ > 0.0))
@@ -312,9 +314,10 @@ std::vector<Vec2> subdivide(Vec2 p, Vec2 q, const SizeField& h) {
 // Generation
 // ---------------------------------------------------------------------------
 
-BoundaryMesh BoundaryMesh::generate(const DeviceGeometry& g) {
+BoundaryMesh BoundaryMesh::generate(const DeviceGeometry& g, Real size_scale) {
   BoundaryMesh mesh;
-  mesh.size_ = SizeField::from_geometry(g);
+  mesh.size_scale_ = size_scale;
+  mesh.size_ = SizeField::from_geometry(g, size_scale);
 
   const DeviceParameters& p = g.parameters();
   const Real diag = domain_diagonal(p);
@@ -809,7 +812,7 @@ MeshReport BoundaryMesh::validate(const DeviceGeometry& g) const {
 
   // --- 10. reproducibility -----------------------------------------------
   {
-    const BoundaryMesh again = BoundaryMesh::generate(g);
+    const BoundaryMesh again = BoundaryMesh::generate(g, size_scale_);
     bool same = again.nodes_.size() == nodes_.size() &&
                 again.elements_.size() == elements_.size();
     if (same)

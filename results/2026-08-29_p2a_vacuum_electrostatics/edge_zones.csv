@@ -1,0 +1,13 @@
+# places where |E| is NOT a converged quantity and is therefore marked,
+# never reported as a peak field.  radius = local_feature_size / 4, a
+# purely geometric length, so the marked region is the same at every
+# refinement level.  kind=sharp_feature: unrounded edge of the device.
+# kind=truncation_end: open end of the modelled conductor arc, where the
+# single-layer density has a 1/sqrt(d) sheet-edge singularity -- an
+# artefact of cutting the shank at the domain floor, not a device edge.
+kind,name,r_m,z_m,radius_m,local_feature_size_m
+sharp_feature,pinned_contact_edge,5.000000000e-06,0.000000000e+00,1.250000000e-06,5.000000000e-06
+sharp_feature,emitter_outer_edge,1.000000000e-05,0.000000000e+00,1.250000000e-06,5.000000000e-06
+sharp_feature,extractor_aperture_edge_front,2.000000000e-04,5.000000000e-04,2.500000000e-05,1.000000000e-04
+sharp_feature,extractor_aperture_edge_back,2.000000000e-04,6.000000000e-04,2.500000000e-05,1.000000000e-04
+truncation_end,truncation_end,2.000000000e-05,-4.000000000e-04,3.750000000e-06,1.500000000e-05

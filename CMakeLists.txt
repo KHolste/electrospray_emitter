@@ -44,6 +44,7 @@ add_library(es_core STATIC
   src/device_geometry.cpp
   src/boundary_mesh.cpp
   src/bem.cpp
+  src/vacuum_bem.cpp
   src/emission.cpp
   src/meniscus.cpp
   src/beam.cpp
@@ -57,7 +58,7 @@ if(OpenMP_CXX_FOUND)
 endif()
 
 # ---------------------------------------------------------------- applications
-foreach(app es_field es_meniscus es_operate es_beam)
+foreach(app es_field es_meniscus es_operate es_beam es_vacuum)
   add_executable(${app} apps/${app}.cpp)
   target_link_libraries(${app} PRIVATE es_core)
 endforeach()
@@ -76,7 +77,7 @@ target_link_libraries(mesh_figure PRIVATE es_core)
 # ----------------------------------------------------------------------- tests
 enable_testing()
 foreach(t test_elliptic test_bem test_meniscus test_emission test_beam test_config
-           test_regressions test_device_geometry test_boundary_mesh)
+           test_regressions test_device_geometry test_boundary_mesh test_vacuum_bem)
   add_executable(${t} tests/${t}.cpp)
   target_link_libraries(${t} PRIVATE es_core)
   add_test(NAME ${t} COMMAND ${t})

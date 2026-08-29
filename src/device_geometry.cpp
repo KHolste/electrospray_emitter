@@ -158,11 +158,17 @@ DeviceGeometry DeviceGeometry::build(const DeviceParameters& p) {
           "domain_z_min must lie below the emitter foot");
   require(p.domain_z_max > p.extraction_distance + p.extractor_thickness,
           "domain_z_max must lie above the extractor");
-  require(p.extractor_outer_radius == 0.0 ||
-              p.extractor_outer_radius > 0.5 * p.extractor_aperture_diameter,
+  // The electrode's outer radius is a physical dimension of the device and is
+  // mandatory.  Equating it with the edge of the computational box would hide a
+  // missing dimension behind something that is not a conductor at all.
+  require(p.extractor_outer_radius > 0.0,
+          "extractor_outer_radius is mandatory and must be positive; 0 no longer means "
+          "'out to the domain boundary'");
+  require(p.extractor_outer_radius > 0.5 * p.extractor_aperture_diameter,
           "extractor_outer_radius must exceed the aperture radius");
-  require(p.extractor_outer_radius <= p.domain_radius,
-          "extractor_outer_radius must not exceed domain_radius");
+  require(p.domain_radius > p.extractor_outer_radius,
+          "domain_radius must be STRICTLY greater than extractor_outer_radius: the electrode "
+          "is a conductor, the open domain edge is not, and the two must not coincide");
 
   DeviceGeometry g;
   g.p_ = p;
@@ -177,7 +183,7 @@ DeviceGeometry DeviceGeometry::build(const DeviceParameters& p) {
   const Real ra = 0.5 * p.extractor_aperture_diameter;
   const Real ze = p.extraction_distance;
   const Real zt = ze + p.extractor_thickness;
-  const Real rext = (p.extractor_outer_radius > 0.0) ? p.extractor_outer_radius : R;
+  const Real rext = p.extractor_outer_radius;  // mandatory, strictly inside the domain
 
   // The emitter occupies z <= 0 and the extractor z >= extraction_distance > 0,
   // so the two cannot collide.  Assert it anyway rather than assume it.
@@ -226,9 +232,10 @@ DeviceGeometry DeviceGeometry::build(const DeviceParameters& p) {
       Region::ExtractorSolid, Region::Vacuum);
   add(BoundaryId::ExtractorSurface, "extractor_surface.back", {{ra, zt}, {rext, zt}},
       Region::ExtractorSolid, Region::Vacuum);
-  if (rext < R)
-    add(BoundaryId::ExtractorSurface, "extractor_surface.rim", {{rext, ze}, {rext, zt}},
-        Region::ExtractorSolid, Region::Vacuum);
+  // The electrode is a closed body of revolution: aperture wall, both faces and
+  // the outer rim.  The rim exists unconditionally now that rext < R is enforced.
+  add(BoundaryId::ExtractorSurface, "extractor_surface.rim", {{rext, ze}, {rext, zt}},
+      Region::ExtractorSolid, Region::Vacuum);
 
   // Outer edges of the open domain.  The pieces are split where a solid or the
   // liquid crosses them, so every piece knows what it touches.
@@ -236,17 +243,9 @@ DeviceGeometry DeviceGeometry::build(const DeviceParameters& p) {
       Region::EmitterSolid, Region::Outside);
   add(BoundaryId::OpenBoundary, "open_boundary.z_min.vacuum", {{r3, zmin}, {R, zmin}},
       Region::Vacuum, Region::Outside);
-  if (rext < R) {
-    add(BoundaryId::OpenBoundary, "open_boundary.r_max", {{R, zmin}, {R, zmax}},
-        Region::Vacuum, Region::Outside);
-  } else {
-    add(BoundaryId::OpenBoundary, "open_boundary.r_max.lower", {{R, zmin}, {R, ze}},
-        Region::Vacuum, Region::Outside);
-    add(BoundaryId::OpenBoundary, "open_boundary.r_max.extractor", {{R, ze}, {R, zt}},
-        Region::ExtractorSolid, Region::Outside);
-    add(BoundaryId::OpenBoundary, "open_boundary.r_max.upper", {{R, zt}, {R, zmax}},
-        Region::Vacuum, Region::Outside);
-  }
+  // r = R is now vacuum along its whole length: no solid reaches the box edge.
+  add(BoundaryId::OpenBoundary, "open_boundary.r_max", {{R, zmin}, {R, zmax}},
+      Region::Vacuum, Region::Outside);
   add(BoundaryId::OpenBoundary, "open_boundary.z_max", {{0.0, zmax}, {R, zmax}},
       Region::Vacuum, Region::Outside);
 
@@ -284,9 +283,7 @@ Real DeviceGeometry::cone_half_angle() const {
   return std::atan2(0.5 * (p_.phi_3 - p_.phi_1), p_.emitter_height);
 }
 
-Real DeviceGeometry::extractor_outer_radius() const {
-  return (p_.extractor_outer_radius > 0.0) ? p_.extractor_outer_radius : p_.domain_radius;
-}
+Real DeviceGeometry::extractor_outer_radius() const { return p_.extractor_outer_radius; }
 
 Real DeviceGeometry::domain_revolved_volume() const {
   return pi * p_.domain_radius * p_.domain_radius * (p_.domain_z_max - p_.domain_z_min);
@@ -301,6 +298,8 @@ void DeviceGeometry::print(std::FILE* out) const {
   std::fprintf(out, "  extraction_distance       : %10.4g m\n", p_.extraction_distance);
   std::fprintf(out, "  extractor_aperture_diam.  : %10.4g m\n", p_.extractor_aperture_diameter);
   std::fprintf(out, "  extractor_thickness       : %10.4g m\n", p_.extractor_thickness);
+  std::fprintf(out, "  extractor_outer_radius    : %10.4g m  (Pflichtangabe, < domain_radius)\n",
+               p_.extractor_outer_radius);
   std::fprintf(out, "  Domaene r x z             : %10.4g m x [%.4g, %.4g] m\n", p_.domain_radius,
                p_.domain_z_min, p_.domain_z_max);
   std::fprintf(out, "  abgeleitet: Kegelhalbwinkel %.3f deg, Stirnflaechenbreite %.4g m,\n"
@@ -382,6 +381,8 @@ void DeviceGeometry::write_csv(const std::string& dir) const {
                  p_.extraction_distance);
     std::fprintf(f, "extractor_aperture_diameter,%.9e,m,\n", p_.extractor_aperture_diameter);
     std::fprintf(f, "extractor_thickness,%.9e,m,\n", p_.extractor_thickness);
+    std::fprintf(f, "extractor_outer_radius,%.9e,m,mandatory; strictly inside domain_radius\n",
+                 p_.extractor_outer_radius);
     std::fprintf(f, "domain_radius,%.9e,m,open computational domain\n", p_.domain_radius);
     std::fprintf(f, "domain_z_min,%.9e,m,open computational domain\n", p_.domain_z_min);
     std::fprintf(f, "domain_z_max,%.9e,m,open computational domain\n", p_.domain_z_max);

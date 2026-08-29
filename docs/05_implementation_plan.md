@@ -167,8 +167,10 @@ Geometrieecken und benannten Merkmale bleiben bitgenau Knoten; das Netz ist
 bitweise reproduzierbar. Offen bleibt, was ohne Feldlösung nicht prüfbar ist:
 Netzunabhängigkeit von Kapazität und Spitzenfeld über drei Verfeinerungsstufen
 und der Vergleich an Kugel und Rotationsellipsoid. Das gehört zu P2, weil dafür
-die BEM auf dieses Netz umgestellt sein muss — was in diesem Lauf ausdrücklich
-**nicht** geschehen ist.
+die BEM auf dieses Netz umgestellt sein muss — was in jenem Lauf ausdrücklich
+**nicht** geschehen ist. In P2a nachgeholt: die Netzunabhängigkeit von
+Kapazität und kantenfernem Feld ist über vier Stufen gezeigt; der Vergleich an
+Kugel und Rotationsellipsoid läuft weiterhin auf den P0-Geometrien.
 
 **Gate P1c — offen.** Verfahren und Bibliothek der Volumenvernetzung
 entschieden, mit Begründung gegen die Anforderungen aus P3 und P4.
@@ -179,14 +181,70 @@ entschieden, mit Begründung gegen die Anforderungen aus P3 und P4.
 
 **Aufwand: 4–6 d**
 
+### P2a — statische Vakuum-Elektrostatik auf der P1-Geometrie  *(erledigt)*
+
+Ausdrücklicher Adapter vom P1-Randnetz auf den vorhandenen BEM-Kern
+(`include/es/vacuum_bem.hpp`, `src/vacuum_bem.cpp`). Der Kern bleibt
+unverändert; die P0-BEM behält ihre eigenen Geometrien und Netze.
+
+Mathematische Klärung des Kerns, aus `src/bem.cpp` abgelesen: indirekte
+Einfachschicht mit Kollokation in den Elementmitten; Randbedingung im
+Unendlichen `V -> 0`, in der Freiraum-Greensfunktion enthalten, keine
+Abschneidefläche; geschlossene Leiter sind **nicht** erforderlich, auf einer
+offenen Fläche ist `sigma` aber die Summe beider Seiten; mehrere Leiter über
+`es::Tag` mit einer Einheitspotential-Basis je Elektrode. `Tag::Other` bildet
+auf `Electrode::Collector` ab — der Adapter erzeugt diese Kennung nie.
+
+In die Vakuum-BEM gehen ausschließlich die tatsächlich an Vakuum grenzenden
+Leiterflächen ein, ausgewählt über Rand- und Gebietskennungen: Emitteraußen-
+und Stirnfläche, die anfängliche ebene Flüssigkeitsoberfläche als
+Perfect-Conductor-Referenz und die Extraktorflächen einschließlich Apertur.
+Symmetrieachse, offene Domänenränder, Bohrungswand und Zulaufschnitt gehen
+nicht ein; die offene Rechendomäne wird an keiner Stelle als BEM-Rand benutzt.
+
+`device.extractor_outer_radius` ist dadurch zur **Pflichtangabe** geworden.
+`0` bedeutete bisher „bis zum Domänenrand" und setzte einen Leiter mit der
+offenen Kante der Rechenbox gleich; das ist jetzt abgelehnt, und
+`domain_radius` muss echt größer sein. Der Wert im Beispielparametersatz ist
+als Beispielwert gekennzeichnet, und der Einfluss des Außenradius ist beziffert.
+
+`SizeField::from_geometry` und `BoundaryMesh::generate` haben einen
+`size_scale`-Faktor bekommen — ausschließlich ein Konvergenzwerkzeug, damit ein
+Vernetzer ohne Benutzerparameter überhaupt verfeinert werden kann.
+
+Ergebnisse: `results/2026-08-29_p2a_vacuum_electrostatics`.
+
+### P2b — Konsolidierung  *(offen)*
+
 1. `BemSolver` auf beliebig viele Elektroden erweitern.
 2. Kapazitätsmatrix und Feldüberhöhung als Standardausgabe.
 3. Das Raumladungskriterium aus Spezifikation 1.1 bei jedem Lauf mit ausgeben.
 4. Verifikationssatz erweitern: koaxiale Zylinder, Plattenkondensator mit Rand,
    Kugel im homogenen Feld.
 
-**Gate P2.** Alle Fälle der Kategorie A der Validierungsmatrix bestanden, mit
-angegebenen Toleranzen.
+**Gate P2a — bestanden, mit ausdrücklich benannten Grenzen.** Bestanden:
+Auswahl der Randgruppen rein über Kennungen und unabhängig von Abmessungen und
+Netzstufe; Maxwell-Kapazitätsmatrix gegen zwei weit getrennte Kugeln
+analytisch geprüft, Reziprozität `c_EX = c_XE` auf 1e-8; Abfall des Potentials
+wie `Q/(4 pi eps0 d)` bis 5000 Radien, was die Randbedingung im Unendlichen
+belegt; exakte Linearität und vollständige Polaritätsumkehr auf Rundungsniveau;
+vier Netzstufen mit relativer Änderung 8.0e-05 in `c_EE`, 7.8e-05 in `C_m` und
+2.6e-05 im kantenfernen Axialfeld; Abschirmung des offenen Emitterbogens auf
+2.6e-05 relativ gemessen, womit `sigma/eps0` an der Spitze das einseitige
+Vakuumfeld ist.
+
+Ausdrücklich **nicht** bestanden und auch nicht behauptet: ein konvergiertes
+Spitzenfeld an den unverrundeten Kanten. Austritts-, Stirn- und Aperturkanten
+sowie das offene Bogenende des Modellschnitts sind markiert und aus jeder
+Feldauswertung ausgeschlossen; Verrundungsradien sind ein P3-Parameter.
+
+Damit ist auch der bei Gate P1b offen gebliebene Punkt teilweise erledigt: die
+Netzunabhängigkeit von Kapazität und kantenfernem Feld ist über vier Stufen
+gezeigt. Offen bleibt der Vergleich an Kugel und Rotationsellipsoid **auf dem
+P1-Netz** — die dortigen Testfälle laufen weiterhin auf den P0-Geometrien.
+
+**Gate P2b — offen.** Alle Fälle der Kategorie A der Validierungsmatrix
+bestanden, mit angegebenen Toleranzen.
 
 ---
 

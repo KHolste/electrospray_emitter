@@ -20,8 +20,8 @@ netzkonvergente Groesse: das Eckfeld einer unverrundeten Kante divergiert
 und folgt der oertlichen Elementgroesse.
 
 Automatischer achsensymmetrischer Randvernetzer
-  Knoten   : 431
-  Elemente : 434
+  Knoten   : 402
+  Elemente : 404
 
 Groessenfunktion  h(x) = min( min_s [ h_s + G |x - x_s| ], h_max )
   G (Gradation)                 = 0.25
@@ -39,10 +39,10 @@ Groessenfunktion  h(x) = min( min_s [ h_s + G |x - x_s| ], h_max )
     r=      2e-05 z=    -0.0004  lfs=   1.5e-05  h= 1.875e-06  Geometrieecke
     r=     0.0002 z=     0.0005  lfs=    0.0001  h= 3.125e-06  Merkmal extractor_aperture_edge_front  [verfeinert]
     r=     0.0002 z=     0.0006  lfs=    0.0001  h= 3.125e-06  Merkmal extractor_aperture_edge_back  [verfeinert]
-    r=      0.003 z=     0.0005  lfs=    0.0001  h=  1.25e-05  Geometrieecke
-    r=      0.003 z=     0.0006  lfs=    0.0001  h=  1.25e-05  Geometrieecke
-    r=      0.003 z=    -0.0004  lfs=    0.0009  h= 0.0001125  Geometrieecke
-    r=      0.003 z=     0.0015  lfs=    0.0009  h= 0.0001125  Geometrieecke
+    r=      0.002 z=     0.0005  lfs=    0.0001  h=  1.25e-05  Geometrieecke
+    r=      0.002 z=     0.0006  lfs=    0.0001  h=  1.25e-05  Geometrieecke
+    r=      0.003 z=    -0.0004  lfs=  0.001345  h= 0.0001682  Geometrieecke
+    r=      0.003 z=     0.0015  lfs=  0.001345  h= 0.0001682  Geometrieecke
 
 Elementstatistik je Randkurve (Laengen in m)
   Randkurve                          Kennung                      n         min      median         max   Sum_Laenge  Sum_Flaeche
@@ -54,13 +54,12 @@ Elementstatistik je Randkurve (Laengen in m)
   emitter_tip_land                   emitter_tip_land            13   1.756e-07   3.691e-07   7.278e-07        5e-06   2.3562e-10
   emitter_outer_surface              emitter_outer_surface       49   1.701e-07   4.381e-06   3.974e-05   0.00040083   4.8459e-08
   extractor_surface.aperture         extractor_surface           13   3.512e-06   7.381e-06   1.456e-05       0.0001   1.2566e-07
-  extractor_surface.front            extractor_surface           46   3.504e-06   8.776e-05   8.776e-05       0.0028   2.8149e-05
-  extractor_surface.back             extractor_surface           46   3.504e-06   8.776e-05   8.776e-05       0.0028   2.8149e-05
+  extractor_surface.front            extractor_surface           35    3.46e-06   5.085e-05   8.677e-05       0.0018   1.2441e-05
+  extractor_surface.back             extractor_surface           35    3.46e-06   5.085e-05   8.677e-05       0.0018   1.2441e-05
+  extractor_surface.rim              extractor_surface            6     1.3e-05   1.637e-05   2.063e-05       0.0001   1.2566e-06
   open_boundary.z_min.emitter        open_boundary                9   6.641e-07   1.704e-06    2.71e-06      1.5e-05   1.1781e-09
   open_boundary.z_min.vacuum         open_boundary               46   2.082e-06   8.701e-05   8.701e-05      0.00298   2.8273e-05
-  open_boundary.r_max.lower          open_boundary               15   1.372e-05   7.481e-05   8.607e-05       0.0009   1.6965e-05
-  open_boundary.r_max.extractor      open_boundary                6     1.3e-05   1.637e-05   2.063e-05       0.0001    1.885e-06
-  open_boundary.r_max.upper          open_boundary               15   1.372e-05   7.481e-05   8.607e-05       0.0009   1.6965e-05
+  open_boundary.r_max                open_boundary               22   8.636e-05   8.636e-05   8.636e-05       0.0019   3.5814e-05
   open_boundary.z_max                open_boundary               34   8.824e-05   8.824e-05   8.824e-05        0.003   2.8274e-05
 
 Elementstatistik je Randkennung
@@ -76,30 +75,30 @@ Elementstatistik je Randkennung
                            anfaengliche ebene Fluessigkeitsoberflaeche - noch kein berechneter Meniskus
   liquid_inlet             n=6     min= 6.498e-07 median= 8.187e-07 max= 1.031e-06
                            Zulaufschnitt durch die Fluessigkeitssaeule
-  extractor_surface        n=105   min= 3.504e-06 median=   6.8e-05 max= 8.776e-05
+  extractor_surface        n=89    min=  3.46e-06 median=  2.88e-05 max= 8.677e-05
                            Extraktorflaechen und Aperturwand
-  open_boundary            n=125   min= 6.641e-07 median= 8.701e-05 max= 8.824e-05
+  open_boundary            n=111   min= 6.641e-07 median= 8.701e-05 max= 8.824e-05
                            offener Domaenenrand
 
-  gesamt: n=434, min=1.661e-07 m, median=1.839e-05 m, max=8.824e-05 m
+  gesamt: n=404, min=1.661e-07 m, median=1.499e-05 m, max=8.824e-05 m
   groesstes Verhaeltnis benachbarter Elemente: 1.283
 
 Pruefungen des Randnetzes
   [ok  ] keine Nulllaengen-Elemente                           kuerzestes Element 1.6614e-07 m
-  [ok  ] keine Nullradien-Ringelemente                        356 Ringelemente
+  [ok  ] keine Nullradien-Ringelemente                        326 Ringelemente
   [ok  ] Achsenelemente exakt bei r = 0 mit Flaeche 0         78 Symmetrieelemente
-  [ok  ] keine doppelten Elemente                             434 Elemente, 431 Knoten
+  [ok  ] keine doppelten Elemente                             404 Elemente, 402 Knoten
   [ok  ] kein Knoten mit weniger als zwei Elementen (keine Luecken) kleinster Knotengrad 2
-  [ok  ] jede Randkurve ist eine ununterbrochene Kette        16 Randkurven
+  [ok  ] jede Randkurve ist eine ununterbrochene Kette        15 Randkurven
   [ok  ] Kettenenden liegen auf den Kurvenenden               
   [ok  ] alle Geometrieecken sind exakt Netzknoten            
   [ok  ] alle benannten Merkmale sind exakt Netzknoten        4 Merkmale
   [ok  ] kein Element ueberspannt eine Geometrieecke          
-  [ok  ] keine ungewollten Ueberlappungen oder Kreuzungen     93961 Elementpaare geprueft
+  [ok  ] keine ungewollten Ueberlappungen oder Kreuzungen     81406 Elementpaare geprueft
   [ok  ] jedes Element trennt genau die angegebenen Gebiete   Normale zeigt von side_a nach side_b
-  [ok  ] Randkennungen sind eindeutig zugeordnet              16 benannte Randkurven
-  [ok  ] Gebietsraender geschlossen und korrekt orientiert (CCW) liquid: 105 Elemente, dA/A=0, dV/V=0; emitter_solid: 119 Elemente, dA/A=1.5e-16, dV/V=1.1e-16; extractor_solid: 111 Elemente, dA/A=1.9e-16, dV/V=1.5e-16; vacuum: 324 Elemente, dA/A=3.1e-16, dV/V=2.6e-16; 
-  [ok  ] Rotationsflaechen erhalten (Summe = analytisch)      groesster relativer Fehler 2.4e-16
+  [ok  ] Randkennungen sind eindeutig zugeordnet              15 benannte Randkurven
+  [ok  ] Gebietsraender geschlossen und korrekt orientiert (CCW) liquid: 105 Elemente, dA/A=0, dV/V=0; emitter_solid: 119 Elemente, dA/A=1.5e-16, dV/V=1.1e-16; extractor_solid: 89 Elemente, dA/A=2.9e-16, dV/V=1.7e-16; vacuum: 300 Elemente, dA/A=4.6e-16, dV/V=1.3e-16; 
+  [ok  ] Rotationsflaechen erhalten (Summe = analytisch)      groesster relativer Fehler 3.78e-16
   [ok  ] Meridianlaengen erhalten                             groesster relativer Fehler 1.35e-16
   [ok  ] kontrolliertes Elementgroessenverhaeltnis            groesstes Verhaeltnis benachbarter Elemente 1.283 (Grenze 1.50)
   [ok  ] reproduzierbare Knotenanordnung (bitweise)           zweiter Aufbau aus denselben Parametern
