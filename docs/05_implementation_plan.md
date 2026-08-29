@@ -318,16 +318,43 @@ Ausdrücklich **nicht** bestanden und auch nicht behauptet:
   Grenzen um mehr als eine Größenordnung. Ursache ist die Selbstkapazität der
   energetisierten Flüssigkeitssäule, nicht der offene Rand (eine geerdete Hülle
   ändert nichts). Es ist derselbe Mechanismus wie bei `emitter_back_length` in
-  P2a. Beheben würde ihn der in 04_geometry_model.md, 4.1, vorgesehene
-  **Emitterhalter auf Emitterpotential** — eine Geometrieentscheidung für eine
-  spätere Phase. Jede P2b-Zahl gilt für den angegebenen `liquid_feed_z`;
+  P2a.
+  **KORREKTUR (P2c):** die Frage war falsch gestellt. `liquid_feed_z` verschob
+  Flüssigkeitssäule, dielektrisches Rückteil und rückwärtige Gerätegeometrie
+  gleichzeitig — variiert wurde also die Geometrie der Hochspannungselektrode
+  und nicht die Lage einer Randbedingung. Die frühere Empfehlung eines
+  **Emitterhalters auf Emitterpotential** ist zurückgenommen: für diesen
+  Photopolymer-Emitter wäre das eine erfundene Elektrode. Ersatz ist ein
+  **dielektrisch umschlossener Flüssigkeitsraum**; siehe 08, 8.9;
 * eine Aussage über den Emissionsbetrieb. Die Flüssigkeit ist ein idealer
   Leiter; das Leaky-Dielectric-Verhalten unter Strom gehört zu P3/P4;
 * eine Validierung des SU-8-Werts. Der Nominalwert ist vorläufig.
 
-**Gate P2c — offen.** Verbleibende Fälle der Kategorie A (A6 Kugel im homogenen
-Feld, A10, A15, A17, A18) sowie die Frage, ob ein Emitterhalter die
-Zulauftrunkierung schließt.
+**Gate P2c — Geometrie und Vorrat entkoppelt; Konvergenzbefund offen.**
+Gebaut: `ReservoirModel::AxisymmetricPlenum` in `volume_mesh.hpp`,
+`Region::ReservoirSolid`, PEEK als registriertes Material **ohne Zahl**,
+`apps/es_reservoir.cpp`, `python/plot_reservoir.py`, `tests/test_reservoir.cpp`.
+`liquid_feed_z` ist ersatzlos entfallen; an seine Stelle treten vier getrennte
+Parametergruppen (vorderer Emitter, dielektrischer Grundkörper, fester
+Zulaufkanal, Vorratsgeometrie).
+
+Bestanden: die Frontgeometrie ist über alle Vorratsvarianten **bitgenau**
+identisch — 0 m Knotenabweichung, 0 Materialabweichungen über 260 Zeilen und
+45 066 Zellen je Variante; sämtliche Flüssigkeitsbereiche liegen exakt auf
+`V_emitter`; **null** festgehaltene Knoten ohne Flüssigkeitskontakt, strukturell
+geprüft und mit Gegentests auf PEEK-Mantel und -Unterseite; die leitfähige
+Abschlussscheibe bleibt abgelehnt; 14/14 Tests ohne Regression.
+
+**Nicht** bestanden und offen ausgewiesen: das lokale Feld erreicht die vorab
+festgelegte Grenze von 10⁻³ nur am Meniskus (1,1·10⁻⁴), nicht im Maximum über
+alle kantenfernen Sondenpunkte (2,0·10⁻³ am Punkt drei Viertel der
+Extraktionsstrecke). Die Grenze wurde nicht gelockert. Globale Ladungsgrößen
+bleiben vorratsabhängig — bei einem endlichen Leiter im offenen Raum ohne
+Rückführelektrode ist das richtig so.
+
+**Gate P3 — offen.** Verbleibende Fälle der Kategorie A (A6 Kugel im homogenen
+Feld, A10, A15, A17, A18), Oberflächenspannung und Meniskusberechnung, sowie
+belegte Werte für Extraktoraußenradius und Vorratsabmessungen.
 
 ---
 

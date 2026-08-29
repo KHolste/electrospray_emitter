@@ -20,6 +20,7 @@ const char* to_string(Region r) {
     case Region::Liquid: return "liquid";
     case Region::EmitterSolid: return "emitter_solid";
     case Region::ExtractorSolid: return "extractor_solid";
+    case Region::ReservoirSolid: return "reservoir_solid";
     default: return "outside";
   }
 }

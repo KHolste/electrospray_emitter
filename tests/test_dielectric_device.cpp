@@ -61,7 +61,7 @@ static DielectricDeviceParameters reference_geometry(int level = 1) {
   p.device.domain_radius = 1.2e-2;
   p.device.domain_z_min = -5.0e-3;
   p.device.domain_z_max = 9.0e-3;
-  p.liquid_feed_z = -2.0e-4;
+  p.base_plate_thickness = 1.4e-4;  // rear face at z = -200 um
   p.mesh_level = level;
   return p;
 }
@@ -96,7 +96,7 @@ static void test_mesh() {
 
   // Region volumes against closed-form values -- independent of validate().
   check("Rotationsvolumen der Fluessigkeitssaeule", m.revolved_volume_of(Region::Liquid),
-        pi * m.r_bore * m.r_bore * (-m.p.liquid_feed_z), 1.0e-12);
+        pi * m.r_bore * m.r_bore * (-m.p.base_z()), 1.0e-12);
   check("Rotationsvolumen des Extraktortraegers", m.revolved_volume_of(Region::ExtractorSolid),
         pi * (m.r_ext_outer * m.r_ext_outer - m.r_aperture * m.r_aperture) *
             m.p.device.extractor_thickness,
@@ -111,10 +111,10 @@ static void test_mesh() {
              m.grid.nodes[k].z == m2.grid.nodes[k].z;
   expect("zweiter Aufbau ist bitgenau identisch", same);
 
-  // Moving the feed boundary must not move a single node at or above the taper
-  // foot.  Without that the feed study would measure the mesh as well.
+  // Making the base body thicker must not move a single node at or above the
+  // taper foot.  Without that the diagnosis study would measure the mesh too.
   DielectricDeviceParameters q = reference_geometry(1);
-  q.liquid_feed_z = -3.7e-4;
+  q.base_plate_thickness = 3.1e-4;
   const DeviceVolumeMesh m3 = build_volume_mesh(q);
   bool front_identical = (m.grid.nr == m3.grid.nr);
   Index compared = 0;
@@ -130,7 +130,8 @@ static void test_mesh() {
     }
   }
   std::printf("  verglichene Zeilen ab dem Kegelfuss: %lld\n", static_cast<long long>(compared));
-  expect("das Netz ab dem Kegelfuss haengt nicht von der Zulaufposition ab", front_identical);
+  expect("das Netz ab dem Kegelfuss haengt nicht von der Dicke des Grundkoerpers ab",
+         front_identical);
 
   // The P2a rearward conducting closure must be refused outright.
   DielectricDeviceParameters bad = reference_geometry(0);
@@ -168,8 +169,8 @@ static void test_no_polymer_is_a_conductor() {
          at(m.i_land, (m.j_foot + m.j_tip) / 2) == NodeRole::Free);
   expect("Stirnflaeche (Land) zwischen Bohrung und Aussenkante ist frei",
          at((m.i_bore + m.i_land) / 2, m.j_tip) == NodeRole::Free);
-  expect("Rueckflaeche des Polymers bei z = liquid_feed_z ist frei",
-         at((m.i_bore + m.i_land) / 2, m.j_feed) == NodeRole::Free);
+  expect("Rueckflaeche des Polymers am Ende des Grundkoerpers ist frei",
+         at((m.i_bore + m.i_land) / 2, m.j_base) == NodeRole::Free);
   expect("Aussenkante der Stirnflaeche ist frei", at(m.i_land, m.j_tip) == NodeRole::Free);
   expect("Rueckseite des Extraktortraegers ist frei",
          at((m.i_aperture + m.i_ext_outer) / 2, m.j_ex_back) == NodeRole::Free);
@@ -178,12 +179,12 @@ static void test_no_polymer_is_a_conductor() {
 
   // And the surfaces that ARE electrodes.
   expect("Bohrungswand traegt Emitterpotential",
-         at(m.i_bore, (m.j_feed + m.j_tip) / 2) == NodeRole::LiquidConductor);
+         at(m.i_bore, (m.j_base + m.j_tip) / 2) == NodeRole::LiquidConductor);
   expect("ebene Fluessigkeitsreferenz traegt Emitterpotential",
          at(m.i_bore / 2, m.j_tip) == NodeRole::LiquidConductor);
-  expect("Zulaufquerschnitt ist als liquid_feed_boundary gekennzeichnet",
-         at(m.i_bore / 2, m.j_feed) == NodeRole::LiquidFeedBoundary &&
-             at(m.i_bore, m.j_feed) == NodeRole::LiquidFeedBoundary);
+  expect("der Saeulenschnitt ist als liquid_feed_boundary gekennzeichnet",
+         at(m.i_bore / 2, m.j_base) == NodeRole::LiquidFeedBoundary &&
+             at(m.i_bore, m.j_base) == NodeRole::LiquidFeedBoundary);
   expect("metallisierte Vorderflaeche traegt Extraktorpotential",
          at((m.i_aperture + m.i_ext_outer) / 2, m.j_ex_front) ==
              NodeRole::ExtractorMetallisation);
@@ -320,7 +321,7 @@ static void test_fem_against_bem() {
   // The identical shape for the BEM: the conductor ends where the FEM cuts the
   // liquid, and is closed there by the P2a disc.
   DeviceParameters dp = s.geometry.device;
-  dp.emitter_back_length = -s.geometry.liquid_feed_z;
+  dp.emitter_back_length = -s.geometry.base_z();
   dp.domain_z_min = s.geometry.device.domain_z_min;
   const DeviceGeometry g = DeviceGeometry::build(dp);
   const BoundaryMesh bm = BoundaryMesh::generate(g, 0.5);
@@ -386,26 +387,27 @@ static void test_mesh_convergence() {
 }
 
 // ==========================================================================
-// 7.  Position of the feed boundary  (required check 7)
+// 7.  The superseded truncated column, kept as a DIAGNOSIS
 // ==========================================================================
 //
-// The requirement was to SHOW that pushing the feed boundary back stops moving
-// the field at the meniscus.  It does not, and this test records the measured
-// failure against tolerances fixed in advance (es::feed_truncation) rather than
-// asserting a convergence that is not there.
+// This used to be called "position of the feed boundary", and the name was the
+// error.  One number set the length of the CONDUCTING liquid column, the rear
+// extent of the DIELECTRIC body and the whole rear geometry at once, so varying
+// it never moved a boundary condition -- it built a different high-voltage
+// electrode each time.  What this test now records is exactly that:
 //
-// What it does assert is the DIAGNOSIS, because that is the part a later change
-// could break silently:
-//
-//   * the changes shrink monotonically -- it is a slow tail, not a divergence;
+//   * the tolerances fixed in advance (es::reservoir_convergence) are missed by
+//     more than an order of magnitude, as they must be for a growing conductor;
+//   * the changes shrink monotonically -- a slow tail, not a divergence;
 //   * a grounded enclosure changes nothing, so the open far field is not the
 //     cause;
 //   * the emitter charge follows the self-capacitance of a thin cylinder,
-//     2 pi eps0 L / (ln(2L/a) - 1), which is the actual mechanism.
+//     2 pi eps0 L / (ln(2L/a) - 1), which IS the mechanism.
 //
-// If a later phase adds the base plate that docs/04 provides for and the study
-// then converges, this test will fail -- and it should, because the finding it
-// records will no longer be true.
+// The replacement -- a fixed front geometry with a dielectrically enclosed
+// liquid plenum behind it -- is tested in tests/test_reservoir.cpp.  This test
+// stays because the diagnosis has to keep being true: if a later change makes
+// the truncated column converge, something has quietly grown an electrode.
 static void test_feed_boundary_position() {
   std::printf("\n=== 7. Lage der Zulaufgrenze (Trunkierungsstudie) ===\n");
   const MaterialLibrary lib;
@@ -413,7 +415,7 @@ static void test_feed_boundary_position() {
   std::vector<DielectricSolution> sol;
   for (Real z : zf) {
     DielectricSetup s = reference_setup(lib, 1);
-    s.geometry.liquid_feed_z = z;
+    s.geometry.base_plate_thickness = -z - s.geometry.device.emitter_height;
     sol.push_back(solve_dielectric(s));
   }
   const Real span = 1500.0;
@@ -432,12 +434,12 @@ static void test_feed_boundary_position() {
   for (const auto& s : sol) std::printf(" %.6e", s.Q_emitter);
   std::printf("\n  letzte Verdopplung: phi %.3e der Spannweite (Grenze %.1e), |E| %.3e "
               "relativ (Grenze %.1e)\n",
-              worst_phi, feed_truncation::kTolPhiOverSpan, worst_E,
-              feed_truncation::kTolFieldRelative);
+              worst_phi, reservoir_convergence::kTolPhiOverSpan, worst_E,
+              reservoir_convergence::kTolFieldRelative);
   expect("BEFUND: die Zulaufposition ist NICHT auskonvergiert -- die vorab "
          "festgelegten Grenzen werden ueberschritten",
-         worst_phi > feed_truncation::kTolPhiOverSpan &&
-             worst_E > feed_truncation::kTolFieldRelative);
+         worst_phi > reservoir_convergence::kTolPhiOverSpan &&
+             worst_E > reservoir_convergence::kTolFieldRelative);
 
   Real d01 = 0.0, d12 = 0.0, d23 = 0.0;
   for (std::size_t k = 0; k < sol[0].probes.size(); ++k) {
@@ -469,7 +471,7 @@ static void test_feed_boundary_position() {
 
   // And it is not the open far field: a grounded enclosure gives the same.
   DielectricSetup g = reference_setup(lib, 1);
-  g.geometry.liquid_feed_z = -8.0e-4;
+  g.geometry.base_plate_thickness = 8.0e-4 - g.geometry.device.emitter_height;
   g.far_field = FarField::Grounded;
   const DielectricSolution sg = solve_dielectric(g);
   Real worst_bc = 0.0;

@@ -167,7 +167,8 @@ Konfigurationsdatei plus `key=value`-Overrides auf der Kommandozeile
 | `es_operate` | Betriebspunkt, Ionenstrom, Schub/Isp | **nicht belastbar**, siehe Abschnitt 3 |
 | `es_beam` | Strahltransport, Divergenz, Interzeption | ohne Raumladung brauchbar, mit nicht |
 | `es_vacuum` | P2a: statische Vakuum-Elektrostatik auf der P1-Geometrie | **überholt** — behandelt den Emitterkörper als Metall. Bleibt als unabhängige BEM-Vergleichsrechnung für ε_r = 1 erhalten, siehe `docs/08_dielectric_model.md` |
-| `es_dielectric` | P2b: dielektrische Elektrostatik des kapillaren Kunze-Emitters | kantenfernes Feld **netz**konvergent und gegen die BEM geprüft; Kantenfelder nicht; **trunkierungs**konvergent ist nichts — jede Größe gilt für das angegebene `feed.liquid_feed_z` |
+| `es_dielectric` | P2b: dielektrische Elektrostatik auf dem **abgeschnittenen Säulenmodell** | kantenfernes Feld **netz**konvergent und gegen die BEM geprüft; Kantenfelder nicht. Der Lauf ist jetzt eine **Diagnose**: sein Rückschnitt verschiebt Flüssigkeitssäule und Dielektrikum gemeinsam, ist also eine Geometrieänderung der Elektrode und keine Randverschiebung |
+| `es_reservoir` | P2c: Gerätegeometrie und Flüssigkeitsvorrat entkoppelt; Vorrat als dielektrisch umschlossenes Plenum | Frontgeometrie über alle Varianten **bitgenau** identisch (nachgewiesen); lokales Feld am Meniskus ändert sich je Vergrößerungsstufe um 1·10⁻⁴, das **Maximum über alle Sondenpunkte** um 2·10⁻³ und verfehlt damit die vorab festgelegte Grenze 10⁻³ — offen ausgewiesen, siehe `docs/08_dielectric_model.md`, 8.9. Globale Ladungen bleiben vorratsabhängig |
 
 ```sh
 ./build/es_field --help          # Schlüsselreferenz
@@ -177,6 +178,10 @@ python python/plot.py out_capillary
 ./build/es_vacuum examples/device_p1.cfg examples/vacuum_p2a.cfg \
     results/2026-08-29_p2a_vacuum_electrostatics meta.commit=$(git rev-parse HEAD)
 python python/plot_vacuum.py results/2026-08-29_p2a_vacuum_electrostatics
+
+./build/es_reservoir examples/device_p1.cfg examples/reservoir_p2c.cfg \
+    results/2026-08-29_p2c_reservoir_decoupling meta.commit=$(git rev-parse HEAD)
+python python/plot_reservoir.py results/2026-08-29_p2c_reservoir_decoupling
 
 ./build/es_dielectric examples/device_p1.cfg examples/dielectric_p2b.cfg \
     results/2026-08-29_p2b_dielectric_electrostatics meta.commit=$(git rev-parse HEAD)

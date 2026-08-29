@@ -99,6 +99,9 @@ struct Material {
 ///   su8         cured SU-8 photo-epoxy -- PROVISIONAL static value, see below
 ///   ip-q        registered, no value  -- supply one to use it
 ///   ipx-q       registered, no value  -- supply one to use it
+///   peek        registered, no value  -- supply one to use it.  The built
+///               reservoir body is PEEK; no static permittivity for THAT part
+///               in THIS state is in hand, so it carries no number either.
 ///   emibf4      ionic liquid, treated as an ideal conductor in P2b
 ///   metal       the extractor metallisation; ideal conductor, zero thickness
 class MaterialLibrary {
@@ -132,6 +135,13 @@ struct DielectricMaterials {
   Material liquid;             ///< ionic liquid; ideal conductor in P2b
   Material extractor_carrier;  ///< polymer carrier of the extraction electrode
   Material metallisation;      ///< the electrode film; ideal conductor
+  /// Body of the liquid reservoir.  A DIELECTRIC, never an electrode.  The
+  /// built part is PEEK; because no sourced static value for it is in hand, the
+  /// reference assignment falls back to the emitter resin and SAYS SO in the
+  /// caveat.  Supplying material.peek.relative_permittivity together with
+  /// material.peek.source in the configuration replaces it without a code
+  /// change -- the same mechanism IP-Q and IPx-Q use.
+  Material reservoir_body;
 
   /// SU-8 emitter, SU-8 extractor carrier, EMI-BF4 liquid.  The P2b reference.
   static DielectricMaterials reference(const MaterialLibrary& lib);

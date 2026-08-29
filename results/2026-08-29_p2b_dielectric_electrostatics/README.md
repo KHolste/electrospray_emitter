@@ -41,6 +41,21 @@ Emitterkörper als Metall behandelt wurde. Audit und Begründung:
 
 ## Zwei Dinge, die dieser Lauf ausdrücklich NICHT belegt
 
+> **KORREKTUR (P2c, siehe `../2026-08-29_p2c_reservoir_decoupling/` und
+> `docs/08_dielectric_model.md`, 8.9).** Punkt 1 unten ist in seinen Zahlen
+> richtig, in seiner Deutung nicht. `liquid_feed_z` verschob nicht eine
+> Randbedingung, sondern gleichzeitig die Länge der leitfähigen
+> Flüssigkeitssäule, die Länge des dielektrischen Rückteils und die rückwärtige
+> Gerätegeometrie — variiert wurde also die **Geometrie der
+> Hochspannungselektrode**. Die dort genannte Abhilfe „Basisplatte auf
+> Emitterpotential“ ist zurückgenommen; der fehlende Modellteil war der
+> **Flüssigkeitsvorrat als dielektrisch umschlossener Körper**.
+>
+> Dieser Ordner ist damit die **Diagnose des überholten Säulenmodells**. Er wird
+> nicht gelöscht, weil die Messung stimmt und der Vergleich gebraucht wird.
+> Hinweis: der Parameter heißt im heutigen Code `base_plate_thickness`, und
+> `python/plot_dielectric.py` liest die CSVs dieses Ordners nicht mehr.
+
 **1. Die Lage der Zulaufgrenze ist nicht auskonvergiert.** Verlangt war der
 Nachweis, dass eine Rückverlagerung der `liquid_feed_boundary` das Feld am
 Meniskus nicht mehr ändert. Sie ändert es: eine Verdopplung der modellierten

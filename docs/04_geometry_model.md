@@ -21,32 +21,74 @@ Gelesen wurden:
 | grün, „ionische Flüssigkeit" | Speisekanal und Meniskus | — |
 | „mesh" (äußeres Rechteck) | Simulationsdomäne (kein leitendes Gehäuse) | `R_dom`, `z_min`, `z_max` |
 
-Der linke, senkrecht schraffierte Balken ist als **Basisplatte** gelesen, aus
-der die verjüngte Emitterstruktur herausragt und die radial bis zum Gehäuse
-reicht. Sie liegt auf Emitterpotential.
+### KORREKTUR (P2c, 2026-08-29): der linke Balken ist kein Leiter
+
+Die frühere Lesart lautete: „Der linke, senkrecht schraffierte Balken ist als
+**Basisplatte** gelesen, aus der die verjüngte Emitterstruktur herausragt und
+die radial bis zum Gehäuse reicht. **Sie liegt auf Emitterpotential.**“
+
+**Diese Lesart wird zurückgenommen.** Zwei Dinge daran waren nicht belegt und
+eines war physikalisch falsch:
+
+1. **„Auf Emitterpotential“ ist falsch.** Das Gerät ist ein 3D-gedruckter
+   Photopolymer-Emitter auf einem Polymer-Vorratskörper; auf Hochspannung liegt
+   die **ionische Flüssigkeit**, nicht die Struktur, die sie trägt. Eine
+   leitende Basisplatte einzuführen hieße, eine große Elektrode zu erfinden, die
+   das Feld dominiert, das sie in Ruhe lassen soll. Sie ist ausgeschlossen —
+   `es_reservoir` und `build_volume_mesh()` lehnen jede rückwärtige
+   Metallfläche ab, und `tests/test_reservoir.cpp` prüft strukturell, dass kein
+   Knoten ohne Flüssigkeitskontakt eine Dirichlet-Bedingung trägt.
+2. **„Radial bis zum Gehäuse“ ist nicht bemaßt.** Die Skizze bemaßt die
+   verjüngte Struktur, nicht das, was sie trägt. Eine radiale Ausdehnung dieser
+   Größe ist eine Erfindung.
+3. **Was bleibt**, ist eine **dielektrische** rückwärtige Ausdehnung mit einer
+   *angegebenen*, vorläufigen Dicke: `emitter.base_plate_thickness`, Radius
+   φ₃/2, also die zylindrische Fortsetzung der gedruckten Struktur. Dahinter
+   steht der **Flüssigkeitsvorrat** als eigener, ebenfalls dielektrisch
+   umschlossener Körper (`reservoir.*`, siehe
+   [08_dielectric_model.md](08_dielectric_model.md), 8.9).
+
+Die Skizze unten ist entsprechend korrigiert. Sie ist NICHT maßstäblich: der
+gedruckte Emitter misst Mikrometer, der Vorratskörper Millimeter. Eine
+maßstäbliche Zeichnung steht in
+`results/2026-08-29_p2c_reservoir_decoupling/fig1_reservoir_geometries.png`.
 
 ```
    r
    ^
-   |                                                    [Domaenenrand]
-R_dom +==================================================================+
-   |  #                                                                  |
-   |  #  Basisplatte (U_emitter)                                         |
-   |  #                                                                  |
-   |  #\                                                                 |
-d3/2  #  \    Aussenkontur: Kegelstumpf (oder gekruemmtes Profil)        |
-   |  #    \                                                             |
-   |  #      \                                                     +####+|
-   |  #        \______________________                             |####||
-d1/2  #        |                      |   <- Stirnflaeche (Land)   |####||
-   |  #        |######################|      Breite w=(d1-d2)/2    |####||
-d2/2  #        +----------------------+                            +####+|
-   |  #        :  ionische Fluessigkeit ) <- Meniskus              D_a/2 |
-   |  #        :                       :\                                |
-  0 +--#--------:-----------------------:--------------------------------+--> z
-      z_min    -H                       0                L        L+t_e  z_max
-                <--------- H ---------> <------ L ------>
+   |                                                        [Domaenenrand]
+R_dom +======================================================================+
+   |                                                                        |
+   |   ,---------------------.                                              |
+   |   |#####################|   Vorratskoerper: DIELEKTRIKUM (PEEK),       |
+   |   |####,-----------,####|   KEINE Elektrode, KEIN Halter auf Potential |
+   |   |####|  Plenum   |####|                                              |
+   |   |####|(Fluessig- |####|   Fuellstand als Parameter                   |
+   |   |####|  keit)    |####|                                              |
+   |   |####`-----.  ,--'####|                                              |
+   |   |##########|  |#######|   Wandstaerke reservoir.wall_thickness       |
+   |   `----------|  |-------'                                              |
+   |              |  |   <- fester Zulaufkanal, reservoir.feed_channel_*    |
+   |          ,---'  `---,                                                  |
+   |          |##########|       Grundkoerper: DIELEKTRIKUM,                |
+d3/2 . . . . .|##########|. . .  Dicke emitter.base_plate_thickness,        |
+   |          |###\      |       Radius d3/2                                |
+   |          |#####\    |   Aussenkontur: Kegelstumpf              +####+  |
+   |          |#######\__|________________                          |####|  |
+d1/2 . . . . .|##################|  <- Stirnflaeche (Land)          |####|  |
+   |          |##################|     Breite w=(d1-d2)/2           |####|  |
+d2/2 . . . . .+------------------+                                  +####+  |
+   |          :  ionische Fluessigkeit ) <- Meniskus               D_a/2    |
+   |          :                        :\                                   |
+  0 +---------:------------------------:-----------------------------------+--> z
+        z_min   -H-t_b   -H            0             L        L+t_e   z_max
+                         <---- H ----> <----- L ----->
 ```
+
+Auf Hochspannung liegt AUSSCHLIESSLICH die zusammenhaengende Fluessigkeit —
+Bohrung, Zulaufkanal und Plenum. Jeder Festkoerper (Emitter, Grundkoerper,
+Vorratskoerper, Extraktortraeger) ist ein Dielektrikum; auf `U_extractor` liegt
+nur die Metallisierung der Extraktorflaeche.
 
 ## 4.2 Parametersatz
 
@@ -64,8 +106,16 @@ d2/2  #        +----------------------+                            +####+|
 | `emitter.d2_base` | Bohrungsdurchmesser am Fuß (nur `tapered`) | m | `>= d2` |
 | `emitter.edge_radius_outer` | Verrundung Außenkante der Stirnfläche | m | `<= w` |
 | `emitter.edge_radius_inner` | Verrundung Innenkante (Kontaktlinie) | m | `<= w` |
-| `emitter.base_plate_thickness` | Dicke der Basisplatte | m | |
-| `emitter.channel_length` | Speisekanallänge stromauf, für `Z_h` | m | |
+| `emitter.base_plate_thickness` | Dicke des **dielektrischen** Grundkörpers hinter dem Kegelfuß; Radius φ₃/2. **Nicht** leitend, **nicht** bis zum Gehäuse. Vorläufiger Beispielwert | m | `> 0` |
+| `reservoir.feed_channel_length` | Länge des festen Zulaufkanals zwischen Grundkörper und Plenum = Dicke der oberen Wand des Vorratskörpers | m | `> 0` |
+| `reservoir.feed_channel_radius` | Radius des Zulaufkanals; 0 bedeutet „gleich dem Bohrungsradius“ | m | `<= φ₂/2` |
+| `reservoir.wall_thickness` | Wand- und Bodenstärke des dielektrischen Vorratskörpers | m | `> 0` |
+| Plenumradius, Plenumtiefe, Füllstand | Geometrie des angeschlossenen Flüssigkeitsraums; die Vergleichsreihe steht in `apps/es_reservoir.cpp` | m, m, — | Radius `>` `extractor.outer_radius` |
+
+Die vier Gruppen — **vorderer Emitter**, **dielektrischer Grundkörper**,
+**Zulaufkanal**, **Vorratsgeometrie** — sind bewusst getrennt. Bis P2b verschob
+ein einziger Wert (`liquid_feed_z`) alle vier gleichzeitig; siehe
+[08_dielectric_model.md](08_dielectric_model.md), 8.9.
 
 Abgeleitet und mit auszugeben:
 

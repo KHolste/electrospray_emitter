@@ -16,81 +16,78 @@ namespace es {
 //
 // THE CORRECTED PHYSICAL CONTRACT.  What is on potential and what is not:
 //
-//   ionic liquid           IDEAL CONDUCTOR at V_emitter.  It fills the bore and
-//                          is cut at the feed boundary; the whole liquid volume
-//                          is one equipotential, so its entire surface -- bore
-//                          wall, flat reference plane at z = 0, and the feed
-//                          cross section -- carries the Dirichlet condition.
+//   ionic liquid           IDEAL CONDUCTOR at V_emitter.  ALL connected liquid
+//                          is ONE equipotential -- bore, feed channel and, with
+//                          a plenum, the reservoir -- so its entire surface
+//                          carries the Dirichlet condition and nothing else
+//                          does.
 //   emitter body (SU-8)    DIELECTRIC.  eps_r from materials.hpp.  It is NOT an
 //                          electrode: it carries no free charge, it only
 //                          polarises, and no surface of it is fixed to any
 //                          potential.  In P2a it was metal.  That was wrong.
+//   reservoir body (PEEK)  DIELECTRIC, same treatment.  There is NO conducting
+//                          holder, NO rear metal disc and NO base plate on
+//                          emitter potential anywhere in this model.
 //   extractor carrier      DIELECTRIC, same treatment.
 //   metallised face        IDEAL CONDUCTOR at V_extractor, ZERO THICKNESS.
 //                          Which faces are coated is a parameter, because it is
 //                          a manufacturing fact and not a law.
 //   vacuum                 eps_r = 1.
 //
-//   liquid feed boundary   phi = V_emitter on the LIQUID CROSS SECTION ONLY,
-//                          r <= r_bore at z = liquid_feed_z.  The remainder of
-//                          that plane is the rear face of the polymer and is an
-//                          ordinary dielectric/vacuum interface.  Treating the
-//                          whole cut plane as an electrode would put a grounded
-//                          -- or worse, energised -- disc behind the emitter
-//                          that does not exist, and would dominate the field it
-//                          is supposed to leave alone.
+//   rear cut plane         ONLY in ReservoirModel::TruncatedColumn, which is
+//                          kept as a diagnosis of the superseded arrangement:
+//                          phi = V_emitter on the LIQUID CROSS SECTION ONLY.
+//                          The remainder of that plane is the rear face of the
+//                          polymer and is an ordinary dielectric interface.
+//                          Treating the whole cut plane as an electrode would
+//                          put a disc behind the emitter that does not exist
+//                          and would dominate the field it is supposed to leave
+//                          alone.
 //
 // Solved:  div(eps grad phi) = 0, axisymmetric, static, no free charge.
 // Not solved, and not pretended: space charge, emission, meniscus motion,
 // flow, finite liquid conductivity, time dependence.
 
 // ---------------------------------------------------------------------------
-// Tolerances for the feed-boundary study -- fixed BEFORE the measurement
+// Tolerances for the reservoir study -- fixed BEFORE the measurement
 // ---------------------------------------------------------------------------
 //
-// The requirement on the feed boundary is that pushing it further back stops
-// changing the field at the meniscus.  A quantity counts as independent of
-// liquid_feed_z when DOUBLING the modelled column length changes it by less
-// than the bound below.  The bounds are the same ones P2a fixed for its own
-// truncation study, and for the same reasons: the mesh discretisation error at
-// the reference level is a few times 1e-4, so a bound at 1e-3 keeps the two
+// The requirement is that making the modelled liquid reservoir LARGER stops
+// changing the field at the meniscus.  A quantity counts as independent of the
+// reservoir when growing it by one step changes the quantity by less than the
+// bound below.  The bounds are the ones P2a and P2b fixed for their own
+// truncation studies, and for the same reasons: the mesh discretisation error
+// at the reference level is a few times 1e-4, so a bound at 1e-3 keeps the two
 // error sources apart; and a field-dependent emission law is worth evaluating
 // at about a per cent, so 1e-3 is an order below what the answer is used for.
 //
-// THE STUDY FAILS THESE BOUNDS, AND THAT IS A RESULT ABOUT THE MODEL.
+// THEY ARE NOT LOOSENED AFTERWARDS.  Whatever the measurement says, it is
+// reported against these numbers.
 //
-// Measured on the reference geometry, doubling the column length from 400 um to
-// 800 um moves E_z on the axis above the reference plane by about 3.6 per cent
-// and the potential at mid gap by about 1.5 per cent of the applied span; the
-// emitter charge nearly doubles.  The changes do shrink -- roughly like
-// 1/ln(L/a) -- but nowhere near fast enough, and centimetres of column would be
-// needed to reach one part in a thousand.
+// WHAT THE OLD "FEED BOUNDARY" STUDY ACTUALLY MEASURED -- the correction this
+// phase exists for.  Until now one parameter, liquid_feed_z, set the rear end
+// of the CONDUCTING liquid column, the rear end of the DIELECTRIC emitter body,
+// and with them the whole rear geometry of the device, all at once.  Varying it
+// was therefore never "moving a boundary condition": it built a longer
+// energised conductor inside a longer dielectric each time, and the strong
+// field change that followed is what a longer conductor does.  Reporting that
+// as a failed convergence "against the position of the feed boundary" was
+// misleading, and section 8.9 of docs/08_dielectric_model.md says so.
 //
-// THE REASON, and why it is not a numerical defect.  The liquid column is an
-// energised conductor.  A thin cylinder of radius a and length L has a
-// self-capacitance of about 2 pi eps0 L / (ln(2L/a) - 1); making it longer makes
-// it hold proportionally more charge, and that charge is felt at the tip.  The
-// measured Q_emitter follows that formula to within the contribution of the tip
-// and the electrode.  Nothing about the far field is responsible: repeating the
-// study inside a GROUNDED enclosure at 25 mm changes every number by less than
-// 0.1 per cent, so it is not an artefact of the open boundary either.
+// The position of a fully immersed electrical contact, by contrast, is
+// irrelevant in a model whose liquid is one ideal conductor, and it is not
+// represented geometrically at all.
 //
-// WHAT WOULD FIX IT, and why P2b does not do it.  The real emitter does not end
-// in mid vacuum: docs/04_geometry_model.md, section 4.1, already provides for a
-// base plate at emitter potential from which the tapered structure protrudes.
-// A real conductor of stated dimensions terminating the column would make the
-// feed position a numerical parameter again.  Adding one is a DEVICE GEOMETRY
-// decision, and this phase was explicitly instructed not to treat the rear cut
-// plane as an electrode -- which is right, because a disc invented to make a
-// convergence study succeed is not a device.
-//
-// CONSEQUENCE FOR THE RESULTS.  Every P2b number is reported as a function of
-// liquid_feed_z, and the value used is an EXAMPLE VALUE, not a measured
-// dimension -- exactly like extractor_outer_radius.
-namespace feed_truncation {
+// LOCAL AND GLOBAL QUANTITIES ARE JUDGED SEPARATELY.  The total charge on a
+// conductor of finite size in an open domain is a function of that size --
+// there is no return electrode, so a larger vessel simply holds more charge,
+// and no tolerance is placed on it.  What has to converge is the LOCAL
+// extraction field: phi at edge-far probe points and E just above the flat
+// liquid surface.
+namespace reservoir_convergence {
 inline constexpr Real kTolPhiOverSpan = 1.0e-3;
 inline constexpr Real kTolFieldRelative = 1.0e-3;
-}  // namespace feed_truncation
+}  // namespace reservoir_convergence
 
 /// Which bodies are conductors.
 enum class ConductorModel {
@@ -120,7 +117,10 @@ const char* to_string(Metallisation m);
 enum class NodeRole {
   Free = 0,
   LiquidConductor,        ///< liquid surface or interior; phi = V_emitter
-  LiquidFeedBoundary,     ///< the liquid cross section at z = liquid_feed_z
+  /// ONLY in ReservoirModel::TruncatedColumn: the liquid cross section at the
+  /// rear cut, where the column is chopped off.  With a plenum the liquid is
+  /// closed and there is no cut, so this role does not occur.
+  LiquidFeedBoundary,
   ExtractorMetallisation, ///< the metal film; phi = V_extractor
   FarFieldDirichlet,      ///< only with FarField::Grounded
   EmitterMetalReference,  ///< only in ConductorModel::MetallicReference
@@ -146,20 +146,45 @@ struct DielectricSetup {
 // ---------------------------------------------------------------------------
 //
 // This is a required check, not a nicety: the single defect P2b exists to
-// repair is a dielectric that was treated as an electrode.  The audit walks the
-// NAMED polymer surfaces of the device -- outer flank, tip land, rear face,
-// body interior, and the uncoated extractor faces -- and reports every node on
-// them that carries a Dirichlet condition.  The count must be zero.
+// repair is a dielectric that was treated as an electrode, and the reservoir
+// added afterwards is exactly the place where a conducting holder would be
+// easiest to slip in by accident.
+//
+// The audit therefore runs TWO checks, not one.
+//
+//   STRUCTURAL, and the one that decides.  A node may carry the emitter
+//   potential only if it touches a LIQUID cell.  Every other fixed node -- on
+//   the emitter body, on the reservoir body, on an uncoated extractor face, or
+//   anywhere else -- is a violation.  This does not depend on anybody having
+//   named the surface, so a new part cannot be added with a conducting face
+//   that nobody thought to check.
+//
+//   NAMED, and the one that explains.  The same test on an explicit list of
+//   surfaces -- taper flank, tip land, rear face, emitter interior, reservoir
+//   top face, outer rim, underside, reservoir interior, uncoated extractor
+//   faces -- so that a violation can be reported by the surface it sits on.
+//
+// Both counts must be zero.
 struct BoundaryAudit {
   Index n_nodes{0};
   Index n_dirichlet{0};
   Index n_liquid{0}, n_feed{0}, n_metal{0}, n_far{0}, n_emitter_metal_reference{0};
-  /// Nodes on a polymer surface that are nevertheless fixed.  MUST be zero in
-  /// ConductorModel::Dielectric.
+  /// Fixed nodes that touch NO liquid cell and are neither the extractor film
+  /// nor the far-field box.  This is the STRUCTURAL form of the check: it does
+  /// not depend on a list of surface names, so a surface nobody thought to name
+  /// cannot slip through.  MUST be zero in ConductorModel::Dielectric.
   Index n_polymer_dirichlet{0};
-  /// Nodes at z = liquid_feed_z that are fixed but lie OUTSIDE the liquid cross
-  /// section.  MUST be zero: the cut plane is not an electrode.
+  /// Same count restricted to the NAMED polymer surfaces below, kept so that a
+  /// violation can be reported by the surface it sits on.
+  Index n_named_surface_dirichlet{0};
+  /// Nodes on the rear cut plane of a truncated column that are fixed but lie
+  /// OUTSIDE the liquid cross section.  MUST be zero: the cut plane is not an
+  /// electrode.  Always zero with a plenum, which has no cut plane.
   Index n_feed_plane_outside_liquid{0};
+  /// Fixed nodes on the surface of the reservoir body that are liquid surface
+  /// (channel wall, plenum roof, plenum wall, plenum floor).  Reported so that
+  /// the liquid really is one connected equipotential and not silently split.
+  Index n_reservoir_liquid_surface{0};
   /// Nodes where a coated face meets an uncoated one.  They belong to the metal
   /// film's rim, are legitimately fixed, and are counted rather than silently
   /// skipped so that the exclusion is visible.

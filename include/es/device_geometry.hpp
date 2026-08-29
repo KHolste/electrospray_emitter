@@ -39,6 +39,12 @@ enum class Region {
   Liquid,          ///< ionic liquid filling the bore
   EmitterSolid,    ///< the massive capillary body
   ExtractorSolid,  ///< the annular extraction electrode
+  /// The dielectric body of the liquid reservoir behind the base plate.  A
+  /// SEPARATE region from EmitterSolid on purpose: it is a different part, made
+  /// of a different polymer (PEEK in the built device), and keeping it apart is
+  /// what lets the boundary audit name it and a later phase give it its own
+  /// permittivity.  It is a DIELECTRIC.  It is never an electrode.
+  ReservoirSolid,
   Outside,         ///< beyond the computational domain; not a material
 };
 const char* to_string(Region r);

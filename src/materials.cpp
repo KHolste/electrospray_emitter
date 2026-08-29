@@ -153,6 +153,32 @@ MaterialLibrary::MaterialLibrary() {
     m_.push_back(m);
   }
   {
+    // ------------------------------------------------------------------
+    // PEEK -- the body of the liquid reservoir in the built device.
+    //
+    // Registered with NO NUMBER, for the same reason as IP-Q and IPx-Q: what
+    // the electrostatic problem needs is the STATIC permittivity of the actual
+    // part, and nothing in hand supplies one.  Manufacturer figures for PEEK
+    // cluster around 3.2 at kHz to MHz, but that is a recollection of a
+    // property table, not a source this project has read and cited, and this
+    // file does not accept recollections.  A value enters through
+    // material.peek.relative_permittivity together with material.peek.source.
+    //
+    // The consequence is deliberate: a run that asks for PEEK by name aborts
+    // with an explanation instead of inventing a number, and the reservoir
+    // comparison instead states that it used the emitter resin as a stand-in.
+    // ------------------------------------------------------------------
+    Material m;
+    m.name = "peek";
+    m.status = MaterialStatus::Unknown;
+    m.source = "keine";
+    m.conditions = "-";
+    m.caveat =
+        "Werkstoff des Vorratskoerpers im gebauten Geraet. Kein geprueftes statisches "
+        "eps_r vorhanden; Wert absichtlich leer. Wird ueber material.peek.* nachgereicht.";
+    m_.push_back(m);
+  }
+  {
     Material m;
     m.name = "emibf4";
     m.status = MaterialStatus::IdealConductor;
@@ -259,6 +285,17 @@ DielectricMaterials DielectricMaterials::reference(const MaterialLibrary& lib) {
   d.liquid = lib.get("emibf4");
   d.extractor_carrier = lib.get("su8");
   d.metallisation = lib.get("metal");
+  // The reservoir body is PEEK in the built device, and "peek" carries no
+  // number on purpose.  The reference assignment therefore uses the emitter
+  // resin as an explicit STAND-IN and records that in the caveat, so that no
+  // reader can mistake the reservoir permittivity for a PEEK measurement.
+  d.reservoir_body = lib.get("su8");
+  d.reservoir_body.name = "reservoir_body_as_su8_standin";
+  d.reservoir_body.caveat =
+      "STELLVERTRETER. Der Vorratskoerper ist im gebauten Geraet PEEK; fuer PEEK liegt in "
+      "diesem Projekt kein geprueftes statisches eps_r vor. Gerechnet wird deshalb mit dem "
+      "Emitterharz. Aus dieser Zahl folgt keine Aussage ueber PEEK. Abhilfe: "
+      "material.peek.relative_permittivity und material.peek.source angeben.";
   return d;
 }
 
@@ -273,12 +310,16 @@ DielectricMaterials DielectricMaterials::all_vacuum(const MaterialLibrary& lib) 
   d.extractor_carrier = v;
   d.extractor_carrier.name = "extractor_carrier_as_vacuum";
   d.extractor_carrier.caveat = d.emitter_dielectric.caveat;
+  d.reservoir_body = v;
+  d.reservoir_body.name = "reservoir_body_as_vacuum";
+  d.reservoir_body.caveat = d.emitter_dielectric.caveat;
   return d;
 }
 
 void DielectricMaterials::check_usable() const {
   (void)emitter_dielectric.permittivity_or_throw();
   (void)extractor_carrier.permittivity_or_throw();
+  (void)reservoir_body.permittivity_or_throw();
   (void)vacuum.permittivity_or_throw();
   if (!liquid.ideal_conductor)
     throw std::runtime_error("P2b behandelt die ionische Fluessigkeit als idealen Leiter; "
@@ -297,6 +338,8 @@ void DielectricMaterials::print(std::FILE* out) const {
   liquid.print(out);
   std::fprintf(out, "  Extraktortraeger    -> ");
   extractor_carrier.print(out);
+  std::fprintf(out, "  Vorratskoerper      -> ");
+  reservoir_body.print(out);
   std::fprintf(out, "  Metallisierung      -> ");
   metallisation.print(out);
 }
@@ -317,6 +360,7 @@ void DielectricMaterials::write_csv(const std::string& path) const {
   row("emitter_dielectric", emitter_dielectric);
   row("liquid", liquid);
   row("extractor_carrier", extractor_carrier);
+  row("reservoir_body", reservoir_body);
   row("metallisation", metallisation);
   std::fclose(f);
 }

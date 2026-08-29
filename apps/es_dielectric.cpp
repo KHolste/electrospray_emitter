@@ -5,8 +5,10 @@
 //
 // Solves  div(eps(x) grad phi) = 0  on the axisymmetric device, with
 //
-//   * the ionic liquid as an ideal equipotential conductor at V_emitter,
-//     terminated at a named feed boundary whose position is a parameter;
+//   * the ionic liquid as an ideal equipotential conductor at V_emitter, cut
+//     off at the rear face of the dielectric base body -- the SUPERSEDED
+//     truncated-column arrangement, run here as a DIAGNOSIS.  The replacement,
+//     an axisymmetric liquid plenum inside a dielectric body, is es_reservoir;
 //   * the 3D-printed emitter body as a DIELECTRIC (SU-8 by default) -- not an
 //     electrode, which is the correction this phase exists for;
 //   * the extractor as a polymer carrier with a metallised face at V_extractor;
@@ -62,7 +64,8 @@ DeviceParameters device_from(const Config& c) {
     throw std::runtime_error(
         "device.emitter_back_length ist gesetzt.  Das ist der metallische P2a-Emitter mit "
         "leitender Abschlussscheibe und fuer den dielektrischen Emitter physikalisch falsch. "
-        "In P2b wird die Fluessigkeitssaeule an feed.liquid_feed_z abgeschnitten.");
+        "Die Fluessigkeitssaeule endet stattdessen an der Rueckflaeche des Grundkoerpers, "
+        "device.base_plate_thickness.");
   p.emitter_back_length = 0.0;
   p.reserved.edge_radius_inner = c.num("reserved.edge_radius_inner", 0.0);
   p.reserved.edge_radius_outer = c.num("reserved.edge_radius_outer", 0.0);
@@ -86,7 +89,7 @@ MaterialStatus status_from(const std::string& s) {
 /// Apply every material.<name>.* override.  This is the whole mechanism by
 /// which IP-Q, IPx-Q or a better SU-8 measurement enters -- no code change.
 void apply_material_overrides(const Config& c, MaterialLibrary& lib) {
-  for (const char* raw : {"su8", "ip-q", "ipx-q"}) {
+  for (const char* raw : {"su8", "ip-q", "ipx-q", "peek"}) {
     const std::string name(raw);
     const std::string key = "material." + name + ".relative_permittivity";
     if (!c.has(key)) continue;
@@ -186,13 +189,26 @@ int main(int argc, char** argv) try {
 
   DielectricSetup S;
   S.geometry.device = device_from(cfg);
-  S.geometry.liquid_feed_z = cfg.num("feed.liquid_feed_z", -2.0e-4);
+  if (cfg.has("feed.liquid_feed_z"))
+    throw std::runtime_error(
+        "feed.liquid_feed_z gibt es nicht mehr.  Der Wert hat gleichzeitig die Laenge der "
+        "leitfaehigen Fluessigkeitssaeule UND die rueckwaertige Ausdehnung des "
+        "dielektrischen Grundkoerpers verschoben; eine Studie darueber war deshalb keine "
+        "Randverschiebung, sondern eine Geometrieaenderung der Hochspannungselektrode.  "
+        "Ersatz: device.base_plate_thickness legt die Dicke des Grundkoerpers fest, und "
+        "reservoir.model = axisymmetric_plenum stellt einen Fluessigkeitsvorrat dahinter.  "
+        "Siehe docs/08_dielectric_model.md, 8.9.");
+  S.geometry.base_plate_thickness =
+      cfg.num("device.base_plate_thickness", S.geometry.base_plate_thickness);
+  S.geometry.reservoir = ReservoirModel::TruncatedColumn;
   const int ref_level = cfg.integer("mesh.reference_level", 3);
   const int max_level = cfg.integer("mesh.max_level", 4);
   S.geometry.mesh_level = ref_level;
   S.materials = DielectricMaterials::reference(lib);
   S.materials.emitter_dielectric = lib.get(cfg.str("emitter.material", "su8"));
   S.materials.extractor_carrier = lib.get(cfg.str("extractor.material", "su8"));
+  if (cfg.has("reservoir.material"))
+    S.materials.reservoir_body = lib.get(cfg.str("reservoir.material", "su8"));
   S.metallisation = metallisation_from(cfg.str("extractor.metallisation", "front_and_aperture"));
   S.far_field = FarField::Asymptotic;
   if (!cfg.has("field.V_emitter") || !cfg.has("field.V_extractor"))
@@ -274,22 +290,25 @@ int main(int argc, char** argv) try {
   const Real mesh_dQ = rel_change(levels[levels.size() - 2].Q_emitter, levels.back().Q_emitter);
 
   // --- 2. feed boundary position -------------------------------------------
-  std::printf("\n=== Lage der Zulaufgrenze ===\n");
-  const Real zf0 = S.geometry.liquid_feed_z;
+  std::printf("\n=== Rueckwaertige Ausdehnung des abgeschnittenen Modells ===\n");
+  const Real zf0 = S.geometry.base_z();
   const std::vector<Real> feed_z{0.5 * zf0, zf0, 2.0 * zf0, 4.0 * zf0};
   std::vector<DielectricSolution> feeds;
   for (Real z : feed_z) {
     DielectricSetup s = S;
     s.geometry.mesh_level = std::min(ref_level, 2);
-    s.geometry.liquid_feed_z = z;
+    s.geometry.base_plate_thickness = -z - S.geometry.device.emitter_height;
     feeds.push_back(solve_dielectric(s));
-    std::printf("  z_feed = %10.4g m: Q_E = %.8e C\n", z, feeds.back().Q_emitter);
+    std::printf("  z_cut = %10.4g m: Q_E = %.8e C\n", z, feeds.back().Q_emitter);
   }
   {
     std::FILE* f = std::fopen((outdir + "/convergence_feed.csv").c_str(), "w");
-    std::fprintf(f, "# Konvergenz gegen die Lage der Zulaufgrenze; das Netz ab dem Kegelfuss "
-                    "ist dabei unveraendert\n");
-    std::fprintf(f, "liquid_feed_z_m,nodes,Q_emitter_C");
+    std::fprintf(f, "# ACHTUNG, KEINE RANDVERSCHIEBUNG.  Variiert wird die rueckwaertige "
+                    "Ausdehnung des\n# abgeschnittenen Modells: die Laenge der leitfaehigen "
+                    "Fluessigkeitssaeule UND die des\n# dielektrischen Koerpers wachsen "
+                    "dabei gemeinsam.  Das ist eine Aenderung der\n# Geometrie der "
+                    "Hochspannungselektrode und wird hier als DIAGNOSE gefuehrt.\n");
+    std::fprintf(f, "column_cut_z_m,nodes,Q_emitter_C");
     for (const Probe& p : feeds[0].probes)
       std::fprintf(f, ",phi_%s_V,E_%s_V_per_m", p.name.c_str(), p.name.c_str());
     std::fprintf(f, "\n");
@@ -310,18 +329,18 @@ int main(int argc, char** argv) try {
     worst_feed_E = std::max(worst_feed_E, rel_change(feeds[2].Emag_probe[p],
                                                      feeds[3].Emag_probe[p]));
   }
-  const bool feed_converged = worst_feed_phi < feed_truncation::kTolPhiOverSpan &&
-                              worst_feed_E < feed_truncation::kTolFieldRelative;
+  const bool feed_converged = worst_feed_phi < reservoir_convergence::kTolPhiOverSpan &&
+                              worst_feed_E < reservoir_convergence::kTolFieldRelative;
   std::printf("  Trunkierungsgrenzen (vorab festgelegt): phi %.1e, |E| %.1e der Spannweite\n",
-              feed_truncation::kTolPhiOverSpan, feed_truncation::kTolFieldRelative);
+              reservoir_convergence::kTolPhiOverSpan, reservoir_convergence::kTolFieldRelative);
   std::printf("  gemessen bei der letzten Verdopplung   : phi %.3e, |E| %.3e  -> %s\n",
               worst_feed_phi, worst_feed_E, feed_converged ? "konvergiert" : "NICHT KONVERGIERT");
   if (!feed_converged)
-    std::printf("  BEFUND: die Lage der Zulaufgrenze ist eine Abmessung des Modells, kein\n"
-                "  Konvergenzparameter.  Die Fluessigkeitssaeule ist ein Leiter auf "
-                "V_emitter;\n  eine laengere Saeule traegt mehr Ladung, und die wird an der "
-                "Spitze gespuert.\n  Jede berichtete Zahl gilt fuer liquid_feed_z = %.6g m.\n",
-                S.geometry.liquid_feed_z);
+    std::printf("  BEFUND: hier wurde die Geometrie des leitenden Fluessigkeitskoerpers "
+                "geaendert,\n  nicht eine Randbedingung verschoben.  Eine laengere Saeule "
+                "traegt mehr Ladung,\n  und die wird an der Spitze gespuert.  Jede berichtete "
+                "Zahl gilt fuer\n  base_plate_thickness = %.6g m (Schnitt bei z = %.6g m).\n",
+                S.geometry.base_plate_thickness, S.geometry.base_z());
 
   // --- 3. permittivity sensitivity -----------------------------------------
   std::printf("\n=== Empfindlichkeit gegenueber eps_r ===\n");
@@ -422,7 +441,7 @@ int main(int argc, char** argv) try {
     const DielectricSolution fem = solve_dielectric(s);
 
     DeviceParameters dp = S.geometry.device;
-    dp.emitter_back_length = -S.geometry.liquid_feed_z;
+    dp.emitter_back_length = -S.geometry.base_z();
     const DeviceGeometry g = DeviceGeometry::build(dp);
     const BoundaryMesh bm = BoundaryMesh::generate(g, 0.5);
     BemSolver bem(vacuum_bem_mesh(bm, g));
@@ -495,7 +514,7 @@ int main(int argc, char** argv) try {
     // -- the meridian half-plane is drawn to scale, and a window with a ten to
     // one aspect ratio would be honest but unreadable.
     const std::vector<Window> ws{
-        {"uebersicht", 0.0, 1.6 * L, 1.15 * S.geometry.liquid_feed_z,
+        {"uebersicht", 0.0, 1.6 * L, 1.15 * S.geometry.base_z(),
          1.25 * (L + S.geometry.device.extractor_thickness), 360, 360},
         {"spitze", 0.0, 4.0 * m.r_foot, -4.0 * m.r_foot, 4.0 * m.r_foot, 360, 360}};
     for (const Window& w : ws)
@@ -517,10 +536,11 @@ int main(int argc, char** argv) try {
                  to_string(S.materials.emitter_dielectric.status));
     std::fprintf(f, "  Der Extraktor ist ein Polymertraeger mit metallisierter Flaeche "
                     "(%s) auf V_extractor.\n", to_string(S.metallisation));
-    std::fprintf(f, "  Das Reservoir ist nicht vernetzt: die Fluessigkeit endet bei "
-                    "z = %.6g m,\n  und NUR ihr Querschnitt dort traegt V_emitter.  Die "
-                    "uebrige Schnittebene ist\n  die Rueckflaeche des Polymers und keine "
-                    "Elektrode.\n", S.geometry.liquid_feed_z);
+    std::fprintf(f, "  DIAGNOSELAUF: der Vorrat ist nicht vernetzt, die Fluessigkeit "
+                    "endet bei z = %.6g m,\n  und NUR ihr Querschnitt dort traegt "
+                    "V_emitter.  Die uebrige Schnittebene ist\n  die Rueckflaeche des "
+                    "Polymers und keine Elektrode.  Das Ersatzmodell mit\n  vernetztem "
+                    "Fluessigkeitsraum steht in es_reservoir.\n", S.geometry.base_z());
     std::fprintf(f, "  P2a behandelte den Emitterkoerper als Metall; alle davon abhaengigen "
                     "P2a-Zahlen\n  sind damit ueberholt, nicht nur ungenauer.\n\n");
 
@@ -564,10 +584,10 @@ int main(int argc, char** argv) try {
     std::fprintf(f, "\nKONVERGENZ UND EMPFINDLICHKEIT\n");
     std::fprintf(f, "  Netz, letzte Verfeinerung : phi %.2e der Spannweite, |E| %.2e relativ, "
                     "Q_E %.2e relativ\n", worst_mesh_phi, worst_mesh_E, mesh_dQ);
-    std::fprintf(f, "  Zulaufgrenze, letzte Verdopplung: phi %.2e der Spannweite, |E| %.2e "
-                    "relativ\n", worst_feed_phi, worst_feed_E);
+    std::fprintf(f, "  Rueckwaertige Ausdehnung, letzte Verdopplung: phi %.2e der "
+                    "Spannweite, |E| %.2e relativ\n", worst_feed_phi, worst_feed_E);
     std::fprintf(f, "    vorab festgelegte Grenzen: phi %.1e, |E| %.1e  -> %s\n",
-                 feed_truncation::kTolPhiOverSpan, feed_truncation::kTolFieldRelative,
+                 reservoir_convergence::kTolPhiOverSpan, reservoir_convergence::kTolFieldRelative,
                  feed_converged ? "eingehalten" : "NICHT EINGEHALTEN");
     std::fprintf(f, "  Fernrand bei R = %.4g m: asymptotisch gegen geerdet %.2e der "
                     "Spannweite\n", S.geometry.device.domain_radius, farfield_gap);
@@ -585,39 +605,31 @@ int main(int argc, char** argv) try {
                    eps_hi_E, eps_nom_E);
 
     if (!feed_converged) {
-      std::fprintf(f, "\nBEFUND: DIE LAGE DER ZULAUFGRENZE IST NICHT AUSKONVERGIERT\n");
-      std::fprintf(f, "  Verlangt war der Nachweis, dass eine weitere Rueckverlagerung der\n"
-                      "  Zulaufgrenze Potential und Feld am Meniskus nicht mehr aendert.  Sie\n"
-                      "  aendert sie.  Gemessen (convergence_feed.csv): eine Verdopplung der\n"
-                      "  modellierten Saeulenlaenge von %.4g m auf %.4g m verschiebt das\n"
-                      "  Potential um %.2e der Spannweite und das Feld um %.2e relativ.  Die\n"
-                      "  vorab festgelegten Grenzen von %.1e werden um mehr als eine\n"
-                      "  Groessenordnung verfehlt.  Die Grenze wird nicht verschoben.\n",
+      std::fprintf(f, "\nBEFUND: DAS ABGESCHNITTENE SAEULENMODELL KONVERGIERT NICHT -- UND "
+                      "KANN ES NICHT\n");
+      std::fprintf(f, "  Was hier variiert wurde, ist NICHT die Lage einer Randbedingung. "
+                      "Ein einziger\n  Wert hat die Laenge der leitfaehigen "
+                      "Fluessigkeitssaeule, die Laenge des\n  dielektrischen Rueckteils und "
+                      "damit die gesamte rueckwaertige Geometrie\n  gemeinsam verschoben. "
+                      "Gemessen (convergence_feed.csv): eine Verdopplung von\n  %.4g m auf "
+                      "%.4g m verschiebt das Potential um %.2e der Spannweite und das\n  Feld "
+                      "um %.2e relativ; die vorab festgelegten Grenzen von %.1e werden um "
+                      "mehr\n  als eine Groessenordnung verfehlt.  Die Grenze wird nicht "
+                      "verschoben.\n",
                    -feed_z[2], -feed_z[3], worst_feed_phi, worst_feed_E,
-                   feed_truncation::kTolPhiOverSpan);
-      std::fprintf(f, "  URSACHE, und warum das kein numerischer Mangel ist: die\n"
-                      "  Fluessigkeitssaeule ist ein Leiter auf V_emitter.  Eine duenne Saeule\n"
-                      "  der Laenge L und des Radius a hat eine Selbstkapazitaet von etwa\n"
-                      "  2 pi eps0 L / (ln(2L/a) - 1); eine laengere Saeule traegt "
-                      "proportional\n"
-                      "  mehr Ladung, und die wird an der Spitze gespuert.  Die gemessene\n"
-                      "  Emitterladung folgt dieser Formel auf ein festes Verhaeltnis genau.\n"
-                      "  Am offenen Rand liegt es nicht: dieselbe Studie in einer GEERDETEN\n"
-                      "  Huelle bei 25 mm liefert dieselben Zahlen auf besser als 0.1 Prozent.\n"
-                      "  Es ist derselbe Mechanismus, den P2a fuer emitter_back_length fand.\n");
-      std::fprintf(f, "  WAS ES BEHEBEN WUERDE: der Emitterhalter.  04_geometry_model.md,\n"
-                      "  Abschnitt 4.1, sieht eine Basisplatte auf Emitterpotential vor, aus\n"
-                      "  der die verjuengte Struktur herausragt.  Ein echter Leiter mit\n"
-                      "  angegebenen Abmessungen wuerde die Zulaufposition wieder zu einem\n"
-                      "  numerischen Parameter machen.  Das ist eine GEOMETRIEENTSCHEIDUNG "
-                      "fuer\n"
-                      "  eine spaetere Phase.  Die hintere Schnittebene als solche zur\n"
-                      "  Elektrode zu erklaeren waere keine -- und ist hier ausgeschlossen.\n");
-      std::fprintf(f, "  KONSEQUENZ: liquid_feed_z = %.6g m ist ein BEISPIELWERT, keine\n"
-                      "  gemessene Abmessung.  Jede Zahl in diesem Bericht gilt fuer diesen\n"
-                      "  Wert.  Nichts in P2b ist bezueglich der Zulauftrunkierung "
-                      "konvergiert.\n",
-                   S.geometry.liquid_feed_z);
+                   reservoir_convergence::kTolPhiOverSpan);
+      std::fprintf(f, "  URSACHE: die Fluessigkeitssaeule ist ein Leiter auf V_emitter, und "
+                      "ein laengerer\n  Leiter traegt mehr Ladung -- die Selbstkapazitaet "
+                      "einer duennen Saeule ist etwa\n  2 pi eps0 L / (ln(2L/a) - 1).  Am "
+                      "offenen Rand liegt es nicht: dieselbe Studie\n  in einer GEERDETEN "
+                      "Huelle liefert dieselben Zahlen auf besser als 0.1 Prozent.\n");
+      std::fprintf(f, "  KONSEQUENZ: dieser Lauf ist eine DIAGNOSE des ueberholten "
+                      "Saeulenmodells.  Er\n  belegt, dass die frueher berichtete "
+                      "\"Konvergenz gegen die Lage der Zulaufgrenze\"\n  irrefuehrend war. "
+                      "Das Ersatzmodell -- ein dielektrisch umschlossener\n  "
+                      "Fluessigkeitsraum mit fester Frontgeometrie -- rechnet es_reservoir; "
+                      "eine\n  leitende Halterung oder rueckwaertige Metallscheibe wird "
+                      "dabei NICHT eingefuehrt.\n");
     }
 
     std::fprintf(f, "\nWAS HIER NICHT MODELLIERT IST\n");
@@ -641,7 +653,9 @@ int main(int argc, char** argv) try {
     std::fprintf(f, "nodes=%lld\n", static_cast<long long>(R.fem.n_nodes));
     std::fprintf(f, "nr=%lld\n", static_cast<long long>(R.mesh.grid.nr));
     std::fprintf(f, "nz=%lld\n", static_cast<long long>(R.mesh.grid.nz));
-    std::fprintf(f, "liquid_feed_z_m=%.9e\n", S.geometry.liquid_feed_z);
+    std::fprintf(f, "base_plate_thickness_m=%.9e\n", S.geometry.base_plate_thickness);
+    std::fprintf(f, "column_cut_z_m=%.9e\n", S.geometry.base_z());
+    std::fprintf(f, "reservoir_model=%s\n", to_string(S.geometry.reservoir));
     std::fprintf(f, "conductor_model=%s\n", to_string(S.conductor_model));
     std::fprintf(f, "metallisation=%s\n", to_string(S.metallisation));
     std::fprintf(f, "far_field=%s\n", to_string(S.far_field));
@@ -657,11 +671,11 @@ int main(int argc, char** argv) try {
     std::fprintf(f, "mesh_change_phi_over_span=%.9e\n", worst_mesh_phi);
     std::fprintf(f, "mesh_change_E_rel=%.9e\n", worst_mesh_E);
     std::fprintf(f, "mesh_change_Q_rel=%.9e\n", mesh_dQ);
-    std::fprintf(f, "feed_change_phi_over_span=%.9e\n", worst_feed_phi);
-    std::fprintf(f, "feed_change_E_rel=%.9e\n", worst_feed_E);
-    std::fprintf(f, "feed_tol_phi_over_span=%.9e\n", feed_truncation::kTolPhiOverSpan);
-    std::fprintf(f, "feed_tol_E_rel=%.9e\n", feed_truncation::kTolFieldRelative);
-    std::fprintf(f, "feed_converged=%s\n", feed_converged ? "yes" : "no");
+    std::fprintf(f, "column_change_phi_over_span=%.9e\n", worst_feed_phi);
+    std::fprintf(f, "column_change_E_rel=%.9e\n", worst_feed_E);
+    std::fprintf(f, "tol_phi_over_span=%.9e\n", reservoir_convergence::kTolPhiOverSpan);
+    std::fprintf(f, "tol_E_rel=%.9e\n", reservoir_convergence::kTolFieldRelative);
+    std::fprintf(f, "column_converged=%s\n", feed_converged ? "yes" : "no");
     std::fprintf(f, "farfield_gap_over_span=%.9e\n", farfield_gap);
     std::fprintf(f, "interface_Dn_rel=%.9e\n", R.relative_interface_error());
     std::fprintf(f, "fem_vs_bem_phi_over_span=%.9e\n", bem_worst_phi);
@@ -679,7 +693,7 @@ int main(int argc, char** argv) try {
 
   cfg.warn_about_unused(stdout, {"meta.", "fluid.", "beam.", "output.", "bem.", "wetting.",
                                  "species.", "feed.mode", "feed.delta_p", "feed.impedance",
-                                 "feed.Q", "feed.model"});
+                                 "feed.Q", "feed.model", "reservoir."});
   std::printf("\ngeschrieben nach %s\n", outdir.c_str());
   (void)eps0;
   return exit_code;

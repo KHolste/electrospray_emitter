@@ -58,12 +58,27 @@ std::vector<NodeRole> node_roles(const DeviceVolumeMesh& m, const DielectricSetu
     role[static_cast<std::size_t>(g.node(i, j))] = r;
   };
 
-  // --- the ionic liquid: one equipotential body ------------------------------
-  // Its closure -- interior, bore wall, flat reference plane and feed cross
-  // section -- is the Dirichlet set.  Nothing outside r <= r_bore is touched.
-  for (Index j = m.j_feed; j <= m.j_tip; ++j)
-    for (Index i = 0; i <= m.i_bore; ++i) set(i, j, NodeRole::LiquidConductor);
-  for (Index i = 0; i <= m.i_bore; ++i) set(i, m.j_feed, NodeRole::LiquidFeedBoundary);
+  // --- the ionic liquid: ONE equipotential body ------------------------------
+  //
+  // Its closure is the Dirichlet set, and the closure is taken from the CELL
+  // REGIONS, not from a list of surfaces: a node belongs to the liquid
+  // conductor exactly when one of the cells around it is liquid.  That way the
+  // bore, the feed channel and the plenum are one body by construction, no
+  // surface can be forgotten, and adding another liquid-filled part later needs
+  // no change here.
+  for (Index j = 0; j + 1 < g.nz; ++j)
+    for (Index i = 0; i + 1 < g.nr; ++i) {
+      if (m.cell_region[static_cast<std::size_t>(g.cell(i, j))] != Region::Liquid) continue;
+      set(i, j, NodeRole::LiquidConductor);
+      set(i + 1, j, NodeRole::LiquidConductor);
+      set(i, j + 1, NodeRole::LiquidConductor);
+      set(i + 1, j + 1, NodeRole::LiquidConductor);
+    }
+  // The rear cut of the superseded truncated column is labelled separately, so
+  // that the figures and the audit can show that the emitter potential stops at
+  // the liquid cross section and does not continue across the polymer.
+  if (m.p.reservoir == ReservoirModel::TruncatedColumn)
+    for (Index i = 0; i <= m.i_bore; ++i) set(i, m.j_base, NodeRole::LiquidFeedBoundary);
 
   // --- the metallisation on the extractor carrier ---------------------------
   const Metallisation mt =
@@ -94,7 +109,7 @@ std::vector<NodeRole> node_roles(const DeviceVolumeMesh& m, const DielectricSetu
 
   // --- the superseded metallic arrangement, for the BEM cross-check only -----
   if (s.conductor_model == ConductorModel::MetallicReference)
-    for (Index j = m.j_feed; j <= m.j_tip; ++j)
+    for (Index j = m.j_base; j <= m.j_tip; ++j)
       for (Index i = 0; i <= m.i_land; ++i)
         if (!is_fixed(role[static_cast<std::size_t>(g.node(i, j))]) ||
             role[static_cast<std::size_t>(g.node(i, j))] == NodeRole::LiquidConductor)
@@ -133,39 +148,95 @@ BoundaryAudit audit_boundaries(const DeviceVolumeMesh& m, const std::vector<Node
   auto at = [&](Index i, Index j) { return role[static_cast<std::size_t>(g.node(i, j))]; };
   auto complain = [&a](const std::string& text) { a.violations.push_back(text); };
 
-  // The feed plane is an electrode ONLY on the liquid cross section.  Every
-  // other node of that plane must be free -- that is the whole point of
-  // replacing the reservoir by a boundary rather than by a back plate.
-  for (Index i = m.i_bore + 1; i < g.nr; ++i)
-    if (is_fixed(at(i, m.j_feed)) && at(i, m.j_feed) != NodeRole::FarFieldDirichlet &&
-        at(i, m.j_feed) != NodeRole::EmitterMetalReference) {
-      ++a.n_feed_plane_outside_liquid;
+  // Which nodes touch liquid.  Everything below is expressed through this, so
+  // no surface has to be enumerated for the check that decides.
+  std::vector<char> touches_liquid(static_cast<std::size_t>(g.n_nodes()), 0);
+  for (Index j = 0; j + 1 < g.nz; ++j)
+    for (Index i = 0; i + 1 < g.nr; ++i) {
+      if (m.cell_region[static_cast<std::size_t>(g.cell(i, j))] != Region::Liquid) continue;
+      for (Index dj = 0; dj < 2; ++dj)
+        for (Index di = 0; di < 2; ++di)
+          touches_liquid[static_cast<std::size_t>(g.node(i + di, j + dj))] = 1;
     }
-  if (a.n_feed_plane_outside_liquid > 0)
-    complain("Die Schnittebene bei z = liquid_feed_z traegt " +
-             std::to_string(static_cast<long long>(a.n_feed_plane_outside_liquid)) +
-             " festgehaltene Knoten ausserhalb des Fluessigkeitsquerschnitts. Die Ebene "
-             "ist keine Elektrode.");
+
+  // The rear cut plane of the superseded truncated column is an electrode ONLY
+  // on the liquid cross section.  Every other node of that plane must be free.
+  if (m.p.reservoir == ReservoirModel::TruncatedColumn) {
+    for (Index i = m.i_bore + 1; i < g.nr; ++i)
+      if (is_fixed(at(i, m.j_base)) && at(i, m.j_base) != NodeRole::FarFieldDirichlet &&
+          at(i, m.j_base) != NodeRole::EmitterMetalReference) {
+        ++a.n_feed_plane_outside_liquid;
+      }
+    if (a.n_feed_plane_outside_liquid > 0)
+      complain("Die Schnittebene am Ende der abgeschnittenen Saeule traegt " +
+               std::to_string(static_cast<long long>(a.n_feed_plane_outside_liquid)) +
+               " festgehaltene Knoten ausserhalb des Fluessigkeitsquerschnitts. Die Ebene "
+               "ist keine Elektrode.");
+  }
 
   if (s.conductor_model != ConductorModel::Dielectric) {
     // In the metallic reference arrangement the emitter body IS a conductor on
     // purpose.  The polymer audit does not apply, and saying so is safer than
     // running a check that silently passes for the wrong reason.
     a.n_polymer_dirichlet = -1;
+    a.n_named_surface_dirichlet = -1;
     return a;
   }
 
+  // --- the structural check -------------------------------------------------
+  for (Index n = 0; n < g.n_nodes(); ++n) {
+    const NodeRole r = role[static_cast<std::size_t>(n)];
+    if (!is_fixed(r)) continue;
+    if (r == NodeRole::ExtractorMetallisation || r == NodeRole::FarFieldDirichlet) continue;
+    if (!touches_liquid[static_cast<std::size_t>(n)]) ++a.n_polymer_dirichlet;
+  }
+  if (a.n_polymer_dirichlet > 0)
+    complain("Es tragen " + std::to_string(static_cast<long long>(a.n_polymer_dirichlet)) +
+             " festgehaltene Knoten das Emitterpotential, ohne an eine Fluessigkeitszelle zu "
+             "grenzen. Ein Dielektrikum ist keine Elektrode, und ein leitender Halter oder "
+             "eine rueckwaertige Metallscheibe ist in diesem Modell ausgeschlossen.");
+
+  // Book-keeping, not a check: how much of the liquid surface belongs to the
+  // reservoir.  It has to be non-zero with a plenum, or the liquid would have
+  // been split into disconnected pieces.
+  if (m.has_plenum())
+    for (Index n = 0; n < g.n_nodes(); ++n) {
+      if (role[static_cast<std::size_t>(n)] != NodeRole::LiquidConductor) continue;
+      const Index j = n / g.nr;
+      if (j < m.j_base) ++a.n_reservoir_liquid_surface;
+    }
+
+  // --- the named surfaces ---------------------------------------------------
   struct Surface {
     const char* name;
     Index i0, i1, j0, j1;
   };
   const Metallisation mt = s.metallisation;
   std::vector<Surface> polymer{
-      {"emitter_outer_surface", m.i_land, m.i_land, m.j_feed, m.j_tip},
+      {"emitter_outer_surface", m.i_land, m.i_land, m.j_base, m.j_tip},
       {"emitter_tip_land", m.i_bore + 1, m.i_land, m.j_tip, m.j_tip},
-      {"emitter_rear_face", m.i_bore + 1, m.i_land, m.j_feed, m.j_feed},
-      {"emitter_body_interior", m.i_bore + 1, m.i_land - 1, m.j_feed + 1, m.j_tip - 1},
+      {"emitter_rear_face", m.i_bore + 1, m.i_land, m.j_base, m.j_base},
+      {"emitter_body_interior", m.i_bore + 1, m.i_land - 1, m.j_base + 1, m.j_tip - 1},
   };
+  if (m.has_plenum()) {
+    polymer.push_back({"reservoir_top_face", m.i_land, m.i_plenum_outer, m.j_base, m.j_base});
+    polymer.push_back({"reservoir_outer_rim", m.i_plenum_outer, m.i_plenum_outer,
+                       m.j_block_bottom, m.j_base});
+    polymer.push_back({"reservoir_underside", m.i_axis, m.i_plenum_outer, m.j_block_bottom,
+                       m.j_block_bottom});
+    polymer.push_back({"reservoir_top_wall_interior", m.i_channel + 1, m.i_plenum_outer - 1,
+                       m.j_roof + 1, m.j_base - 1});
+    polymer.push_back({"reservoir_side_wall_interior", m.i_plenum + 1, m.i_plenum_outer - 1,
+                       m.j_cav_bottom + 1, m.j_roof - 1});
+    polymer.push_back({"reservoir_floor_interior", m.i_axis, m.i_plenum_outer - 1,
+                       m.j_block_bottom + 1, m.j_cav_bottom - 1});
+    // With a partly filled plenum the cavity floor faces vacuum, not liquid, so
+    // it is a polymer surface and must be free.  With a full plenum it is the
+    // underside of the liquid and legitimately fixed, so it is not listed.
+    if (m.p.plenum_fill_fraction < 1.0)
+      polymer.push_back({"plenum_floor_dry", m.i_axis, m.i_plenum, m.j_cav_bottom,
+                         m.j_cav_bottom});
+  }
   if (!coated_back(mt))
     polymer.push_back({"extractor_back_face", m.i_aperture, m.i_ext_outer, m.j_ex_back,
                        m.j_ex_back});
@@ -209,12 +280,18 @@ BoundaryAudit audit_boundaries(const DeviceVolumeMesh& m, const std::vector<Node
           ++shared;
           continue;
         }
+        // A node of a named polymer surface that nevertheless touches liquid is
+        // a corner shared with the liquid closure -- the rim of the bore at the
+        // tip land, the mouth of the feed channel.  It is legitimately fixed and
+        // is excluded here for the same reason as the film rim; the structural
+        // check above is what would catch a genuinely conducting polymer face.
+        if (touches_liquid[static_cast<std::size_t>(g.node(i, j))]) continue;
         // A far-field Dirichlet node on a polymer surface would mean the
         // computational box touches the device; the mesher forbids that, but
         // the check is cheap and the failure would be silent.
         ++bad;
       }
-    a.n_polymer_dirichlet += bad;
+    a.n_named_surface_dirichlet += bad;
     if (bad > 0)
       complain(std::string("Polymerflaeche '") + sf.name + "' traegt " +
                std::to_string(static_cast<long long>(bad)) +
@@ -240,14 +317,21 @@ void BoundaryAudit::print(std::FILE* out) const {
                static_cast<long long>(n_far));
   std::fprintf(out, "    metallischer Referenzemitter (KEIN P2b-Modell): %lld\n",
                static_cast<long long>(n_emitter_metal_reference));
-  if (n_polymer_dirichlet < 0)
+  if (n_polymer_dirichlet < 0) {
     std::fprintf(out, "  Polymerflaechen: Pruefung entfaellt (metallische Referenz)\n");
-  else
-    std::fprintf(out, "  festgehaltene Knoten auf Polymerflaechen: %lld  (muss 0 sein)\n",
+  } else {
+    std::fprintf(out, "  festgehaltene Knoten ohne Fluessigkeitskontakt (strukturell): "
+                      "%lld  (muss 0 sein)\n",
                  static_cast<long long>(n_polymer_dirichlet));
+    std::fprintf(out, "  davon auf benannten Polymerflaechen                       : "
+                      "%lld  (muss 0 sein)\n",
+                 static_cast<long long>(n_named_surface_dirichlet));
+  }
   std::fprintf(out, "  festgehaltene Knoten der Schnittebene ausserhalb der Fluessigkeit: "
                     "%lld  (muss 0 sein)\n",
                static_cast<long long>(n_feed_plane_outside_liquid));
+  std::fprintf(out, "  Fluessigkeitsknoten hinter der Grundplatte (Vorrat)            : %lld\n",
+               static_cast<long long>(n_reservoir_liquid_surface));
   for (const std::string& v : violations) std::fprintf(out, "  VERLETZUNG: %s\n", v.c_str());
 }
 
@@ -265,6 +349,10 @@ void BoundaryAudit::write_csv(const std::string& path) const {
   std::fprintf(f, "emitter_metal_reference,%lld\n",
                static_cast<long long>(n_emitter_metal_reference));
   std::fprintf(f, "polymer_dirichlet,%lld\n", static_cast<long long>(n_polymer_dirichlet));
+  std::fprintf(f, "named_surface_dirichlet,%lld\n",
+               static_cast<long long>(n_named_surface_dirichlet));
+  std::fprintf(f, "reservoir_liquid_nodes,%lld\n",
+               static_cast<long long>(n_reservoir_liquid_surface));
   std::fprintf(f, "feed_plane_outside_liquid,%lld\n",
                static_cast<long long>(n_feed_plane_outside_liquid));
   std::fprintf(f, "violations,%lld\n", static_cast<long long>(violations.size()));
@@ -317,8 +405,9 @@ DielectricSolution solve_dielectric(const DielectricSetup& s) {
   s.materials.check_usable();
   const Real eps_emitter = s.materials.emitter_dielectric.permittivity_or_throw();
   const Real eps_carrier = s.materials.extractor_carrier.permittivity_or_throw();
+  const Real eps_reservoir = s.materials.reservoir_body.permittivity_or_throw();
   if (s.conductor_model == ConductorModel::MetallicReference &&
-      (eps_emitter != 1.0 || eps_carrier != 1.0))
+      (eps_emitter != 1.0 || eps_carrier != 1.0 || eps_reservoir != 1.0))
     throw std::runtime_error(
         "MetallicReference ist ausschliesslich der Sonderfall eps_r = 1, in dem die "
         "unabhaengige BEM dasselbe Problem loest. Mit eps_r != 1 waere es weder das eine "
@@ -356,6 +445,14 @@ DielectricSolution solve_dielectric(const DielectricSetup& s) {
           act = false;
         else
           e = eps_carrier;
+        break;
+      case Region::ReservoirSolid:
+        // A DIELECTRIC, in every conductor model.  The metallic reference
+        // arrangement exists to reproduce the P2a vacuum problem the BEM can
+        // solve, and it forces every eps_r to 1 anyway; turning the reservoir
+        // body into metal there would invent a conducting holder, which is the
+        // one thing this phase must not do.
+        e = eps_reservoir;
         break;
       default:
         e = s.materials.vacuum.relative_permittivity;

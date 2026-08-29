@@ -36,8 +36,8 @@ from matplotlib.patches import Polygon
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import provenance as pv
 
-TITLE = ("P2b: dielektrische Elektrostatik – Emitterkörper ist ein Dielektrikum, "
-         "auf Hochspannung liegt die ionische Flüssigkeit")
+TITLE = ("P2b/Diagnose: dielektrische Elektrostatik am ABGESCHNITTENEN Säulenmodell – "
+         "der Rückschnitt ändert Elektrode UND Dielektrikum, siehe docs/08, 8.9")
 
 RCOL = {
     "liquid": "#bcd9ef",
@@ -52,8 +52,8 @@ RLABEL = {
 ROLECOL = {
     "liquid_conductor": ("#0b6fb4", "Flüssigkeitsoberfläche: $\\varphi=V_\\mathrm{emitter}$"),
     "liquid_feed_boundary": ("#0f9d58",
-                             "liquid_feed_boundary: $\\varphi=V_\\mathrm{emitter}$ "
-                             "NUR auf dem Flüssigkeitsquerschnitt"),
+                             "Schnitt durch die Flüssigkeitssäule: "
+                             "$\\varphi=V_\\mathrm{emitter}$ NUR auf dem Querschnitt"),
     "extractor_metallisation": ("#c1272d",
                                 "Metallisierung: $\\varphi=V_\\mathrm{extractor}$"),
     "far_field_dirichlet": ("#888888", "geerdete Hülle (nur far_field=grounded)"),
@@ -166,10 +166,10 @@ def figure_materials(d, m, par, ol, stamp, out):
     s = 1e6
     views = [("Gesamtansicht mit Extraktionselektrode", 0,
               1.18 * par["extractor_outer_radius"] * s,
-              1.7 * par["liquid_feed_z"] * s,
+              1.7 * par["base_z"] * s,
               1.35 * (par["extraction_distance"] + par["extractor_thickness"]) * s),
-             ("Emitterkörper und Zulaufgrenze", 0, 2.6 * par["r_foot"] * s,
-              1.08 * par["liquid_feed_z"] * s, 0.35 * par["emitter_height"] * s),
+             ("Emitterkörper und Säulenschnitt", 0, 2.6 * par["r_foot"] * s,
+              1.08 * par["base_z"] * s, 0.35 * par["emitter_height"] * s),
              ("Austrittskante", 0, 3.2 * par["r_bore"] * s,
               -3.0 * par["r_bore"] * s, 2.4 * par["r_bore"] * s)]
     for ax, (name, r0, r1, z0, z1) in zip(axes, views):
@@ -184,7 +184,7 @@ def figure_materials(d, m, par, ol, stamp, out):
         # The feed boundary is eleven nodes on a five-micron disc; at any scale
         # that shows the device it would be invisible as dots alone, and it is
         # the one boundary this phase is about.
-        p = np.array(ol["boundary"]["liquid_feed_boundary"]) * s
+        p = np.array(ol["boundary"]["liquid_column_cut"]) * s
         ax.plot(p[:, 0], p[:, 1], "-", color=ROLECOL["liquid_feed_boundary"][0], lw=3.0,
                 solid_capstyle="butt", zorder=8)
         p = np.array(ol["boundary"]["free_surface_reference"]) * s
@@ -207,8 +207,8 @@ def figure_materials(d, m, par, ol, stamp, out):
         ax.set_xlabel("r [µm]")
         ax.set_ylabel("z [µm]")
         ax.set_title(name, fontsize=10)
-    zf = par["liquid_feed_z"] * s
-    axes[1].annotate("liquid_feed_boundary:\n$\\varphi = V_\\mathrm{emitter}$ NUR auf\n"
+    zf = par["base_z"] * s
+    axes[1].annotate("Säulenschnitt:\n$\\varphi = V_\\mathrm{emitter}$ NUR auf\n"
                      "$r \\leq r_\\mathrm{Bohrung}$",
                      xy=(0.4 * par["r_bore"] * s, zf),
                      xytext=(0.95 * par["r_foot"] * s, zf + 0.34 * abs(zf)),
@@ -245,9 +245,10 @@ def figure_materials(d, m, par, ol, stamp, out):
                 f"Flüssigkeit {m.get('feed_plane_outside_liquid_nodes','?')} (Sollwert 0).",
             y=0.075)
     provenance(fig, m, stamp,
-               f"liquid_feed_z = {float(m['liquid_feed_z_m'])*1e6:.0f} µm – "
-               f"BEISPIELWERT, keine gemessene Abmessung; Metallisierung: "
-               f"{m.get('metallisation','?')}")
+               f"Säulenschnitt bei z = {float(m['column_cut_z_m'])*1e6:.0f} µm "
+               f"(base_plate_thickness = "
+               f"{float(m['base_plate_thickness_m'])*1e6:.0f} µm) – VORLÄUFIGER "
+               f"BEISPIELWERT; Metallisierung: {m.get('metallisation','?')}")
     fig.savefig(out, dpi=150)
     plt.close(fig)
     return out
@@ -260,7 +261,7 @@ def figure_mesh(d, m, par, ol, stamp, out):
     fig, axes = plt.subplots(1, 3, figsize=(14.4, 6.4),
                              gridspec_kw={"width_ratios": [1.35, 1.0, 1.0]})
     views = [("Übersicht des automatischen Volumennetzes", 0,
-              1.6 * par["extraction_distance"] * s, 1.4 * par["liquid_feed_z"] * s,
+              1.6 * par["extraction_distance"] * s, 1.4 * par["base_z"] * s,
               1.3 * (par["extraction_distance"] + par["extractor_thickness"]) * s, 1),
              ("Kapillare und Kegelflanke", 0, 3.0 * par["r_foot"] * s,
               -3.0 * par["r_foot"] * s, 3.0 * par["r_foot"] * s, 1),
@@ -344,7 +345,7 @@ def figure_field(d, m, par, ol, stamp, out):
                                      lw=1.3, zorder=5))
                 ax.add_patch(Polygon(p, closed=True, facecolor="none", edgecolor="#222222",
                                      lw=0.7, zorder=6))
-            p = np.array(ol["boundary"]["liquid_feed_boundary"]) * s
+            p = np.array(ol["boundary"]["liquid_column_cut"]) * s
             ax.plot(p[:, 0], p[:, 1], "-", color="#0f9d58", lw=2.6, zorder=7)
             ax.set_xlim(ru[0] * s, ru[-1] * s)
             ax.set_ylim(zu[0] * s, zu[-1] * s)
@@ -405,13 +406,14 @@ def figure_convergence(d, m, stamp, out):
     ax2.tick_params(axis="y", colors="#c1272d")
 
     ax = axes[0, 1]
-    zf = np.array([abs(float(r["liquid_feed_z_m"])) for r in feed]) * 1e6
+    zf = np.array([abs(float(r["column_cut_z_m"])) for r in feed]) * 1e6
     for p in probes:
         v = np.array([float(r[f"phi_{p}_V"]) for r in feed])
         ax.semilogx(zf, v, "o-", ms=4, label=p)
-    ax.set_xlabel("modellierte Säulenlänge $|z_\\mathrm{feed}|$ [µm]")
+    ax.set_xlabel("modellierte Säulenlänge $|z_\\mathrm{Schnitt}|$ [µm]")
     ax.set_ylabel("$\\varphi$ [V]")
-    ax.set_title("Lage der Zulaufgrenze – NICHT auskonvergiert", fontsize=10,
+    ax.set_title("Rückwärtige Ausdehnung des Säulenmodells –\n"
+                 "KEINE Randverschiebung, sondern eine Geometrieänderung", fontsize=9.5,
                  color="#8a1b1b")
     ax.grid(alpha=0.3, which="both")
     ax.legend(fontsize=6.6, ncol=2)
@@ -459,14 +461,18 @@ def figure_convergence(d, m, stamp, out):
     fig.suptitle("Konvergenz und Empfindlichkeit\n" + TITLE, fontsize=11.5)
     fig.tight_layout(rect=[0, 0.135, 1, 0.93])
     caveat(fig,
-           "BEFUND oben rechts: die Lage der Zulaufgrenze ist keine Konvergenzgröße. Eine "
+           "BEFUND oben rechts: hier wurde nicht eine Randbedingung verschoben, sondern die "
+           "Geometrie des leitenden Flüssigkeitskörpers geändert – Säule und Dielektrikum "
+           "wachsen gemeinsam. Eine "
            f"Verdopplung der Säulenlänge verschiebt das Potential um "
-           f"{float(m['feed_change_phi_over_span']):.1e} der Spannweite und das Feld um "
-           f"{float(m['feed_change_E_rel']):.1e} relativ; die vorab festgelegte Grenze war "
-           f"{float(m['feed_tol_phi_over_span']):.0e}. Ursache: die Flüssigkeitssäule ist ein "
+           f"{float(m['column_change_phi_over_span']):.1e} der Spannweite und das Feld um "
+           f"{float(m['column_change_E_rel']):.1e} relativ; die vorab festgelegte Grenze war "
+           f"{float(m['tol_phi_over_span']):.0e}. Ursache: die Flüssigkeitssäule ist ein "
            "Leiter, eine längere Säule trägt proportional mehr Ladung. Eine geerdete Hülle "
            "ändert daran nichts. Alle Zahlen gelten für "
-           f"liquid_feed_z = {float(m['liquid_feed_z_m'])*1e6:.0f} µm. Der Nominalwert von "
+           f"einen Schnitt bei z = {float(m['column_cut_z_m'])*1e6:.0f} µm. Das "
+           "Ersatzmodell mit vernetztem Flüssigkeitsraum rechnet es_reservoir. Der "
+           "Nominalwert von "
            "$\\varepsilon_r$ ist vorläufig – daraus folgt keine Validierungsaussage.",
            y=0.038)
     provenance(fig, m, stamp,
