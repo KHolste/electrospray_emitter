@@ -1,0 +1,16 @@
+P4 -- kinematische Randbedingung auf vorgeschriebenem Feld
+
+DIE VORBEDINGUNG IST NICHT ERFUELLT.  Ein zeitabhaengiger Meniskus braucht ein
+Geschwindigkeitsfeld mit freier Oberflaeche und einen Oberflaechenladungs-
+transport; P3 liefert beides nicht.  Der dynamische Loeser schlaegt deshalb
+geschlossen fehl:
+  Der zeitabhaengige Meniskus ist in dieser Phase nicht implementiert und wurde deshalb abgelehnt.
+  Grund : Die Grundlage fehlt, und zwar strukturell, nicht aus Zeitmangel.  (a) Es gibt kein Geschwindigkeitsfeld im Inneren mit freier Oberflaeche: die Rohrstroemung aus P3 traegt das nicht, ihre Exaktheit beruht auf du_z/dz = 0, was eine sich verformende Oberflaeche zerstoert.  (b) Es gibt keinen Oberflaechenladungstransport mit Konvektion und keine TANGENTIALE Traktion q_s E_t -- diese existiert im Perfect-Conductor-Grenzfall gar nicht und ist genau das, was einen endlich leitenden Meniskus antreibt.  (c) eps_r ist nach dem Stoffdatenvertrag von P2 MissingMaterialData, also ist nicht einmal die Ladungsrelaxationszeit berechenbar.  Es gibt hier keine Mobilitaet, keine kuenstliche Daempfung und keine Stabilitaetsaussage; ein Ersatzmodell waere ein freier Parameter im Kostuem der Physik.
+  Geplant: nach einem Stroemungsloeser mit freier Oberflaeche und einem Oberflaechenladungstransport; der vollstaendige Vertrag steht in docs/15_free_surface_dynamics.md
+  Siehe docs/05_implementation_plan.md.
+
+  shapes.csv geschrieben
+  convergence.csv geschrieben
+  redistribution.csv geschrieben
+
+Alle deklarierten Pruefungen dieses Laufs bestanden.

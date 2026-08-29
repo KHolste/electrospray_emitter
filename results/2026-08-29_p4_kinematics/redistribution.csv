@@ -1,0 +1,10 @@
+# Die tangentiale Umverteilung ist NETZBEWEGUNG: sie schiebt Knoten
+# entlang der Flaeche und kann die Flaeche deshalb nicht aendern.  Auf
+# einem POLYGONZUG stimmt das nur bis auf die Diskretisierung, und wie
+# genau, steht hier.
+n_nodes,volume_lagrangian,volume_normal_only,relative_difference,spacing_lagrangian,spacing_normal_only
+41,2.616984689e-16,2.600733864e-16,6.209751529e-03,6.936272604e-01,3.258255628e-05
+81,2.617741556e-16,2.609860581e-16,3.010601061e-03,6.940877012e-01,1.715732716e-05
+161,2.617930796e-16,2.614400028e-16,1.348686368e-03,6.942028473e-01,8.756852377e-06
+321,2.617978107e-16,2.616663566e-16,5.021209889e-04,6.942316360e-01,4.336418026e-06
+# n = 641: StepTooLarge / StepTooLarge

@@ -1,0 +1,15 @@
+stamp=c4ecbb7aa019
+head_commit=c4ecbb7aa0199db97680e44558372ce3224d32f1
+data_commit=c4ecbb7aa0199db97680e44558372ce3224d32f1
+working_tree_dirty=no
+releasable=yes
+ignored_prefix=results/2026-08-29_p4_kinematics
+ignored_file=results/2026-08-29_p4_kinematics/README.md
+ignored_file=results/2026-08-29_p4_kinematics/convergence.csv
+ignored_file=results/2026-08-29_p4_kinematics/fig1_advection.png
+ignored_file=results/2026-08-29_p4_kinematics/fig2_convergence.png
+ignored_file=results/2026-08-29_p4_kinematics/figures_provenance.txt
+ignored_file=results/2026-08-29_p4_kinematics/meta.txt
+ignored_file=results/2026-08-29_p4_kinematics/redistribution.csv
+ignored_file=results/2026-08-29_p4_kinematics/run.log
+ignored_file=results/2026-08-29_p4_kinematics/shapes.csv

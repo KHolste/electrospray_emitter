@@ -1,0 +1,10 @@
+app=es_kinematics (P4)
+phase=P4
+status=infrastructure_only
+commit=c4ecbb7aa0199db97680e44558372ce3224d32f1
+radius_m=5.000000000e-06
+alpha_per_s=1.000000000e+06
+time_s=5.000000000e-07
+dynamic_solver=NotImplementedInThisPhase
+max_node_motion=2.500000000e-01
+exit_code=0
