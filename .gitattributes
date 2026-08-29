@@ -1,0 +1,12 @@
+# Normalise line endings in the repository; check out native on each platform.
+* text=auto
+
+*.cpp   text
+*.hpp   text
+*.py    text
+*.cfg   text
+*.md    text
+*.txt   text
+
+*.png   binary
+*.vtk   binary

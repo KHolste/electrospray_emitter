@@ -1,0 +1,7 @@
+build/
+build_*/
+out_*
+*.csv
+*.vtk
+*.png
+__pycache__/
