@@ -1,0 +1,23 @@
+branch_figure -- data for the branch-ambiguity figures
+=====================================================
+
+geometry   : capillary, bore radius 1e-05 m, outer radius 2e-05 m,
+             extractor gap 0.0005 m, aperture radius 0.0002 m
+fluid      : EMI-BF4, gamma = 0.0452 N/m, feed pressure 0 Pa
+meniscus   : 61 free-surface nodes, tol = 3.0e-04, voltage_tol = 1.0e-03
+
+target voltage        : 1154.2000 V
+fold candidate        : 1180.7663 V at h/r_c = 0.442282
+  NOTE: a discrete maximum of the sampled branch, refined parabolically.
+  It is a CANDIDATE for a static turning point.  No dynamic stability,
+  no emission onset and no cone-jet transition follows from it.
+
+solution LowerHeight  : h/r_c = 0.303125, U = 1154.4979 V, R_apex = 1.35065e-05 m, E_apex = 3.88722e+07 V/m
+solution UpperHeight  : h/r_c = 0.625000, U = 1155.0589 V, R_apex = 3.98298e-06 m, E_apex = 7.15437e+07 V/m
+  The names refer to APEX HEIGHT only.  Neither is labelled stable or
+  unstable: no stability analysis is implemented.
+
+investigated ranges (h/r_c):
+  ends before the turning point : 0.398054   coverage incomplete
+  ends past it, still above U   : 0.552853   coverage incomplete
+  full                          : 2.200000   coverage complete for this target

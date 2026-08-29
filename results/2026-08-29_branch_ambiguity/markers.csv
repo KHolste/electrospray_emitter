@@ -1,0 +1,9 @@
+# points to be marked in the U(h) figure
+name,h_over_rc,height_m,voltage_V,apex_radius_m,apex_field_Vpm
+target_voltage,,,1.154200000e+03,,
+fold_candidate,4.422822297e-01,4.422822297e-06,1.180766314e+03,9.327164896e-06,4.681173005e+07
+crossing_lower_height,3.031250000e-01,3.031250000e-06,1.154497914e+03,1.350649004e-05,3.887222440e+07
+crossing_upper_height,6.250000000e-01,6.250000000e-06,1.155058906e+03,3.982976339e-06,7.154374231e+07
+range_end_before_fold,3.980540067e-01,3.980540067e-06,,,
+range_end_past_fold,5.528527872e-01,5.528527872e-06,,,
+range_end_full,2.200000000e+00,2.200000000e-05,,,

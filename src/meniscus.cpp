@@ -380,6 +380,14 @@ const char* to_string(BranchSide s) {
   }
 }
 
+const char* to_string(BranchTermination s) {
+  switch (s) {
+    case BranchTermination::ReachedRequestedRange: return "reached_requested_range";
+    case BranchTermination::SolverStopped: return "solver_stopped";
+    default: return "not_traced";
+  }
+}
+
 MeniscusSolution MeniscusSolver::solve_at_voltage(Real U, Real h_max, BranchSide side,
                                                   int scout_steps) {
   MeniscusSolution bad;
@@ -387,113 +395,151 @@ MeniscusSolution MeniscusSolver::solve_at_voltage(Real U, Real h_max, BranchSide
   bad.delta_p = params_.delta_p;
   bad.side = side;
 
+  const int requested = std::max(4, scout_steps);
   const std::vector<MeniscusSolution> scout =
-      continuation(0.1 * params_.r_contact, h_max, std::max(4, scout_steps));
+      continuation(0.1 * params_.r_contact, h_max, requested);
+
+  // The continuation stops early when the shape solver gives up.  That is a
+  // different situation from having covered the whole requested range, and the
+  // two must not be confused.
+  bad.termination_reason = (static_cast<int>(scout.size()) >= requested && !scout.empty() &&
+                            scout.back().ok())
+                               ? BranchTermination::ReachedRequestedRange
+                               : BranchTermination::SolverStopped;
 
   std::vector<const MeniscusSolution*> pts;
   for (const MeniscusSolution& m : scout)
     if (m.ok()) pts.push_back(&m);
   if (pts.size() < 2) {
-    bad.status = SolveStatus::NotConverged;
+    bad.status = SolveStatus::BranchCoverageIncomplete;
     return bad;
   }
 
-  // --- locate every crossing of the target voltage on the traced branch -----
-  // A bracket is a pair of adjacent sampled heights whose voltages straddle U.
-  std::vector<std::pair<Real, Real>> brackets;
+  // --- crossings inside the traced range -----------------------------------
+  // Each bracket carries the voltages that were already computed for its
+  // endpoints.  Re-solving them here would throw away the continuation's warm
+  // start and can fail near the far end of the branch, which would turn a
+  // perfectly good bracket into a spurious NotConverged.
+  // The seed is the converged shape at h_lo.  Without it the bisection would
+  // warm-start from whatever the scout left behind -- after a continuation that
+  // ended on a failed step that is a distorted shape, and the bisection then
+  // fails on a bracket that is perfectly good.
+  struct Bracket { Real h_lo, h_hi, v_lo, v_hi; MeniscusShape seed; };
+  std::vector<Bracket> brackets;
   for (std::size_t i = 1; i < pts.size(); ++i) {
     const Real a0 = pts[i - 1]->voltage - U;
     const Real a1 = pts[i]->voltage - U;
     if (a0 == 0.0 || (a0 * a1) < 0.0)
-      brackets.push_back({pts[i - 1]->shape.height, pts[i]->shape.height});
+      brackets.push_back({pts[i - 1]->shape.height, pts[i]->shape.height,
+                          pts[i - 1]->voltage, pts[i]->voltage, pts[i - 1]->shape});
   }
 
-  // The branch may already be above U at the smallest sampled height; then a
-  // crossing lies below it.  March down to find it rather than returning the
-  // smallest sampled shape, which is what produced the 872 V answer to a 500 V
-  // request in the prototype.
-  if (pts.front()->voltage > U) {
+  // The branch may already be above U at the smallest sampled height; the
+  // crossing then lies below it.  March down rather than returning the smallest
+  // sampled shape.
+  bool low_end_covered = pts.front()->voltage <= U;
+  if (!low_end_covered) {
     Real h = pts.front()->shape.height;
     for (int i = 0; i < 30 && h > 1e-4 * params_.r_contact; ++i) {
       const Real h_next = 0.5 * h;
       MeniscusSolution m = solve_at_height(h_next);
       if (m.ok() && m.voltage <= U) {
-        brackets.insert(brackets.begin(), {h_next, h});
+        brackets.insert(brackets.begin(),
+                        {h_next, h, m.voltage, pts.front()->voltage, m.shape});
+        low_end_covered = true;
         break;
       }
       h = h_next;
     }
   }
 
-  // A further crossing lies beyond h_max only if the branch is still above the
-  // target AND already descending at the end of the traced range.  A branch
-  // that is still rising at h_max moves away from the target, not towards it.
-  const bool descending_at_end = pts.size() >= 2 &&
-                                 pts.back()->voltage < pts[pts.size() - 2]->voltage;
-  const bool beyond = descending_at_end && pts.back()->voltage > U;
+  // --- is the traced range sufficient to decide? ---------------------------
+  // It is, for this target, when the branch has turned over and moved away
+  // BELOW the target at the far end: the examined monotone segments then run
+  // from below the target, up over the turning point, and back below it.
+  // Anything else means we stopped looking, not that the branch stops.
+  const bool descending_at_end = pts.back()->voltage < pts[pts.size() - 2]->voltage;
+  const bool far_end_below = pts.back()->voltage < U;
+  const bool coverage = low_end_covered && descending_at_end && far_end_below;
 
-  bad.branch_crossings = static_cast<int>(brackets.size());
-  bad.crossing_beyond_range = beyond;
+  bad.crossings_in_range = static_cast<int>(brackets.size());
+  bad.coverage_complete = coverage;
+  bad.additional_crossing_possible = !coverage;
 
-  const int n_known = static_cast<int>(brackets.size()) + (beyond ? 1 : 0);
-  if (brackets.empty() && !beyond) {
-    bad.status = SolveStatus::VoltageNotBracketed;
+  const int n = static_cast<int>(brackets.size());
+
+  // --- decide what may be returned -----------------------------------------
+  if (n == 0) {
+    // No crossing here.  Only a fully investigated branch may claim there is
+    // none at all.
+    bad.status = coverage ? SolveStatus::VoltageNotBracketed
+                          : SolveStatus::BranchCoverageIncomplete;
     return bad;
   }
-  if (n_known > 1 && side == BranchSide::Unspecified) {
-    // Several solutions.  Refuse to pick one.
-    bad.status = SolveStatus::AmbiguousBranch;
-    return bad;
-  }
 
-  // --- choose the requested crossing ---------------------------------------
-  std::pair<Real, Real> use;
-  if (brackets.empty()) {
-    // Only the out-of-range crossing exists.
-    bad.status = SolveStatus::VoltageNotBracketed;
-    return bad;
-  }
-  if (side == BranchSide::UpperHeight) {
-    if (beyond) {
-      // The upper crossing is outside the traced range; do not substitute the
-      // lower one for it.
-      bad.status = SolveStatus::VoltageNotBracketed;
-      return bad;
-    }
-    use = brackets.back();
-  } else {
-    use = brackets.front();  // Unspecified with n_known == 1, or LowerHeight
+  Bracket use{};
+  switch (side) {
+    case BranchSide::Unspecified:
+      if (n >= 2) { bad.status = SolveStatus::AmbiguousBranch; return bad; }
+      if (!coverage) { bad.status = SolveStatus::BranchCoverageIncomplete; return bad; }
+      use = brackets.front();
+      break;
+
+    case BranchSide::LowerHeight:
+      // The lowest crossing is bracketed and may be delivered.  Whether further
+      // solutions exist is reported, not hidden.
+      use = brackets.front();
+      break;
+
+    case BranchSide::UpperHeight:
+      if (n >= 2) {
+        use = brackets.back();
+      } else if (coverage) {
+        // Exactly one crossing on a fully investigated branch: it is the only
+        // solution, so delivering it is not a substitution.
+        use = brackets.front();
+      } else {
+        // The upper crossing was never bracketed.  Do not hand back the lower
+        // one in its place.
+        bad.status = SolveStatus::BranchCoverageIncomplete;
+        return bad;
+      }
+      break;
   }
 
   // --- bisect inside the chosen bracket ------------------------------------
-  Real lo = use.first, hi = use.second;
-  MeniscusSolution vlo = solve_at_height(lo);
-  MeniscusSolution vhi = solve_at_height(hi);
-  if (!vlo.ok() || !vhi.ok()) {
-    bad.status = SolveStatus::NotConverged;
-    return bad;
-  }
-  const bool rising = vhi.voltage > vlo.voltage;
+  Real lo = use.h_lo, hi = use.h_hi;
+  const bool rising = use.v_hi > use.v_lo;
 
   MeniscusSolution best;
+  Real best_err = 1e300;
   const Real vtol = params_.voltage_tol * std::max(std::abs(U), 1.0);
   for (int i = 0; i < 40; ++i) {
     const Real mid = 0.5 * (lo + hi);
-    MeniscusSolution m = solve_at_height(mid);
-    if (!m.ok()) { hi = mid; continue; }
-    best = m;
-    if (std::abs(m.voltage - U) <= vtol) break;
+    MeniscusSolution m = (i == 0) ? solve_at_height(mid, &use.seed) : solve_at_height(mid);
+    if (!m.ok()) {
+      // Cannot tell which side the crossing is on; give up the half that is
+      // further from the best candidate so far.
+      if (best_err < 1e299 && mid > best.shape.height) hi = mid; else lo = mid;
+      if (hi - lo < 1e-9 * params_.r_contact) break;
+      continue;
+    }
+    // Keep the closest candidate, not merely the last converged one: the last
+    // one can be worse than an earlier midpoint if the interval later collapses.
+    const Real err = std::abs(m.voltage - U);
+    if (err < best_err) { best_err = err; best = m; }
+    if (err <= vtol) break;
     const bool below = m.voltage < U;
     if (below == rising) lo = mid; else hi = mid;
     if (hi - lo < 1e-9 * params_.r_contact) break;
   }
 
   best.target_voltage = U;
-  best.branch_crossings = static_cast<int>(brackets.size());
-  best.crossing_beyond_range = beyond;
-  best.side = (side == BranchSide::Unspecified)
-                  ? BranchSide::LowerHeight  // the only crossing there was
-                  : side;
+  best.crossings_in_range = n;
+  best.coverage_complete = coverage;
+  best.additional_crossing_possible = !coverage;
+  best.termination_reason = bad.termination_reason;
+  best.side = side;
   if (best.status == SolveStatus::NotAttempted) best.status = SolveStatus::NotConverged;
   if (!best.ok()) return best;
   if (std::abs(best.voltage - U) > vtol) best.status = SolveStatus::VoltageMismatch;

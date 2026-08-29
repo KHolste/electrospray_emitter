@@ -423,101 +423,135 @@ static void b9_effective_area() {
 }
 
 // ==========================================================================
-// B12  A target voltage below the static fold generally has TWO solutions.
-//      None of them may be selected silently.
+// B12  A target voltage below the static fold generally has TWO solutions,
+//      and a single crossing inside the traced range proves nothing.
 // ==========================================================================
+static void report(const char* label, const MeniscusSolution& m) {
+  std::printf("  %-22s status=%-26s n=%d coverage=%-12s end=%s\n", label,
+              to_string(m.status), m.crossings_in_range,
+              m.coverage_complete ? "complete" : "INCOMPLETE",
+              to_string(m.termination_reason));
+}
+
 static void b12_branch_ambiguity() {
-  std::printf("\n=== B12  Zweig-Mehrdeutigkeit unterhalb des Umkehrpunkts ===\n");
+  std::printf("\n=== B12  Zweig-Mehrdeutigkeit und Astabdeckung ===\n");
   MeniscusSolver s(standard_electrodes(), standard_params());
   const Real r_c = standard_params().r_contact;
-  const Real h_max = 2.2 * r_c;
+  const Real vtol = standard_params().voltage_tol;
 
-  const std::vector<MeniscusSolution> branch = s.continuation(0.15 * r_c, h_max, 22);
+  const std::vector<MeniscusSolution> branch = s.continuation(0.15 * r_c, 2.2 * r_c, 22);
   const auto fold = MeniscusSolver::find_static_fold(branch);
-  expect("Referenzast besitzt einen Kandidaten fuer den Umkehrpunkt", fold.found());
+  expect("Referenzast liefert einen Kandidaten fuer den Umkehrpunkt", fold.found());
   if (!fold.found()) return;
 
-  // Target below the fold and above both branch ends: two crossings.
   Real v_first = 0, v_last = 0;
   for (const auto& m : branch) if (m.ok()) { v_first = m.voltage; break; }
   for (auto it = branch.rbegin(); it != branch.rend(); ++it)
     if (it->ok()) { v_last = it->voltage; break; }
   const Real U = 0.5 * (std::max(v_first, v_last) + fold.voltage);
-  std::printf("  Falte %.1f V, Astenden %.1f / %.1f V, Ziel U = %.1f V\n", fold.voltage,
-              v_first, v_last, U);
+  std::printf("  Falte %.1f V bei h/r_c = %.3f; Astenden %.1f / %.1f V; Ziel U = %.1f V\n",
+              fold.voltage, fold.height / r_c, v_first, v_last, U);
 
-  // The scout inside solve_at_voltage must resolve the branch at least as well
-  // as the continuation above, or the second crossing falls outside its
-  // converged range.  That case is reported honestly (crossing_beyond_range)
-  // but is not what this test wants to exercise.
-  const int scout = 22;
+  const Real h_before = 0.90 * fold.height;   // Bereich endet VOR dem Umkehrpunkt
+  const Real h_past   = 1.25 * fold.height;   // endet DAHINTER, aber ueber U
+  const Real h_full   = 2.2 * r_c;            // Bereich deckt beide Schnittpunkte
 
-  // 1. Without an explicit choice the solver must refuse.
+  // ---- 1. Suchbereich endet vor dem Umkehrpunkt --------------------------
   {
-    MeniscusSolution m = s.solve_at_voltage(U, h_max, BranchSide::Unspecified, scout);
-    expect("ohne Zweigangabe -> AmbiguousBranch", m.status == SolveStatus::AmbiguousBranch);
-    expect("und keine verwertbare Loesung", !m.ok());
-    const int known = m.branch_crossings + (m.crossing_beyond_range ? 1 : 0);
-    std::printf("  gemeldete Schnittpunkte: %d%s\n", m.branch_crossings,
-                m.crossing_beyond_range ? " (+ mindestens einer jenseits h_max)" : "");
-    expect("mehr als eine Loesung wird als solche gemeldet", known >= 2);
+    MeniscusSolution m = s.solve_at_voltage(U, h_before, BranchSide::Unspecified, 12);
+    report("vor der Falte", m);
+    expect("(1) Bereich endet vor dem Umkehrpunkt -> BranchCoverageIncomplete",
+           m.status == SolveStatus::BranchCoverageIncomplete);
+    expect("(1) keine verwertbare Form", !m.ok());
+    expect("(1) Abdeckung als unvollstaendig gemeldet", !m.coverage_complete);
+    expect("(1) weiterer Schnittpunkt wird fuer moeglich erklaert",
+           m.additional_crossing_possible);
   }
 
-  // 2. Both sides are individually reachable and geometrically different.
-  MeniscusSolution lo = s.solve_at_voltage(U, h_max, BranchSide::LowerHeight, scout);
-  MeniscusSolution hi = s.solve_at_voltage(U, h_max, BranchSide::UpperHeight, scout);
-  expect("LowerHeight liefert eine Loesung", lo.ok());
-  expect("UpperHeight liefert eine Loesung", hi.ok());
-  if (!lo.ok() || !hi.ok()) return;
-
-  std::printf("  lower: h/r_c = %.4f, U = %.2f V, R_apex/r_c = %.4f, E_apex = %.4g V/m\n",
-              lo.shape.height / r_c, lo.voltage, lo.shape.apex_radius / r_c, lo.apex_field);
-  std::printf("  upper: h/r_c = %.4f, U = %.2f V, R_apex/r_c = %.4f, E_apex = %.4g V/m\n",
-              hi.shape.height / r_c, hi.voltage, hi.shape.apex_radius / r_c, hi.apex_field);
-
-  const Real vtol = standard_params().voltage_tol * U;
-  expect("beide treffen die Zielspannung", std::abs(lo.voltage - U) <= vtol &&
-                                               std::abs(hi.voltage - U) <= vtol);
-  expect("die Apexhoehen sind deutlich verschieden",
-         hi.shape.height > 1.5 * lo.shape.height);
-  expect("die Formen sind geometrisch verschieden (Apexradius)",
-         lo.shape.apex_radius > 2.0 * hi.shape.apex_radius);
-  expect("der gelieferte Zweig wird zurueckgemeldet",
-         lo.side == BranchSide::LowerHeight && hi.side == BranchSide::UpperHeight);
-
-  // 3. A voltage with a unique solution is still delivered without a choice.
-  //    Trace only up to below the fold, so the branch is monotone rising.
+  // ---- 2. Bereich endet hinter der Falte, aber oberhalb der Zielspannung --
   {
-    const Real h_stop = 0.85 * fold.height;
-    const std::vector<MeniscusSolution> rising = s.continuation(0.15 * r_c, h_stop, 10);
-    Real a = 0, b = 0;
-    for (const auto& m : rising) if (m.ok()) { a = m.voltage; break; }
-    for (auto it = rising.rbegin(); it != rising.rend(); ++it)
-      if (it->ok()) { b = it->voltage; break; }
-    const Real U1 = 0.5 * (a + b);
-    MeniscusSolution m = s.solve_at_voltage(U1, h_stop, BranchSide::Unspecified, 10);
-    std::printf("  eindeutiger Fall: Ast %.1f..%.1f V, Ziel %.1f V -> %s (%d Schnittpunkte)\n",
-                a, b, U1, to_string(m.status), m.branch_crossings);
-    expect("eindeutige Loesung wird ohne Zweigangabe geliefert", m.ok());
-    expect("und es wird genau ein Schnittpunkt gemeldet", m.branch_crossings == 1);
+    MeniscusSolution m = s.solve_at_voltage(U, h_past, BranchSide::Unspecified, 12);
+    report("hinter Falte, > U", m);
+    expect("(2) fallender Ast endet ueber U -> BranchCoverageIncomplete",
+           m.status == SolveStatus::BranchCoverageIncomplete);
+    expect("(2) keine verwertbare Form", !m.ok());
   }
 
-  // 4. Asking for a side that lies outside the traced range must not silently
-  //    substitute the other one.
+  // ---- 3. Vollstaendiger Bereich, zwei Schnittpunkte ----------------------
+  MeniscusSolution amb = s.solve_at_voltage(U, h_full, BranchSide::Unspecified, 22);
+  report("voller Bereich", amb);
+  expect("(3) zwei Schnittpunkte -> AmbiguousBranch",
+         amb.status == SolveStatus::AmbiguousBranch);
+  expect("(3) genau zwei im Bereich gezaehlt", amb.crossings_in_range == 2);
+  expect("(3) Abdeckung vollstaendig", amb.coverage_complete);
+  expect("(3) Abbruchgrund wird berichtet",
+         amb.termination_reason != BranchTermination::NotTraced);
+
+  MeniscusSolution lo = s.solve_at_voltage(U, h_full, BranchSide::LowerHeight, 22);
+  MeniscusSolution hi = s.solve_at_voltage(U, h_full, BranchSide::UpperHeight, 22);
+  expect("(3) LowerHeight liefert", lo.ok());
+  expect("(3) UpperHeight liefert", hi.ok());
+  if (lo.ok() && hi.ok()) {
+    std::printf("  lower: h/r_c = %.4f, U = %.2f V, R_apex/r_c = %.4f, E_apex = %.4g V/m\n",
+                lo.shape.height / r_c, lo.voltage, lo.shape.apex_radius / r_c, lo.apex_field);
+    std::printf("  upper: h/r_c = %.4f, U = %.2f V, R_apex/r_c = %.4f, E_apex = %.4g V/m\n",
+                hi.shape.height / r_c, hi.voltage, hi.shape.apex_radius / r_c, hi.apex_field);
+    expect("(3) beide treffen die Zielspannung",
+           std::abs(lo.voltage - U) <= vtol * U && std::abs(hi.voltage - U) <= vtol * U);
+    expect("(3) geometrisch verschieden", hi.shape.height > 1.5 * lo.shape.height &&
+                                              lo.shape.apex_radius > 2.0 * hi.shape.apex_radius);
+  }
+
+  // ---- 4. LowerHeight trotz unvollstaendiger weiterer Abdeckung -----------
   {
-    const Real h_stop = 0.85 * fold.height;
-    const std::vector<MeniscusSolution> rising = s.continuation(0.15 * r_c, h_stop, 10);
-    Real a = 0;
-    for (const auto& m : rising) if (m.ok()) { a = m.voltage; break; }
-    Real b = 0;
-    for (auto it = rising.rbegin(); it != rising.rend(); ++it)
-      if (it->ok()) { b = it->voltage; break; }
-    const Real U1 = 0.5 * (a + b);
-    MeniscusSolution m = s.solve_at_voltage(U1, h_stop, BranchSide::UpperHeight, 10);
-    // On a purely rising traced range the upper crossing does not exist there.
-    std::printf("  UpperHeight auf rein steigendem Ast -> %s\n", to_string(m.status));
-    expect("kein stiller Ersatz durch den anderen Zweig",
-           !m.ok() || m.side == BranchSide::UpperHeight);
+    MeniscusSolution m = s.solve_at_voltage(U, h_past, BranchSide::LowerHeight, 12);
+    report("lower, unvollst.", m);
+    expect("(4) LowerHeight liefert die sicher geklammerte Loesung", m.ok());
+    expect("(4) meldet die Abdeckung dennoch als unvollstaendig", !m.coverage_complete);
+    expect("(4) und erklaert einen weiteren Schnittpunkt fuer moeglich",
+           m.additional_crossing_possible);
+    if (m.ok() && lo.ok())
+      expect("(4) es ist dieselbe untere Loesung",
+             std::abs(m.shape.height - lo.shape.height) < 0.05 * lo.shape.height);
+  }
+
+  // ---- 5. UpperHeight bei unzureichender Abdeckung ------------------------
+  {
+    MeniscusSolution m = s.solve_at_voltage(U, h_past, BranchSide::UpperHeight, 12);
+    report("upper, unvollst.", m);
+    expect("(5) UpperHeight ohne geklammerten oberen Schnittpunkt -> incomplete",
+           m.status == SolveStatus::BranchCoverageIncomplete);
+    expect("(5) keine verwertbare Form", !m.ok());
+    expect("(5) kein stiller Ersatz durch die untere Loesung",
+           m.shape.nodes.empty() || m.shape.height <= 0.0);
+  }
+
+  // ---- 6. Unspecified darf in keinem unvollstaendigen Fall Converged sein --
+  {
+    bool clean = true;
+    for (Real hm : {0.6 * fold.height, 0.90 * fold.height, 1.1 * fold.height,
+                    1.25 * fold.height, 1.5 * fold.height}) {
+      MeniscusSolution m = s.solve_at_voltage(U, hm, BranchSide::Unspecified, 12);
+      if (m.ok() && !m.coverage_complete) clean = false;
+      if (m.status == SolveStatus::Converged && m.crossings_in_range != 1) clean = false;
+    }
+    expect("(6) Unspecified liefert nie Converged bei unvollstaendiger Abdeckung", clean);
+  }
+
+  // ---- 7. VoltageNotBracketed nur bei vollstaendig untersuchtem Ast -------
+  {
+    MeniscusSolution above = s.solve_at_voltage(fold.voltage * 1.2, h_full,
+                                                BranchSide::Unspecified, 22);
+    report("ueber der Falte", above);
+    expect("(7) oberhalb der Falte, voll untersucht -> VoltageNotBracketed",
+           above.status == SolveStatus::VoltageNotBracketed);
+    expect("(7) und die Abdeckung ist als vollstaendig ausgewiesen", above.coverage_complete);
+
+    MeniscusSolution above_short = s.solve_at_voltage(fold.voltage * 1.2, h_before,
+                                                      BranchSide::Unspecified, 12);
+    report("ueber Falte, kurz", above_short);
+    expect("(7) derselbe Fall bei kurzem Bereich -> nicht VoltageNotBracketed",
+           above_short.status != SolveStatus::VoltageNotBracketed);
   }
 }
 

@@ -127,6 +127,19 @@ enum class BranchSide {
 
 const char* to_string(BranchSide s);
 
+/// Why the traced branch ended where it did.  Needed to tell "the branch really
+/// stops here" from "we stopped looking here".
+enum class BranchTermination {
+  NotTraced = 0,
+  /// The continuation covered the whole requested apex-height range.
+  ReachedRequestedRange,
+  /// The continuation aborted early because the shape solver stopped
+  /// converging.  Nothing is known about the branch past that point.
+  SolverStopped,
+};
+
+const char* to_string(BranchTermination s);
+
 struct MeniscusSolution {
   MeniscusShape shape;
   Real voltage{0};        ///< emitter-to-extractor voltage sustaining this shape [V]
@@ -137,14 +150,22 @@ struct MeniscusSolution {
   Real peak_field{0};     ///< max |E_n| on the free surface [V/m]
   Real delta_p{0};
   SolveStatus status{SolveStatus::NotAttempted};
-  /// How many times the traced branch crosses the requested voltage.  0 means
-  /// unreachable, 1 unique on the traced range, >= 2 ambiguous.  Set only by
-  /// solve_at_voltage().
-  int branch_crossings{0};
-  /// True when the branch is still above the target at the largest traced apex
-  /// height, i.e. at least one further solution exists beyond h_max and the
-  /// traced range is too short to decide uniqueness.
-  bool crossing_beyond_range{false};
+  /// How many times the branch crosses the requested voltage WITHIN THE RANGE
+  /// THAT WAS ACTUALLY TRACED.  This says nothing about the rest of the branch;
+  /// read coverage_complete before drawing any conclusion about uniqueness.
+  int crossings_in_range{0};
+  /// True only when the traced range is sufficient to decide the question for
+  /// this target: the branch has passed a turning point and has moved away
+  /// below the target at the far end, so no further crossing follows within the
+  /// monotone segment that was examined.  False means "not investigated far
+  /// enough", not "no further solution".
+  bool coverage_complete{false};
+  /// Complement of coverage_complete, stated positively for callers that want
+  /// to warn.  A further crossing MAY exist outside the traced range; whether
+  /// it does is unknown.
+  bool additional_crossing_possible{true};
+  /// Why the traced branch ended.
+  BranchTermination termination_reason{BranchTermination::NotTraced};
   /// Which side was delivered.  When branch_crossings == 1 the choice was
   /// vacuous -- there was only one solution, and it is returned whichever
   /// side was asked for.  Read branch_crossings to tell the two cases apart.
@@ -180,19 +201,44 @@ class MeniscusSolver {
   /// radii differing by a factor 3.3 and apex fields by a factor 1.8.  Picking
   /// one of them silently is not admissible.
   ///
-  /// Contract:
-  ///  * exactly one crossing on the traced branch -> that solution is returned;
-  ///  * more than one crossing, or one crossing plus a further one beyond
-  ///    h_max, and `side` is Unspecified -> SolveStatus::AmbiguousBranch and no
-  ///    usable shape;
-  ///  * `side` given -> the requested crossing is returned, or
-  ///    VoltageNotBracketed if that side lies outside the traced range;
-  ///  * Converged is returned ONLY if the delivered voltage agrees with U to
-  ///    within params().voltage_tol (relative).
+  /// Crossings are counted ONLY within the apex-height range that was actually
+  /// traced.  A single crossing there does not prove global uniqueness: the
+  /// branch may cross again beyond h_max, or the continuation may have stopped
+  /// before reaching a turning point.  `coverage_complete` records whether the
+  /// traced range was sufficient to decide.
   ///
-  /// "Crossings" are counted on the DISCRETE scout branch.  A pair of solutions
-  /// closer together than the scout spacing can be missed; raise `scout_steps`
-  /// if that matters.
+  /// Contract:
+  ///
+  ///  * `Unspecified`
+  ///      - two or more crossings in range           -> AmbiguousBranch
+  ///      - exactly one, coverage incomplete         -> BranchCoverageIncomplete
+  ///      - exactly one, coverage complete           -> Converged
+  ///      - none, coverage complete                  -> VoltageNotBracketed
+  ///      - none, coverage incomplete                -> BranchCoverageIncomplete
+  ///    Converged therefore only ever follows from demonstrated uniqueness.
+  ///
+  ///  * `LowerHeight`
+  ///      - at least one crossing in range           -> that solution, Converged
+  ///        (coverage_complete / additional_crossing_possible still reported, so
+  ///         the caller can see whether more solutions may exist)
+  ///      - none, coverage complete                  -> VoltageNotBracketed
+  ///      - none, coverage incomplete                -> BranchCoverageIncomplete
+  ///
+  ///  * `UpperHeight`
+  ///      - two or more crossings in range           -> the highest, Converged
+  ///      - exactly one and coverage complete        -> that unique solution
+  ///      - otherwise                                -> BranchCoverageIncomplete.
+  ///        Never the lower crossing as a substitute.
+  ///
+  ///  * `VoltageNotBracketed` is used only when a fully investigated branch
+  ///    provably contains no matching solution.
+  ///
+  ///  * `Converged` additionally requires the delivered voltage to agree with U
+  ///    to within params().voltage_tol (relative).
+  ///
+  /// `scout_steps` sets the SAMPLING RESOLUTION of the continuation and nothing
+  /// else.  Raising it can reveal a pair of crossings closer together than the
+  /// previous spacing; it never extends the traced range.  Use `h_max` for that.
   MeniscusSolution solve_at_voltage(Real U, Real h_max,
                                     BranchSide side = BranchSide::Unspecified,
                                     int scout_steps = 14);

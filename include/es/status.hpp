@@ -23,6 +23,7 @@ enum class SolveStatus {
   ShapeIntegrationFailed, ///< the Young-Laplace march did not reach the contact line
   NoStaticFoldFound,      ///< branch has no interior turning point to search below
   AmbiguousBranch,        ///< several solutions exist; none may be chosen silently
+  BranchCoverageIncomplete, ///< the branch was not followed far enough to decide
   NotAttempted,           ///< default-constructed; nothing was solved
 };
 

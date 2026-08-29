@@ -5,3 +5,8 @@ out_*
 *.vtk
 *.png
 __pycache__/
+
+# Ergebnisordner sind bewusst versioniert (siehe results/*/README.md)
+!results/**/*.csv
+!results/**/*.png
+!results/**/*.txt

@@ -11,6 +11,7 @@ const char* to_string(SolveStatus s) {
     case SolveStatus::ShapeIntegrationFailed: return "shape_integration_failed";
     case SolveStatus::NoStaticFoldFound: return "no_static_fold_found";
     case SolveStatus::AmbiguousBranch: return "ambiguous_branch";
+    case SolveStatus::BranchCoverageIncomplete: return "branch_coverage_incomplete";
     default: return "not_attempted";
   }
 }
@@ -39,6 +40,13 @@ const char* explain(SolveStatus s) {
              "Welche gemeint ist, muss der Aufrufer ueber BranchSide angeben; der Loeser "
              "waehlt nicht aus. Hinweis: 'unten' und 'oben' bezeichnen ausschliesslich die "
              "Apexhoehe, nicht Stabilitaet -- eine Stabilitaetsanalyse gibt es nicht.";
+    case SolveStatus::BranchCoverageIncomplete:
+      return "Der Ast wurde nicht weit genug verfolgt, um die Frage zu entscheiden. Entweder "
+             "endet der Suchbereich vor einem Umkehrpunkt, oder der fallende Ast endet noch "
+             "oberhalb der Zielspannung, oder die Fortsetzung brach ab, bevor ein weiterer "
+             "Schnittpunkt ausgeschlossen oder gefunden werden konnte. Ein einzelner gefundener "
+             "Schnittpunkt beweist keine Eindeutigkeit. Abhilfe: h_max vergroessern; "
+             "scout_steps erhoeht nur die Abtastung, nicht die Abdeckung.";
     default:
       return "Es wurde nichts geloest.";
   }

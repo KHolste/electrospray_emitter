@@ -32,14 +32,17 @@ static BranchSide branch_side_from(const Config& cfg) {
 /// Report the outcome of a voltage solve, including how many solutions the
 /// traced branch offered.
 static void report_branch_choice(const MeniscusSolution& m, BranchSide side) {
-  if (m.branch_crossings + (m.crossing_beyond_range ? 1 : 0) > 1) {
-    std::printf("\n  HINWEIS: zu dieser Spannung gehoeren %d Meniskusformen auf dem\n"
-                "  verfolgten Ast%s. Gewaehlt wurde ausdruecklich '%s'\n"
-                "  (meniscus.branch). Die Bezeichnungen betreffen nur die Apexhoehe,\n"
-                "  nicht Stabilitaet -- eine Stabilitaetsanalyse gibt es nicht.\n",
-                m.branch_crossings, m.crossing_beyond_range ? " sowie mindestens eine jenseits von h_max" : "",
-                to_string(side));
-  }
+  std::printf("\n  Astabdeckung: %d Schnittpunkt(e) im verfolgten Bereich, "
+              "Abdeckung %s,\n  Ende des Bereichs: %s. Gewaehlt: '%s' (meniscus.branch).\n",
+              m.crossings_in_range, m.coverage_complete ? "vollstaendig" : "UNVOLLSTAENDIG",
+              to_string(m.termination_reason), to_string(side));
+  if (m.additional_crossing_possible)
+    std::printf("  WARNUNG: der Ast wurde nicht weit genug verfolgt, um weitere Loesungen\n"
+                "  auszuschliessen. meniscus.h_max vergroessern; scout_steps aendert nur\n"
+                "  die Abtastung, nicht die Abdeckung.\n");
+  if (m.crossings_in_range > 1)
+    std::printf("  Die Bezeichnungen betreffen nur die Apexhoehe, nicht Stabilitaet --\n"
+                "  eine Stabilitaetsanalyse gibt es nicht.\n");
 }
 
 int main(int argc, char** argv) try {

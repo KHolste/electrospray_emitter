@@ -60,6 +60,11 @@ foreach(app es_field es_meniscus es_operate es_beam)
   target_link_libraries(${app} PRIVATE es_core)
 endforeach()
 
+# ----------------------------------------------------------------- diagnostics
+# Not part of the physics: regenerates the data behind docs/figures.
+add_executable(branch_figure tools/branch_figure.cpp)
+target_link_libraries(branch_figure PRIVATE es_core)
+
 # ----------------------------------------------------------------------- tests
 enable_testing()
 foreach(t test_elliptic test_bem test_meniscus test_emission test_beam test_config test_regressions)
