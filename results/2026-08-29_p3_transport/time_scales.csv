@@ -1,0 +1,8 @@
+# Zeitskalen nebeneinander.  Der Perfect-Conductor-Grenzfall ist ein
+# VERHAELTNIS und keine Eigenschaft von sigma allein: welche Prozesszeit
+# gilt, ist eine Modellentscheidung.
+scale,value_s,status,note
+tau_charge_relaxation,nan,MissingMaterialData,eps0 eps_r / sigma -- eps_r fehlt
+tau_charge_relaxation_unsourced,7.272633525e-11,unsourced,mit eps_r = 12.8 (NICHT belegt)
+t_capillary_inertial,1.721776335e-06,sourced,sqrt(rho a^3 / gamma)
+t_visco_capillary,3.366987744e-06,sourced,mu a / gamma

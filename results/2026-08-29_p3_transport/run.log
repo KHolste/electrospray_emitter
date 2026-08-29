@@ -1,0 +1,23 @@
+P3 -- endliche Leitfaehigkeit und Zulaufstroemung, minimale ehrliche Stufe
+
+NICHT gerechnet: kein allgemeiner Stokes-Loeser (keine Einlaufstroemung, keine
+Druck-Geschwindigkeits-Kopplung, keine gekruemmte Geometrie, keine freie
+Oberflaeche), keine gekoppelte finite-conductivity-Meniskuskopplung, keine
+Emission, keine Zeitintegration einer Form.
+
+  mu: measured = 0.036370
+  rho: measured = 1280.900000
+  gamma: measured = 0.054010
+  sigma: measured = 1.558357
+  eps_r: MissingMaterialData
+
+  Rohrstroemung: Volumenstrom trifft Hagen-Poiseuille auf 0.000026 relativ; der daraus gewonnene hydraulische
+  Widerstand trifft die geschlossene Form von P1 auf 0.000026 relativ.
+  Ladungsrelaxation: MissingMaterialData
+    eps_r = 0 [MissingMaterialData], sigma = 1.55836 S/m [measured]
+    tau ist nicht berechenbar.
+    Die Permittivitaet oder die Leitfaehigkeit fehlt.  tau ist nicht berechenbar, und es wird KEIN Ersatzwert gesetzt: ohne beide Zahlen ist der Grenzfall weder gerechtfertigt noch widerlegt, sondern unbekannt.  eps_r: relative_permittivity: keine Quelle erfuellt die Auswahlregel (Methode, Reinheit UND Wassergehalt angegeben).  Es wird kein Ersatzwert gesetzt.  
+
+  Leitungsstrom: groesste seitliche Leckstromdichte relativ zur axialen: 0.000000.  Ohne Emission darf sie null sein und ist es.
+
+Alle deklarierten Pruefungen dieses Laufs bestanden.

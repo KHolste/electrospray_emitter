@@ -1,0 +1,9 @@
+# Stationaerer Leitungsstrom im Zylinder: div(sigma grad phi) = 0 ist
+# dieselbe Gleichung wie die Elektrostatik, die Knotenreaktion ist dann
+# ein STROM in Ampere.  Die Mantelflaeche traegt die natuerliche
+# Bedingung j.n = 0 -- genau die, die eine NICHT emittierende freie
+# Oberflaeche tragen muss, weil die Ladung sonst nirgendwohin koennte.
+nr,nz,n_nodes,current_A,current_closed_form_A,relative_error,resistance_Ohm,resistance_closed_form_Ohm,lateral_leakage,potential_error,fem_residual
+11,21,231,4.079769460e-07,4.079769460e-07,5.847426870e-12,2.451118893e+06,2.451118893e+06,2.664535259e-13,8.001932450e-13,6.505213035e-19
+21,41,861,4.079769460e-07,4.079769460e-07,5.596598560e-13,2.451118893e+06,2.451118893e+06,5.329070518e-13,1.096900348e-12,1.111307227e-18
+41,81,3321,4.079769460e-07,4.079769460e-07,2.562925523e-11,2.451118893e+06,2.451118893e+06,1.598721155e-12,1.577848963e-12,1.788933585e-18

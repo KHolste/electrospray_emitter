@@ -1,0 +1,9 @@
+# Ladungsrelaxation.  tau = eps0 eps_r / sigma ist NUR berechenbar, wenn
+# BEIDE Zahlen belegt sind.  Fuer EMI-BF4 fehlt eps_r (siehe
+# docs/13_material_data.md), also steht der belegte Fall als nan.
+# Der Fall 'unbelegt' benutzt einen ausdruecklich NICHT belegten Wert
+# und ist ein Rechenbeispiel, keine Aussage ueber den Stoff.
+case,eps_r,eps_r_status,sigma_S_per_m,sigma_status,tau_s,process_time_s,ratio,verdict
+belegt_kapillar,nan,MissingMaterialData,1.558357143e+00,measured,nan,1.721776335e-06,nan,MissingMaterialData
+unbelegt_kapillar,1.280000000e+01,literature,1.558357143e+00,literature,7.272633525e-11,1.721776335e-06,2.367472979e+04,PerfectConductorJustified
+unbelegt_viskokapillar,1.280000000e+01,literature,1.558357143e+00,literature,7.272633525e-11,3.366987744e-06,4.629667827e+04,PerfectConductorJustified
