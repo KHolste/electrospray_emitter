@@ -1,0 +1,27 @@
+# per-curve and per-identifier element statistics, SI units
+scope,name,boundary_id,long_name,n_elements,len_min_m,len_median_m,len_max_m,total_meridian_length_m,total_revolved_area_m2
+curve,symmetry_axis.liquid,symmetry_axis,"Symmetrieachse r = 0 (kein Interface)",41,7.074327655e-07,6.881680656e-06,3.933392330e-05,4.000000000e-04,0.000000000e+00
+curve,symmetry_axis.vacuum,symmetry_axis,"Symmetrieachse r = 0 (kein Interface)",37,6.921612164e-07,4.974122732e-05,8.678867983e-05,1.500000000e-03,0.000000000e+00
+curve,free_surface_reference,free_surface_reference,"anfaengliche ebene Fluessigkeitsoberflaeche - noch kein berechneter Meniskus",10,1.661424465e-07,4.832728482e-07,8.644175160e-07,5.000000000e-06,7.853981634e-11
+curve,bore_wall,bore_wall,"Bohrungswand (Fluessigkeit gegen Emitterfestkoerper)",48,1.734800835e-07,5.449833005e-06,4.022778868e-05,4.000000000e-04,1.256637061e-08
+curve,liquid_inlet,liquid_inlet,"Zulaufschnitt durch die Fluessigkeitssaeule",6,6.498059049e-07,8.186990192e-07,1.031495076e-06,5.000000000e-06,7.853981634e-11
+curve,emitter_tip_land,emitter_tip_land,"Stirnflaeche des Emitters",13,1.755939998e-07,3.690745906e-07,7.277880994e-07,5.000000000e-06,2.356194490e-10
+curve,emitter_outer_surface,emitter_outer_surface,"Emitteraussenflaeche (Kegelstumpf und Schaft)",49,1.700991500e-07,4.380872271e-06,3.974452025e-05,4.008276253e-04,4.845852871e-08
+curve,extractor_surface.aperture,extractor_surface,"Extraktorflaechen und Aperturwand",13,3.511879996e-06,7.381491812e-06,1.455576199e-05,1.000000000e-04,1.256637061e-07
+curve,extractor_surface.front,extractor_surface,"Extraktorflaechen und Aperturwand",46,3.504009437e-06,8.775854229e-05,8.775854229e-05,2.800000000e-03,2.814867018e-05
+curve,extractor_surface.back,extractor_surface,"Extraktorflaechen und Aperturwand",46,3.504009437e-06,8.775854229e-05,8.775854229e-05,2.800000000e-03,2.814867018e-05
+curve,open_boundary.z_min.emitter,open_boundary,"offener Domaenenrand",9,6.641429291e-07,1.704114266e-06,2.710098911e-06,1.500000000e-05,1.178097245e-09
+curve,open_boundary.z_min.vacuum,open_boundary,"offener Domaenenrand",46,2.082275771e-06,8.700538135e-05,8.700538135e-05,2.980000000e-03,2.827307725e-05
+curve,open_boundary.r_max.lower,open_boundary,"offener Domaenenrand",15,1.371541237e-05,7.481446211e-05,8.607131211e-05,9.000000000e-04,1.696460033e-05
+curve,open_boundary.r_max.extractor,open_boundary,"offener Domaenenrand",6,1.299611810e-05,1.637398038e-05,2.062990152e-05,1.000000000e-04,1.884955592e-06
+curve,open_boundary.r_max.upper,open_boundary,"offener Domaenenrand",15,1.371541237e-05,7.481446211e-05,8.607131211e-05,9.000000000e-04,1.696460033e-05
+curve,open_boundary.z_max,open_boundary,"offener Domaenenrand",34,8.823529412e-05,8.823529412e-05,8.823529412e-05,3.000000000e-03,2.827433388e-05
+boundary_id,symmetry_axis,symmetry_axis,"Symmetrieachse r = 0 (kein Interface)",78,6.921612164e-07,9.007383012e-06,8.678867983e-05,1.900000000e-03,0.000000000e+00
+boundary_id,emitter_outer_surface,emitter_outer_surface,"Emitteraussenflaeche (Kegelstumpf und Schaft)",49,1.700991500e-07,4.380872271e-06,3.974452025e-05,4.008276253e-04,4.845852871e-08
+boundary_id,emitter_tip_land,emitter_tip_land,"Stirnflaeche des Emitters",13,1.755939998e-07,3.690745906e-07,7.277880994e-07,5.000000000e-06,2.356194490e-10
+boundary_id,bore_wall,bore_wall,"Bohrungswand (Fluessigkeit gegen Emitterfestkoerper)",48,1.734800835e-07,5.449833005e-06,4.022778868e-05,4.000000000e-04,1.256637061e-08
+boundary_id,free_surface_reference,free_surface_reference,"anfaengliche ebene Fluessigkeitsoberflaeche - noch kein berechneter Meniskus",10,1.661424465e-07,4.832728482e-07,8.644175160e-07,5.000000000e-06,7.853981634e-11
+boundary_id,liquid_inlet,liquid_inlet,"Zulaufschnitt durch die Fluessigkeitssaeule",6,6.498059049e-07,8.186990192e-07,1.031495076e-06,5.000000000e-06,7.853981634e-11
+boundary_id,extractor_surface,extractor_surface,"Extraktorflaechen und Aperturwand",105,3.504009437e-06,6.800185100e-05,8.775854229e-05,5.700000000e-03,5.642300406e-05
+boundary_id,open_boundary,open_boundary,"offener Domaenenrand",125,6.641429291e-07,8.700538135e-05,8.823529412e-05,7.895000000e-03,9.236274548e-05
+total,all,all,"gesamtes Randnetz",434,1.661424465e-07,1.839292437e-05,8.823529412e-05,1.631082763e-02,1.488471671e-04

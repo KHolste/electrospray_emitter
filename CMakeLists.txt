@@ -42,6 +42,7 @@ add_library(es_core STATIC
   src/fluid.cpp
   src/geometry.cpp
   src/device_geometry.cpp
+  src/boundary_mesh.cpp
   src/bem.cpp
   src/emission.cpp
   src/meniscus.cpp
@@ -69,10 +70,13 @@ target_link_libraries(branch_figure PRIVATE es_core)
 add_executable(device_figure tools/device_figure.cpp)
 target_link_libraries(device_figure PRIVATE es_core)
 
+add_executable(mesh_figure tools/mesh_figure.cpp)
+target_link_libraries(mesh_figure PRIVATE es_core)
+
 # ----------------------------------------------------------------------- tests
 enable_testing()
 foreach(t test_elliptic test_bem test_meniscus test_emission test_beam test_config
-           test_regressions test_device_geometry)
+           test_regressions test_device_geometry test_boundary_mesh)
   add_executable(${t} tests/${t}.cpp)
   target_link_libraries(${t} PRIVATE es_core)
   add_test(NAME ${t} COMMAND ${t})

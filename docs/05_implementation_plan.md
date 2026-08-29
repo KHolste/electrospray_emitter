@@ -123,29 +123,55 @@ nicht als wiederholbarer Skript-/CI-Schritt eingerichtet.
    poröser Emitter, Kollektor) sind strukturell vorgesehen und schlagen
    geschlossen fehl, wenn sie benutzt werden.
 
-### P1b — automatische Vernetzung  *(blockiert)*
+### P1b — automatischer Randvernetzer  *(erledigt)*
 
-Die Strategie steht in [04_geometry_model.md](04_geometry_model.md) 4.4, das
-**Verfahren** nicht. Siehe [07_mesher_decision.md](07_mesher_decision.md): drei
-zu treffende Entscheidungen (Eigenbau oder Bibliothek; strukturiert oder
-unstrukturiert; Rand- jetzt und Volumenvernetzung erst zu P4). Bis dahin wurde
-bewusst kein provisorischer Vernetzer eingebaut.
+Entscheidung und Verfahren: [07_mesher_decision.md](07_mesher_decision.md).
+Gebaut in `include/es/boundary_mesh.hpp` / `src/boundary_mesh.cpp` als
+**solverunabhängige** Komponente; sie hängt nur von `device_geometry.hpp` ab
+und bietet **keine** Umwandlung in das `es::Mesh` der P0-BEM an.
 
-**Bindend, sobald gebaut wird:** kein Netz-, Elementgrößen- oder
-Verfeinerungsparameter in der Benutzerschnittstelle. Der Benutzer gibt Geometrie
-und eine Genauigkeitsvorgabe vor, sonst nichts. Die Schlüssel `h_tip` und
-`h_far` des Prototyps entfallen ersatzlos.
+1. Zusammenhängende meridionale Randdiskretisierung aller Randkurven:
+   Emitteraußenfläche, Bohrungswand, anfängliche ebene Flüssigkeitsoberfläche,
+   gepinnte Austrittskante, Extraktorflächen und Aperturkanten, offene
+   Domänenränder, Symmetrieachse.
+2. Größenfunktion `h(x) = min(min_s [h_s + G·|x−x_s|], h_max)` aus lokaler
+   Merkmalsgröße; benannte Merkmale mit `lfs/32`, übrige Ecken mit `lfs/8`,
+   `h_max = Diagonale/40`, `G = 0.25`. **Keine Benutzereingabe** — `h_tip` und
+   `h_far` existieren nicht.
+3. Achsensymmetrischer Vertrag je Element: Randkennung, Endpunkte,
+   Orientierung (Normale geometrisch nachgeprüft, nicht aus der
+   Punktreihenfolge übernommen), angrenzende Gebiete, Meridianlänge,
+   Rotationsfläche. Elemente auf r = 0 sind Symmetrieelemente mit
+   Rotationsfläche exakt null.
+4. Dreizehn Prüfungen in `BoundaryMesh::validate()`, aufgeführt in
+   [07_mesher_decision.md](07_mesher_decision.md) 7.4.
+
+**Bindend, weiterhin:** kein Netz-, Elementgrößen- oder Verfeinerungsparameter
+in der Benutzerschnittstelle.
+
+### P1c — Volumenvernetzung  *(offen, Frist vor P3)*
+
+Zu entscheiden ist Verfahren und Bibliothek, **vor** dem Beginn von P3, weil
+das gekoppelte Flüssigkeitsmodell eine Volumendiskretisierung braucht. Kein
+allgemeiner Volumenvernetzer im Eigenbau.
 
 **Gate P1a — bestanden.** Rotationsmaße analytisch gegen Zylinder, Kegelstumpf
 und Kegel geprüft; Gebietsvolumina addieren sich zum Domänenvolumen; alle
 Randkennungen vorhanden und eindeutig benannt; Validierung und Fail-Closed der
 reservierten Parameter getestet.
 
-**Gate P1b — offen.** Netzunabhängigkeit von Kapazität und Spitzenfeld über drei
-Verfeinerungsstufen; die Verifikationsgeometrien Kugel und Rotationsellipsoid
-werden vom neuen Vernetzer automatisch mit derselben Genauigkeit aufgelöst wie
-bisher mit manueller Größenvorgabe; **die Referenzgeometrie läuft ohne jede
-Netzangabe durch**.
+**Gate P1b — teilweise bestanden.** Bestanden: die Referenzgeometrie wird ohne
+jede Netzangabe vernetzt; Rotationsflächen und Meridianlängen bleiben exakt
+erhalten; Gebietsränder sind geschlossen und korrekt orientiert; alle
+Geometrieecken und benannten Merkmale bleiben bitgenau Knoten; das Netz ist
+bitweise reproduzierbar. Offen bleibt, was ohne Feldlösung nicht prüfbar ist:
+Netzunabhängigkeit von Kapazität und Spitzenfeld über drei Verfeinerungsstufen
+und der Vergleich an Kugel und Rotationsellipsoid. Das gehört zu P2, weil dafür
+die BEM auf dieses Netz umgestellt sein muss — was in diesem Lauf ausdrücklich
+**nicht** geschehen ist.
+
+**Gate P1c — offen.** Verfahren und Bibliothek der Volumenvernetzung
+entschieden, mit Begründung gegen die Anforderungen aus P3 und P4.
 
 ---
 

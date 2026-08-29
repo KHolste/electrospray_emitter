@@ -1,0 +1,106 @@
+Automatischer achsensymmetrischer Randvernetzer (P1)
+====================================================
+
+Erzeugt aus examples/device_p1.cfg durch tools/mesh_figure.cpp.
+Meridianhalbebene (r, z), SI-Einheiten. z = 0 ist die Stirnebene des
+Emitters, z waechst zum Extraktor.
+
+NUR der Rand ist diskretisiert -- keine Volumenvernetzung, keine
+Feldloesung, kein Meniskus, keine Stroemung, keine Emission, keine
+Raumladung. Die Randkennungen sind Bezeichner, keine Randbedingungen.
+Die P0-BEM benutzt dieses Netz nicht; sie behaelt ihre eigenen Netze.
+
+Die Flaeche bei z = 0 ist die anfaengliche ebene Fluessigkeitsoberflaeche
+-- noch kein berechneter Meniskus. Sie ist der geometrische Ausgangszustand
+und traegt keine physikalische Aussage.
+
+Scharfe Kanten (Austrittskante, Aperturkanten) werden bewusst verfeinert.
+Ein dort spaeter berechnetes maximales elektrisches Feld ist deshalb KEINE
+netzkonvergente Groesse: das Eckfeld einer unverrundeten Kante divergiert
+und folgt der oertlichen Elementgroesse.
+
+Automatischer achsensymmetrischer Randvernetzer
+  Knoten   : 431
+  Elemente : 434
+
+Groessenfunktion  h(x) = min( min_s [ h_s + G |x - x_s| ], h_max )
+  G (Gradation)                 = 0.25
+  h_max = Diagonale / 40       = 8.8776e-05 m
+  kleinste Quellgroesse h_min   = 1.5625e-07 m
+  Merkmal:  h = lfs / 32     Ecke: h = lfs / 8
+  Quellen (14):
+    r=          0 z=    -0.0004  lfs=     5e-06  h=  6.25e-07  Geometrieecke
+    r=          0 z=          0  lfs=     5e-06  h=  6.25e-07  Geometrieecke
+    r=          0 z=     0.0015  lfs=  0.000922  h= 0.0001152  Geometrieecke
+    r=      5e-06 z=          0  lfs=     5e-06  h= 1.562e-07  Merkmal pinned_contact_edge  [verfeinert]
+    r=      5e-06 z=    -0.0004  lfs=     5e-06  h=  6.25e-07  Geometrieecke
+    r=      1e-05 z=          0  lfs=     5e-06  h= 1.562e-07  Merkmal emitter_outer_edge  [verfeinert]
+    r=      2e-05 z=     -6e-05  lfs=   1.5e-05  h= 1.875e-06  Geometrieecke
+    r=      2e-05 z=    -0.0004  lfs=   1.5e-05  h= 1.875e-06  Geometrieecke
+    r=     0.0002 z=     0.0005  lfs=    0.0001  h= 3.125e-06  Merkmal extractor_aperture_edge_front  [verfeinert]
+    r=     0.0002 z=     0.0006  lfs=    0.0001  h= 3.125e-06  Merkmal extractor_aperture_edge_back  [verfeinert]
+    r=      0.003 z=     0.0005  lfs=    0.0001  h=  1.25e-05  Geometrieecke
+    r=      0.003 z=     0.0006  lfs=    0.0001  h=  1.25e-05  Geometrieecke
+    r=      0.003 z=    -0.0004  lfs=    0.0009  h= 0.0001125  Geometrieecke
+    r=      0.003 z=     0.0015  lfs=    0.0009  h= 0.0001125  Geometrieecke
+
+Elementstatistik je Randkurve (Laengen in m)
+  Randkurve                          Kennung                      n         min      median         max   Sum_Laenge  Sum_Flaeche
+  symmetry_axis.liquid               symmetry_axis               41   7.074e-07   6.882e-06   3.933e-05       0.0004            0
+  symmetry_axis.vacuum               symmetry_axis               37   6.922e-07   4.974e-05   8.679e-05       0.0015            0
+  free_surface_reference             free_surface_reference      10   1.661e-07   4.833e-07   8.644e-07        5e-06    7.854e-11
+  bore_wall                          bore_wall                   48   1.735e-07    5.45e-06   4.023e-05       0.0004   1.2566e-08
+  liquid_inlet                       liquid_inlet                 6   6.498e-07   8.187e-07   1.031e-06        5e-06    7.854e-11
+  emitter_tip_land                   emitter_tip_land            13   1.756e-07   3.691e-07   7.278e-07        5e-06   2.3562e-10
+  emitter_outer_surface              emitter_outer_surface       49   1.701e-07   4.381e-06   3.974e-05   0.00040083   4.8459e-08
+  extractor_surface.aperture         extractor_surface           13   3.512e-06   7.381e-06   1.456e-05       0.0001   1.2566e-07
+  extractor_surface.front            extractor_surface           46   3.504e-06   8.776e-05   8.776e-05       0.0028   2.8149e-05
+  extractor_surface.back             extractor_surface           46   3.504e-06   8.776e-05   8.776e-05       0.0028   2.8149e-05
+  open_boundary.z_min.emitter        open_boundary                9   6.641e-07   1.704e-06    2.71e-06      1.5e-05   1.1781e-09
+  open_boundary.z_min.vacuum         open_boundary               46   2.082e-06   8.701e-05   8.701e-05      0.00298   2.8273e-05
+  open_boundary.r_max.lower          open_boundary               15   1.372e-05   7.481e-05   8.607e-05       0.0009   1.6965e-05
+  open_boundary.r_max.extractor      open_boundary                6     1.3e-05   1.637e-05   2.063e-05       0.0001    1.885e-06
+  open_boundary.r_max.upper          open_boundary               15   1.372e-05   7.481e-05   8.607e-05       0.0009   1.6965e-05
+  open_boundary.z_max                open_boundary               34   8.824e-05   8.824e-05   8.824e-05        0.003   2.8274e-05
+
+Elementstatistik je Randkennung
+  symmetry_axis            n=78    min= 6.922e-07 median= 9.007e-06 max= 8.679e-05
+                           Symmetrieachse r = 0 (kein Interface)
+  emitter_outer_surface    n=49    min= 1.701e-07 median= 4.381e-06 max= 3.974e-05
+                           Emitteraussenflaeche (Kegelstumpf und Schaft)
+  emitter_tip_land         n=13    min= 1.756e-07 median= 3.691e-07 max= 7.278e-07
+                           Stirnflaeche des Emitters
+  bore_wall                n=48    min= 1.735e-07 median=  5.45e-06 max= 4.023e-05
+                           Bohrungswand (Fluessigkeit gegen Emitterfestkoerper)
+  free_surface_reference   n=10    min= 1.661e-07 median= 4.833e-07 max= 8.644e-07
+                           anfaengliche ebene Fluessigkeitsoberflaeche - noch kein berechneter Meniskus
+  liquid_inlet             n=6     min= 6.498e-07 median= 8.187e-07 max= 1.031e-06
+                           Zulaufschnitt durch die Fluessigkeitssaeule
+  extractor_surface        n=105   min= 3.504e-06 median=   6.8e-05 max= 8.776e-05
+                           Extraktorflaechen und Aperturwand
+  open_boundary            n=125   min= 6.641e-07 median= 8.701e-05 max= 8.824e-05
+                           offener Domaenenrand
+
+  gesamt: n=434, min=1.661e-07 m, median=1.839e-05 m, max=8.824e-05 m
+  groesstes Verhaeltnis benachbarter Elemente: 1.283
+
+Pruefungen des Randnetzes
+  [ok  ] keine Nulllaengen-Elemente                           kuerzestes Element 1.6614e-07 m
+  [ok  ] keine Nullradien-Ringelemente                        356 Ringelemente
+  [ok  ] Achsenelemente exakt bei r = 0 mit Flaeche 0         78 Symmetrieelemente
+  [ok  ] keine doppelten Elemente                             434 Elemente, 431 Knoten
+  [ok  ] kein Knoten mit weniger als zwei Elementen (keine Luecken) kleinster Knotengrad 2
+  [ok  ] jede Randkurve ist eine ununterbrochene Kette        16 Randkurven
+  [ok  ] Kettenenden liegen auf den Kurvenenden               
+  [ok  ] alle Geometrieecken sind exakt Netzknoten            
+  [ok  ] alle benannten Merkmale sind exakt Netzknoten        4 Merkmale
+  [ok  ] kein Element ueberspannt eine Geometrieecke          
+  [ok  ] keine ungewollten Ueberlappungen oder Kreuzungen     93961 Elementpaare geprueft
+  [ok  ] jedes Element trennt genau die angegebenen Gebiete   Normale zeigt von side_a nach side_b
+  [ok  ] Randkennungen sind eindeutig zugeordnet              16 benannte Randkurven
+  [ok  ] Gebietsraender geschlossen und korrekt orientiert (CCW) liquid: 105 Elemente, dA/A=0, dV/V=0; emitter_solid: 119 Elemente, dA/A=1.5e-16, dV/V=1.1e-16; extractor_solid: 111 Elemente, dA/A=1.9e-16, dV/V=1.5e-16; vacuum: 324 Elemente, dA/A=3.1e-16, dV/V=2.6e-16; 
+  [ok  ] Rotationsflaechen erhalten (Summe = analytisch)      groesster relativer Fehler 2.4e-16
+  [ok  ] Meridianlaengen erhalten                             groesster relativer Fehler 1.35e-16
+  [ok  ] kontrolliertes Elementgroessenverhaeltnis            groesstes Verhaeltnis benachbarter Elemente 1.283 (Grenze 1.50)
+  [ok  ] reproduzierbare Knotenanordnung (bitweise)           zweiter Aufbau aus denselben Parametern
+  0 von 18 Pruefungen fehlgeschlagen
