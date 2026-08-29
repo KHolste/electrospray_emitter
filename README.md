@@ -170,6 +170,7 @@ Konfigurationsdatei plus `key=value`-Overrides auf der Kommandozeile
 | `es_dielectric` | P2b: dielektrische Elektrostatik auf dem **abgeschnittenen Säulenmodell** | kantenfernes Feld **netz**konvergent und gegen die BEM geprüft; Kantenfelder nicht. Der Lauf ist jetzt eine **Diagnose**: sein Rückschnitt verschiebt Flüssigkeitssäule und Dielektrikum gemeinsam, ist also eine Geometrieänderung der Elektrode und keine Randverschiebung |
 | `es_reservoir` | P2c: Gerätegeometrie und Flüssigkeitsvorrat entkoppelt; Vorrat als dielektrisch umschlossenes Plenum | Frontgeometrie über alle Varianten **bitgenau** identisch (nachgewiesen); lokales Feld am Meniskus ändert sich je Vergrößerungsstufe um 1·10⁻⁴, das **Maximum über alle Sondenpunkte** um 2·10⁻³ und verfehlt damit die vorab festgelegte Grenze 10⁻³ — offen ausgewiesen, siehe `docs/08_dielectric_model.md`, 8.9. Globale Ladungen bleiben vorratsabhängig |
 | `es_capillary` | P3a: statischer Kapillarmeniskus an der Austrittskante, **ohne** elektrisches Feld | Young-Laplace in Bogenlängenparametrisierung, Kontaktlinie an `phi_2/2` gepinnt, kein Kontaktwinkel. Gegen die geschlossene Kugelkappe geprüft (Normalabstand ≤ 3·10⁻¹³·a), Netzkonvergenz vierter Ordnung, Residuum unabhängig aus den Knotenkoordinaten. Gültig für &#124;Δp&#124; ≤ 2γ/a; darüber eigener Status statt Ersatzform. Stoffwerte für EMI-BF4 ausdrücklich `illustrative`, siehe `docs/09_capillary_model.md` |
+| `es_electrocapillary` | P3b: selbstkonsistentes statisches Elektro-Kapillargleichgewicht, γκ = Δp_exit + ε₀E_n²/2 | Bewegliches Netz mit 0 invertierten Zellen, Nullfeld reproduziert P3a **bitgleich**, Polaritätsumkehr ändert die Form **exakt nicht**. Das Kanten-Gate entscheidet **vor** der Kopplung und fällt formabhängig aus: für ebene und nach außen gewölbte Menisken ist die Last integrierbar (β = −0,44 … +0,31), für nach innen gezogene nicht (β = −1,09 bei Π = −1,5) — dort wird nichts gekoppelt. Keine Emission, keine Stabilitätsaussage, siehe `docs/10_electrocapillary_model.md` |
 
 ```sh
 ./build/es_field --help          # Schlüsselreferenz
@@ -191,6 +192,9 @@ python python/plot_dielectric.py results/2026-08-29_p2b_dielectric_electrostatic
 ./build/es_capillary examples/device_p1.cfg examples/capillary_p3a.cfg \
     results/2026-08-29_p3a_capillary_meniscus meta.commit=$(git rev-parse HEAD)
 python python/plot_capillary.py results/2026-08-29_p3a_capillary_meniscus
+
+./build/es_electrocapillary examples/device_p1.cfg examples/electrocapillary_p3b.cfg     results/2026-08-29_p3b_electrocapillary meta.commit=$(git rev-parse HEAD)
+python python/plot_electrocapillary.py results/2026-08-29_p3b_electrocapillary
 ```
 
 Bekanntes Problem: verschiedene Anwendungen überschreiben bei gleichem
@@ -204,11 +208,11 @@ include/es/  types constants elliptic linalg geometry bem fluid
              emission meniscus beam config io status
              device_geometry boundary_mesh vacuum_bem
              axisym_fem volume_mesh dielectric_device materials
-             liquid capillary
+             liquid capillary electrocapillary
 src/         Implementierungen
 apps/        es_field es_meniscus es_operate es_beam es_vacuum
-             es_dielectric es_reservoir es_capillary
-tests/       14 Testprogramme (C++) + test_provenance.py
+             es_dielectric es_reservoir es_capillary es_electrocapillary
+tests/       15 Testprogramme (C++) + test_provenance.py
 examples/    Konfigurationsbeispiele
 python/      Auswertung und Plots (keine Rechnung)
 docs/        Neuausrichtung, Modellspezifikation, Umbauplan

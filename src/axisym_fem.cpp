@@ -240,9 +240,11 @@ void AxisymProblem::check() const {
   if (static_cast<Index>(fixed.size()) != m.n_nodes() ||
       static_cast<Index>(fixed_value.size()) != m.n_nodes())
     throw std::runtime_error("AxisymProblem: fixed/fixed_value haben nicht die Knotenzahl");
-  if (!m.validate_level_rows())
+  if (require_level_rows && !m.validate_level_rows())
     throw std::runtime_error("AxisymProblem: die Netzzeilen liegen nicht auf konstantem z; "
-                             "die exakte Punktlokalisierung setzt das voraus");
+                             "die exakte Punktlokalisierung setzt das voraus.  Ein Aufrufer, "
+                             "der die Zeilen bewusst verformt hat, setzt require_level_rows = "
+                             "false und lokalisiert Punkte selbst.");
   for (Index c = 0; c < m.n_cells(); ++c)
     if (active[static_cast<std::size_t>(c)] && !(eps_r[static_cast<std::size_t>(c)] >= 1.0))
       throw std::runtime_error("AxisymProblem: aktive Zelle mit eps_r < 1");

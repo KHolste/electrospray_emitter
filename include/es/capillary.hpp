@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdio>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -204,6 +205,30 @@ struct CapillaryRequest {
   /// explicit rather than the option being absent and silently ignored.
   Real prescribed_contact_angle_deg{0.0};
   bool contact_angle_prescribed{false};
+
+  /// ADDITIONAL NORMAL LOAD on the free surface [Pa], as a function of the
+  /// NORMALISED arclength tau = s/L in [0, 1], measured from the apex.
+  ///
+  /// Empty means "none", which is the P3a problem and the default; with an
+  /// empty function every line below behaves exactly as it did in P3a.  It
+  /// exists so that P3b can add the Maxwell pressure
+  ///
+  ///     gamma * kappa(s) = delta_p_exit + p_M(s),   p_M = eps0 E_n^2 / 2,
+  ///
+  /// WITHOUT this module knowing anything about electrostatics: what arrives
+  /// here is a pressure, already projected onto the surface by the caller.
+  ///
+  /// WHY NORMALISED ARCLENGTH AND NOT r OR s.  The load lives on the surface,
+  /// and the surface is what is being solved for, so the load has to be carried
+  /// along by a parametrisation that survives the shape changing: tau does, s
+  /// does not (its range moves), and r does not (its map to the surface becomes
+  /// singular as the tangent turns vertical).
+  ///
+  /// It is NOT a body force and NOT a hydrostatic term; it is a normal traction
+  /// on the interface and enters the curvature equation, nothing else.
+  std::function<Real(Real)> extra_normal_load{};
+
+  bool has_load() const { return static_cast<bool>(extra_normal_load); }
 };
 
 /// Point-wise Young-Laplace residual, evaluated from the NODE COORDINATES only.
@@ -236,11 +261,21 @@ struct CapillaryMeniscus {
   // --- the solution ---------------------------------------------------------
   std::vector<Vec2> nodes;  ///< apex -> contact line, uniform in arclength
   std::vector<Real> psi;    ///< tangent angle at each node [rad]
+  /// The extra normal load that was actually applied at each node [Pa].  EMPTY
+  /// when none was given, which is the P3a problem.  It is stored because the
+  /// residual has to subtract exactly the load that was used, not the one a
+  /// caller believes it passed.
+  std::vector<Real> load;
   Real apex_height{0};      ///< signed [m]
   Real arclength{0};        ///< [m]
   Real revolved_area{0};    ///< [m^2], integrated with the ODE
   Real revolved_volume{0};  ///< signed [m^3], integrated with the ODE
   Real contact_tangent_angle{0};  ///< psi at the contact line [rad]
+  /// How many arclengths reach the pinning radius before the meridian turns
+  /// vertical.  One is the ordinary case and the only one a constant load can
+  /// produce; more means the data admit several static shapes, and none of them
+  /// may then be picked silently.
+  int crossings{0};
 
   /// The same two measures taken from the polyline instead of from the ODE,
   /// using the tested helpers in device_geometry.hpp.  Second-order accurate,

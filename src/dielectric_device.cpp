@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
+#include <utility>
 
 #include "es/constants.hpp"
 
@@ -397,8 +398,13 @@ std::vector<Probe> dielectric_probes(const DeviceVolumeMesh& m) {
 // ---------------------------------------------------------------------------
 
 DielectricSolution solve_dielectric(const DielectricSetup& s) {
+  return solve_dielectric_on(build_volume_mesh(s.geometry), s, DielectricDiagnostics::Full);
+}
+
+DielectricSolution solve_dielectric_on(DeviceVolumeMesh mesh, const DielectricSetup& s,
+                                       DielectricDiagnostics diag) {
   DielectricSolution out;
-  out.mesh = build_volume_mesh(s.geometry);
+  out.mesh = std::move(mesh);
   const DeviceVolumeMesh& m = out.mesh;
   const QuadMesh& g = m.grid;
 
@@ -491,6 +497,10 @@ DielectricSolution solve_dielectric(const DielectricSetup& s) {
   }
 
   // --- far field ------------------------------------------------------------
+  // FieldOnly is the mode a caller uses when it has moved the free surface, so
+  // the rows are no longer level.  The assembly does not care; point location
+  // does, and in that mode nothing here locates a point.
+  prob.require_level_rows = (diag == DielectricDiagnostics::Full);
   prob.far_field = s.far_field;
   prob.far_field_origin = {0.0, 0.5 * s.geometry.device.extraction_distance};
   if (s.far_field == FarField::Asymptotic) {
@@ -510,6 +520,13 @@ DielectricSolution solve_dielectric(const DielectricSetup& s) {
   out.Q_emitter = charge_of(out.fem, out.emitter_mask);
   out.Q_extractor = charge_of(out.fem, out.extractor_mask);
   out.Q_net = out.Q_emitter + out.Q_extractor;
+
+  // --- diagnostics that assume the undeformed P2c mesh ----------------------
+  //
+  // Point location is exact only on a level-row mesh, and the "flat liquid
+  // reference plane" below is a plane only while the free surface has not been
+  // moved.  A caller who deformed it asks for FieldOnly and computes its own.
+  if (diag == DielectricDiagnostics::FieldOnly) return out;
 
   // --- probes ---------------------------------------------------------------
   out.probes = dielectric_probes(m);

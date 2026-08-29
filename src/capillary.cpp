@@ -163,7 +163,31 @@ State operator*(Real s, const State& a) {
   return {s * a.r, s * a.z, s * a.psi, s * a.area, s * a.vol};
 }
 
-/// Right-hand side per unit arclength.
+/// The curvature the equation demands at normalised arclength tau.
+///
+/// With no extra load this is the constant delta_p/gamma of P3a and every
+/// arithmetic operation below is bitwise the one P3a performed.  With a load it
+/// is the P3b right-hand side (delta_p + p_M(tau))/gamma -- and the load is a
+/// PRESSURE handed in by the caller; nothing in this file knows where it came
+/// from.
+struct CurvatureLaw {
+  Real delta_p{0.0}, gamma{1.0};
+  const std::function<Real(Real)>* load{nullptr};
+
+  bool has_load() const { return load != nullptr && static_cast<bool>(*load); }
+  Real at(Real tau) const {
+    if (!has_load()) return delta_p / gamma;
+    const Real t = std::min(1.0, std::max(0.0, tau));
+    return (delta_p + (*load)(t)) / gamma;
+  }
+  /// The load alone, for the record kept in the result.
+  Real load_at(Real tau) const {
+    if (!has_load()) return 0.0;
+    return (*load)(std::min(1.0, std::max(0.0, tau)));
+  }
+};
+
+/// Right-hand side per unit arclength, for the curvature demanded at this point.
 ///
 /// The axis is the only special case and it is ANALYTIC: regularity makes the
 /// two principal curvatures equal at r = 0, so sin(psi)/r -> dpsi/ds there and
@@ -181,7 +205,7 @@ State rhs(const State& y, Real kappa) {
 
 /// Classical RK4 in the normalised arclength tau = s/L, n uniform steps.
 /// If `trace` is non-null it receives the n+1 states.
-State integrate(Real L, Real kappa, int n, std::vector<State>* trace) {
+State integrate(Real L, const CurvatureLaw& law, int n, std::vector<State>* trace) {
   const Real h = 1.0 / static_cast<Real>(n);
   State y;  // apex: r = z = psi = 0, area = 0, volume = 0
   if (trace) {
@@ -190,10 +214,11 @@ State integrate(Real L, Real kappa, int n, std::vector<State>* trace) {
     trace->push_back(y);
   }
   for (int i = 0; i < n; ++i) {
-    const State k1 = L * rhs(y, kappa);
-    const State k2 = L * rhs(y + (0.5 * h) * k1, kappa);
-    const State k3 = L * rhs(y + (0.5 * h) * k2, kappa);
-    const State k4 = L * rhs(y + h * k3, kappa);
+    const Real t0 = static_cast<Real>(i) * h;
+    const State k1 = L * rhs(y, law.at(t0));
+    const State k2 = L * rhs(y + (0.5 * h) * k1, law.at(t0 + 0.5 * h));
+    const State k3 = L * rhs(y + (0.5 * h) * k2, law.at(t0 + 0.5 * h));
+    const State k4 = L * rhs(y + h * k3, law.at(t0 + h));
     y = y + (h / 6.0) * (k1 + (2.0 * k2 + (2.0 * k3 + k4)));
     if (trace) trace->push_back(y);
   }
@@ -204,6 +229,13 @@ struct ShootResult {
   CapillaryStatus status{CapillaryStatus::NotAttempted};
   Real L{0};
   State end;
+  /// How often r(L) crosses the pinning radius before the meridian turns
+  /// vertical.  One is the ordinary case.  More than one means several static
+  /// shapes satisfy the same data, and NONE of them may then be presented as
+  /// "the" solution -- see CouplingStatus::MultipleSolutionsDetected.  With a
+  /// constant load (P3a) the curve is a sphere and the count is always one; the
+  /// count exists because a Maxwell load can change that.
+  int crossings{0};
 };
 
 /// Find the arclength L at which the meridian first reaches r = a.
@@ -214,9 +246,9 @@ struct ShootResult {
 /// such.  Inside the bracket a safeguarded Newton iteration (dr_end/dL =
 /// cos psi_end) is used, falling back to bisection whenever the Newton step
 /// leaves the bracket.
-ShootResult shoot(Real a, Real kappa, int n) {
+ShootResult shoot(Real a, const CurvatureLaw& law, int n) {
   ShootResult out;
-  auto eval = [&](Real L) { return integrate(L, kappa, n, nullptr); };
+  auto eval = [&](Real L) { return integrate(L, law, n, nullptr); };
 
   Real L_lo = a;                      // r_end(L) <= L always, so F(a) <= 0
   Real L_hi = L_lo;
@@ -279,12 +311,31 @@ ShootResult shoot(Real a, Real kappa, int n) {
   out.status = CapillaryStatus::Solved;
   out.L = L;
   out.end = y;
+
+  // How many times the meridian reaches the pinning radius before it turns
+  // vertical.  Scanned on a fixed grid of arclengths beyond the root just
+  // found; it changes nothing about the answer and only reports whether the
+  // answer was unique.
+  {
+    out.crossings = 1;
+    const int kScan = 64;
+    bool above = true;  // r(L) == a at the root
+    for (int k = 1; k <= kScan; ++k) {
+      const Real Ls = L + (8.0 * a - L) * static_cast<Real>(k) / static_cast<Real>(kScan);
+      const State ys = eval(Ls);
+      if (std::abs(ys.psi) >= 0.5 * pi) break;   // past the vertical: overhanging
+      const bool now_above = ys.r >= a;
+      if (now_above && !above) ++out.crossings;
+      above = now_above;
+    }
+  }
   return out;
 }
 
 /// One solve at a fixed resolution.  Fills everything except the refinement
 /// bookkeeping.
-CapillaryMeniscus solve_at(Real a, Real z_contact, Real gamma, Real delta_p, int n) {
+CapillaryMeniscus solve_at(Real a, Real z_contact, Real gamma, Real delta_p, int n,
+                           const std::function<Real(Real)>* load) {
   CapillaryMeniscus m;
   m.contact_radius = a;
   m.contact_z = z_contact;
@@ -293,8 +344,12 @@ CapillaryMeniscus solve_at(Real a, Real z_contact, Real gamma, Real delta_p, int
   m.Pi = capillary::pi_from_pressure(delta_p, a, gamma);
   m.n_intervals = n;
 
-  const Real kappa = delta_p / gamma;
-  const ShootResult sh = shoot(a, kappa, n);
+  CurvatureLaw law;
+  law.delta_p = delta_p;
+  law.gamma = gamma;
+  law.load = load;
+
+  const ShootResult sh = shoot(a, law, n);
   if (sh.status != CapillaryStatus::Solved) {
     m.status = sh.status;
     m.message = explain(sh.status);
@@ -302,7 +357,7 @@ CapillaryMeniscus solve_at(Real a, Real z_contact, Real gamma, Real delta_p, int
   }
 
   std::vector<State> trace;
-  integrate(sh.L, kappa, n, &trace);
+  integrate(sh.L, law, n, &trace);
   const Real z_end = trace.back().z;
 
   m.nodes.reserve(trace.size());
@@ -316,6 +371,12 @@ CapillaryMeniscus solve_at(Real a, Real z_contact, Real gamma, Real delta_p, int
   m.revolved_area = trace.back().area;
   m.revolved_volume = trace.back().vol;
   m.contact_tangent_angle = trace.back().psi;
+  m.crossings = sh.crossings;
+  if (law.has_load()) {
+    m.load.reserve(trace.size());
+    for (std::size_t k = 0; k < trace.size(); ++k)
+      m.load.push_back(law.load_at(static_cast<Real>(k) / static_cast<Real>(n)));
+  }
 
   // Independent second evaluation from the polyline, with the tested helpers.
   m.polyline_area = revolved_area(m.nodes);
@@ -362,6 +423,10 @@ CapillaryMeniscus solve_capillary_meniscus(Real contact_radius, Real contact_z,
   m.delta_p_exit = q.delta_p_exit;
   m.gamma = liquid.gamma;
 
+  // Null unless a load was supplied, so the P3a path is untouched.
+  const std::function<Real(Real)>* const load =
+      q.has_load() ? &q.extra_normal_load : nullptr;
+
   if (q.contact_angle_prescribed) {
     m.status = CapillaryStatus::ContactAngleAndPinningBothPrescribed;
     m.message = explain(m.status);
@@ -389,32 +454,40 @@ CapillaryMeniscus solve_capillary_meniscus(Real contact_radius, Real contact_z,
 
   const Real Pi = capillary::pi_from_pressure(q.delta_p_exit, contact_radius, liquid.gamma);
   m.Pi = Pi;
-  if (std::abs(Pi) > capillary::kMaxAbsPi) {
-    m.status = CapillaryStatus::PressureOutsideCapillaryRange;
-    m.message = std::string(explain(m.status)) + "  Pi = " + std::to_string(Pi) + ".";
-    return m;
-  }
-  if (std::abs(std::abs(Pi) - capillary::kMaxAbsPi) <= capillary::kHemisphereBand) {
-    m.status = CapillaryStatus::HemisphericalLimit;
-    m.message = std::string(explain(m.status)) + "  Pi = " + std::to_string(Pi) + ".";
-    return m;
+  // The |Pi| <= 2 criterion is the closed-form existence condition for a CAP,
+  // i.e. for a CONSTANT right-hand side.  With an extra load the curvature is no
+  // longer constant, the shape is not a sphere, and this criterion says nothing
+  // about it -- so it is applied only where it is true, and with a load the
+  // question of existence is left to the shooting, which decides it on the
+  // integrated shape.
+  if (!q.has_load()) {
+    if (std::abs(Pi) > capillary::kMaxAbsPi) {
+      m.status = CapillaryStatus::PressureOutsideCapillaryRange;
+      m.message = std::string(explain(m.status)) + "  Pi = " + std::to_string(Pi) + ".";
+      return m;
+    }
+    if (std::abs(std::abs(Pi) - capillary::kMaxAbsPi) <= capillary::kHemisphereBand) {
+      m.status = CapillaryStatus::HemisphericalLimit;
+      m.message = std::string(explain(m.status)) + "  Pi = " + std::to_string(Pi) + ".";
+      return m;
+    }
   }
 
   if (q.forced_intervals > 0) {
     CapillaryMeniscus r = solve_at(contact_radius, contact_z, liquid.gamma, q.delta_p_exit,
-                                  q.forced_intervals);
+                                  q.forced_intervals, load);
     r.discretisation_was_forced = true;
     r.estimated_relative_error = std::numeric_limits<Real>::quiet_NaN();
     return r;
   }
 
   CapillaryMeniscus coarse =
-      solve_at(contact_radius, contact_z, liquid.gamma, q.delta_p_exit, kStartIntervals);
+      solve_at(contact_radius, contact_z, liquid.gamma, q.delta_p_exit, kStartIntervals, load);
   if (coarse.status != CapillaryStatus::Solved) return coarse;
 
   for (int n = 2 * kStartIntervals;; n *= 2) {
     CapillaryMeniscus fine =
-        solve_at(contact_radius, contact_z, liquid.gamma, q.delta_p_exit, n);
+        solve_at(contact_radius, contact_z, liquid.gamma, q.delta_p_exit, n, load);
     if (fine.status != CapillaryStatus::Solved) return fine;
     const Real e = refinement_change(coarse, fine, contact_radius);
     fine.estimated_relative_error = e;
@@ -485,7 +558,11 @@ ResidualProfile young_laplace_residual(const CapillaryMeniscus& m) {
       const Real psi_node = seg_psi[nseg - 1] + 0.5 * (seg_psi[nseg - 1] - seg_psi[nseg - 2]);
       kappa_total = kappa_m + std::sin(psi_node) / m.nodes[i].r;
     }
-    const Real res = (m.gamma * kappa_total - m.delta_p_exit) * scale;
+    // The load that was actually applied at this node is subtracted, not one a
+    // caller believes it passed: with no load the vector is empty and this is
+    // the P3a residual, unchanged.
+    const Real p_extra = m.load.empty() ? 0.0 : m.load[i];
+    const Real res = (m.gamma * kappa_total - m.delta_p_exit - p_extra) * scale;
     out.s[i] = s_node[i];
     out.residual[i] = res;
     out.max_abs = std::max(out.max_abs, std::abs(res));

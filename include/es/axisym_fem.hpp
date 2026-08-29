@@ -134,6 +134,16 @@ struct AxisymProblem {
   /// Empty with FarField::Insulated.
   std::vector<std::array<Index, 2>> far_edges;
 
+  /// Whether check() insists on level rows.
+  ///
+  /// The ASSEMBLY never needs them: every element integral is isoparametric and
+  /// a general quadrilateral is fine.  What needs them is locate(), and through
+  /// it every evaluation helper in this file.  A caller that has deformed the
+  /// rows -- P3b moves the free surface off the plane z = 0 -- therefore turns
+  /// the requirement off HERE and must then locate points itself; nothing else
+  /// changes, and the default keeps every existing caller exactly as it was.
+  bool require_level_rows{true};
+
   void check() const;  ///< throws on an inconsistent problem
 };
 

@@ -250,9 +250,32 @@ struct DielectricSolution {
   void write_csv(const std::string& dir) const;
 };
 
+/// Which post-processing a solve performs.
+enum class DielectricDiagnostics {
+  /// Everything: the probe points, the one-sided normal field on the FLAT
+  /// liquid reference plane and the interface flux check on the taper flank.
+  /// This is what P2b and P2c report.
+  Full = 0,
+  /// Field, charges and audit only.  For a mesh whose free surface has been
+  /// DEFORMED (P3b): the three diagnostics above assume the P2c mesh -- level
+  /// rows, so that point location is exact, and a flat liquid surface at z = 0
+  /// -- and on a deformed mesh they would either locate a point in the wrong
+  /// cell or describe a plane that is no longer there.  They are therefore not
+  /// computed rather than computed wrongly; P3b brings its own.
+  FieldOnly,
+};
+
 /// Assemble and solve the device problem.  Throws on an inconsistent setup --
 /// most importantly, MetallicReference with anything other than eps_r = 1.
 DielectricSolution solve_dielectric(const DielectricSetup& s);
+
+/// The same solve on a mesh the caller has already built.  `solve_dielectric`
+/// is exactly this with `build_volume_mesh(s.geometry)`; it exists so that P3b
+/// can hand in the same mesh with its free surface deformed onto a prescribed
+/// meniscus, WITHOUT this file learning anything about menisci and without the
+/// boundary conditions, the audit or the assembly being written a second time.
+DielectricSolution solve_dielectric_on(DeviceVolumeMesh mesh, const DielectricSetup& s,
+                                       DielectricDiagnostics diag = DielectricDiagnostics::Full);
 
 /// Node roles alone, without solving.  Used by the audit test.
 std::vector<NodeRole> node_roles(const DeviceVolumeMesh& m, const DielectricSetup& s);

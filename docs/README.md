@@ -17,6 +17,7 @@ Dokumente hier beschreiben, was fehlt, was falsch ist und was gebaut werden soll
 | [07_mesher_decision.md](07_mesher_decision.md) | Vernetzung: Randvernetzer entschieden und gebaut; Volumenvernetzung in P2b entschieden (siehe 08) |
 | [08_dielectric_model.md](08_dielectric_model.md) | P2b: korrigierter dielektrischer Modellvertrag, Materialwerte, Volumenvernetzung. **8.9 korrigiert 8.7**: die „Zulaufgrenzen-Studie“ änderte die Geometrie der Hochspannungselektrode; Ersatzmodell ist ein dielektrisch umschlossener Flüssigkeitsraum |
 | [09_capillary_model.md](09_capillary_model.md) | P3a: statischer Kapillarmeniskus ohne elektrisches Feld. Modellvertrag, Vorzeichen, Achsengrenzwert, gültiger Druckbereich, Statusvertrag, Stoffdatenherkunft und Bond-Zahl |
+| [10_electrocapillary_model.md](10_electrocapillary_model.md) | P3b: selbstkonsistentes statisches Elektro-Kapillargleichgewicht. Vorzeichenherleitung, bewegliches Netz, Kanten-Gate mit formabhängigem Urteil, konservative Lastprojektion, Fortsetzung über die Spannung, vier dokumentierte Fehler |
 | [references.md](references.md) | Literaturverzeichnis mit Prüfstatus |
 
 ---
