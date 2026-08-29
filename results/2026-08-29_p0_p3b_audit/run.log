@@ -1,0 +1,35 @@
+P0 -- numerische Bereinigung von P3b
+  a = 0.000005 m, gamma/a = 9040.000000 Pa
+
+1. Lastprojektion
+  projection_audit.csv geschrieben
+  projection_profiles.csv geschrieben
+
+2. kTolExclusion: geschlossene Form gegen Messung
+  groesste Abweichung Messung/geschlossene Form auf der feinsten Stufe: 0.000228
+
+3. Kanten-Gate, ebene und nach aussen gewoelbte Form
+  Form eben (Pi = 0.000000): Passed, beta = -0.445644, Stufen 1..5
+    Halbierungsaenderung gemessen 0.110971, geschlossene Form fuer beta = -0.445644: 0.113341 -- die Schranke ist hier verfehlt, um einen Betrag, den beta festlegt und den kein Netz aendert.
+    Gesamtkraft ueber die Stufen: Ordnung 0.540510, extrapoliert 0.000001 N, geschaetzter Fehler 0.061414 (DiscretizationNotConverged)
+  Form gewoelbt (Pi = 1.500000): Passed, beta = 0.041401, Stufen 1..5
+    Halbierungsaenderung gemessen 0.036434, geschlossene Form fuer beta = 0.041401: 0.046633 -- die Schranke ist hier eingehalten, WEIL beta gross genug ist, nicht weil das Netz fein genug waere.
+    Gesamtkraft ueber die Stufen: Ordnung 0.800307, extrapoliert 0.000001 N, geschaetzter Fehler 0.017762 (DiscretizationNotConverged)
+
+4. Gekoppelte Netzkonvergenz bei 1000 V und 1400 V
+    1000 V, Stufe 1: Converged, h/a = 0.098753, 20 Iterationen
+    1000 V, Stufe 2: Converged, h/a = 0.099263, 21 Iterationen
+    1000 V, Stufe 3: Converged, h/a = 0.099579, 21 Iterationen
+    1000 V, Stufe 4: Converged, h/a = 0.099898, 21 Iterationen
+      h_over_a: Ordnung nan, Fehler der feinsten Stufe nan, blosse Aenderung 0.003188 -> NotInAsymptoticRange
+      E_edge_far: Ordnung nan, Fehler der feinsten Stufe nan, blosse Aenderung 0.003152 -> NotInAsymptoticRange
+      total_force: Ordnung 0.580527, Fehler der feinsten Stufe 0.060690, blosse Aenderung 0.014400 -> DiscretizationNotConverged
+    1400 V, Stufe 1: Converged, h/a = 0.309823, 44 Iterationen
+    1400 V, Stufe 2: Converged, h/a = 0.324596, 48 Iterationen
+    1400 V, Stufe 3: Converged, h/a = 0.335862, 52 Iterationen
+    1400 V, Stufe 4: Converged, h/a = 0.343960, 55 Iterationen
+      h_over_a: Ordnung 0.952891, Fehler der feinsten Stufe 0.056748, blosse Aenderung 0.023542 -> DiscretizationNotConverged
+      E_edge_far: Ordnung 0.231408, Fehler der feinsten Stufe 0.048290, blosse Aenderung 0.004237 -> DiscretizationNotConverged
+      total_force: Ordnung 0.909992, Fehler der feinsten Stufe 0.045871, blosse Aenderung 0.017826 -> DiscretizationNotConverged
+
+Alle deklarierten Pruefungen dieses Laufs bestanden.

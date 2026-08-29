@@ -1,0 +1,18 @@
+# Richardson-Extrapolation ueber die Netzstufen, Verfeinerungsverhaeltnis
+# sqrt(2) je Stufe.  Ziel VOR der Messung festgelegt: geschaetzter
+# Diskretisierungsfehler der feinsten Stufe unter 1 %.  Wo das verfehlt
+# wird, steht DiscretizationNotConverged und das Ergebnis ist nur
+# qualitativ.
+V_emitter_V,quantity,window,n_levels,observed_order,extrapolated,relative_error_finest,last_relative_change,verdict
+1.000000000e+03,h_over_a,grob,3,1.388655108e+00,1.000899265e-01,5.103087557e-03,3.170551319e-03,Converged
+1.000000000e+03,h_over_a,fein,3,nan,nan,nan,3.188325163e-03,NotInAsymptoticRange
+1.000000000e+03,E_edge_far,grob,3,nan,nan,nan,9.585520337e-03,NotInAsymptoticRange
+1.000000000e+03,E_edge_far,fein,3,nan,nan,nan,3.151742078e-03,NotInAsymptoticRange
+1.000000000e+03,total_force,grob,3,9.833395573e-01,3.748740334e-07,4.214283489e-02,1.786591718e-02,DiscretizationNotConverged
+1.000000000e+03,total_force,fein,3,5.805266520e-01,3.878611983e-07,6.069015666e-02,1.439952783e-02,DiscretizationNotConverged
+1.400000000e+03,h_over_a,grob,3,7.819410730e-01,3.720557396e-01,9.727986352e-02,3.354396462e-02,DiscretizationNotConverged
+1.400000000e+03,h_over_a,fein,3,9.528913186e-01,3.646529399e-01,5.674773757e-02,2.354200895e-02,DiscretizationNotConverged
+1.400000000e+03,E_edge_far,grob,3,1.465644801e+00,4.850324217e+07,6.917212277e-03,4.610304221e-03,Converged
+1.400000000e+03,E_edge_far,fein,3,2.314077655e-01,5.082711778e+07,4.828975896e-02,4.236968582e-03,DiscretizationNotConverged
+1.400000000e+03,total_force,grob,3,9.954330113e-01,9.993122718e-07,5.694895360e-02,2.487845651e-02,DiscretizationNotConverged
+1.400000000e+03,total_force,fein,3,9.099918030e-01,1.005635636e-06,4.587084723e-02,1.782561902e-02,DiscretizationNotConverged

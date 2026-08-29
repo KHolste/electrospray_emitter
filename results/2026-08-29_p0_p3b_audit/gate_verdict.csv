@@ -1,0 +1,8 @@
+# Urteil je Form, mit ALLEN drei Sichten nebeneinander: die direkte
+# Kraftfolge ueber die Netzstufen (in gate_levels.csv), die Aitken-
+# Extrapolation darueber, und die Extrapolation ueber die Ausschluss-
+# distanz.  measured_exclusion_change ist die Groesse aus 2.: sie wird
+# berichtet und entscheidet nicht.
+shape,Pi,verdict,fitted_exponent,limit_force_mesh_N,limit_force_exclusion_N,limit_agreement,total_force_change,edge_far_change,measured_exclusion_change,closed_form_exclusion_limit,levels
+eben,0.0000,Passed,-4.456436532e-01,7.715608703e-07,7.577553222e-07,1.821900510e-02,1.348050056e-02,1.580766207e-03,1.109714684e-01,1.133414942e-01,5
+gewoelbt,1.5000,Passed,4.140126426e-02,1.312776042e-06,1.280166710e-06,2.547272306e-02,5.780140914e-03,6.498715505e-03,3.643446283e-02,4.663309919e-02,5

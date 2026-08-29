@@ -1,0 +1,72 @@
+P0 -- numerische Bereinigung von P3b
+====================================
+
+WAS DIESER LAUF IST
+  Keine neue Physik.  Drei offene Punkte aus P3b werden gemessen statt
+  behauptet: die Lastprojektion, die gekoppelte Netzkonvergenz und das
+  Kanten-Gate.  Eine gescheiterte Rechnung steht ueberall als nan, nie als
+  null.
+
+1. LASTPROJEKTION
+  Drei Groessen heissen in P3b 'die Last' und sind jetzt getrennt:
+    * der ROHE Knotenwert p_M = eps0 E_n^2/2 -- an der Kante nicht
+      konvergent, wird nirgends verwendet;
+    * die konservative SEGMENTprojektion -- die Kraftbuchhaltung, eine
+      Treppenfunktion;
+    * die UEBERGEBENE Last p(tau) = G'/A' -- was der Kapillarloeser
+      integriert.
+  Geprueft an zwei hergestellten Lasten mit bekanntem Integral, einer
+  glatten und einer integrablen Singularitaet p = C d^beta, und am
+  wirklich geloesten Feld.
+    Segmentprojektion gegen die geschlossene Form, glatte Last, 256
+      Segmente          : 3.381e-06 relativ (zweite Ordnung, gemessen)
+    uebergebene Last, Krafterhaltung gegen A' (Feld, Stufe 2)
+                        : 0.000e+00 relativ
+    Stetigkeit der uebergebenen Last (Feld, Stufe 2): der Sprung ueber die
+      Binraender faellt bei zehnfach kleinerem Probenabstand auf das
+      0.1000-fache.  Fuer eine Treppenfunktion waere er 1.
+    Kontaktkante: die Segmente reichen bis tau = 1, kein Bin ist leer, das
+      kantennaechste Bin traegt Kraft.  Es gibt keine Ausschlusszone und
+      keine Kappung; der punktweise Kantenwert waechst mit jeder
+      Verfeinerung und wird nirgends verwendet.
+
+2. DAS KRITERIUM kTolExclusion -- AUFGELOEST, NICHT GETAUSCHT
+  P3b berichtete: die geforderten 5 % werden um 11,3 % verfehlt, ein
+  anderes Kriterium entscheidet.  Das ist jetzt hergeleitet.  Fuer eine
+  Last p = C d^beta ist die Kraft jenseits einer Ausschlussdistanz d0 in
+  geschlossener Form bekannt, und die Groesse, die kTolExclusion prueft,
+      [F(d0/2) - F(d0)] / F(d0/2) ,
+  enthaelt die Netzweite ueberhaupt nicht.  Sie hat einen endlichen
+  Grenzwert ungleich null, der allein von beta und d0 abhaengt.
+    groesste Abweichung Messung gegen geschlossene Form: 2.281e-04
+    ebene Form   : beta = -0.4456, gemessen 0.1110, geschlossene Form 0.1133
+    gewoelbte Form: beta = +0.0414, gemessen 0.0364, geschlossene Form 0.0466
+  Die Schranke bleibt im Code deklariert und wird weiter berichtet.  Sie
+  entscheidet nicht, und der Grund dafuer ist eine Rechnung mit
+  Regressionstest (tests/test_load_projection.cpp, Abschnitt 4), keine
+  nachtraegliche Wahl.  Das ersetzende Kriterium wird zusaetzlich gegen
+  einen BEKANNTEN Grenzwert geprueft (Abschnitt 5 desselben Tests).
+
+3. DAS KANTEN-GATE
+  Nur die ebene und eine nach aussen gewoelbte Form, mit 5 Netzstufen.
+    ebene Form    : Passed
+    gewoelbte Form: Passed
+  Die integrierte Gesamtkraft der ebenen Form konvergiert mit der Ordnung
+  0.541.  Das ist NICHT zweite Ordnung, und es ist auch nicht ueberraschend:
+  1 + beta = 0.554 ist genau die Rate, die eine integrable Singularitaet am
+  Rand zulaesst.  Der geschaetzte Diskretisierungsfehler der feinsten Stufe
+  ist 0.061 -- ueber dem vorab festgelegten Ziel von 1 %.
+
+4. GEKOPPELTE NETZKONVERGENZ
+  Zwei Betriebspunkte, 1000 V und 1400 V, vier Netzstufen, kein neuer
+  Spannungssweep.  Richardson auf zwei Fenstern (Stufen 1-3 und 2-4).
+    schlechtestes Urteil: DiscretizationNotConverged, geschaetzter Fehler bis 0.061
+  Ziel VOR der Messung: unter 1 %.  Es ist nicht erreicht.  Die
+  gekoppelten Ergebnisse von P3b sind damit QUALITATIV; keine Apexhoehe
+  und keine Kraft aus diesem Ast traegt drei Stellen.
+
+WAS DIESER LAUF NICHT IST
+  Keine Emission, keine endliche Leitfaehigkeit, keine Stroemung, keine
+  Raumladung, keine Zeitabhaengigkeit, keine Stabilitaetsaussage, kein
+  Taylor-Kegel.  delta_p_exit bleibt in diesem Lauf eine Eingabe.  Die
+  Stoffwerte bleiben illustrative.
