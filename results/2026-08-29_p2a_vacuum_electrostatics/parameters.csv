@@ -8,8 +8,12 @@ extraction_distance,5.000000000e-04,m,tip plane to extractor face
 extractor_aperture_diameter,4.000000000e-04,m,
 extractor_thickness,1.000000000e-04,m,
 extractor_outer_radius,2.000000000e-03,m,mandatory; strictly inside domain_radius
+emitter_back_length,8.000000000e-04,m,NUMERICAL rearward continuation of the emitter conductor; 0 = none. Not a physical emitter length
+back_closure_z,-8.000000000e-04,m,z of the conducting end cap; derived
+evaluation_z_min,-6.000000000e-05,m,rear limit of the physically evaluated region (taper foot); derived
+back_closure_clearance,7.400000000e-04,m,distance from the end cap to that region; derived
 domain_radius,3.000000000e-03,m,open computational domain
-domain_z_min,-4.000000000e-04,m,open computational domain
+domain_z_min,-2.000000000e-03,m,open computational domain
 domain_z_max,1.500000000e-03,m,open computational domain
 cone_half_angle,1.651486774e-01,rad,derived
 land_width,5.000000000e-06,m,derived

@@ -1,10 +1,25 @@
 app=es_vacuum (P2a)
-commit=66583c46a569bc66bd32f52b9022276f0f118d2d
+commit=ef254259ff31dc63b298661921b9fcd0323ec0fc
 config=examples/device_p1.cfg + examples/vacuum_p2a.cfg
 V_emitter_V=1.500000000e+03
 V_extractor_V=0.000000000e+00
 reference_level=2
 reference_size_scale=0.25
-n_bem_panels=341
+n_bem_panels=360
+n_closure_panels=35
 z_ref_m=5.000000000e-07
-state=vacuum electrostatics, rho=0, flat perfect-conductor reference, no emission
+emitter_back_length_m=8.000000000e-04
+back_closure_z_m=-8.000000000e-04
+back_closure_clearance_m=7.400000000e-04
+evaluation_z_min_m=-6.000000000e-05
+open_arc_ends=0
+truncation_tol_Ez_ref=1.000000000e-03
+truncation_tol_c_EX=1.000000000e-03
+truncation_tol_V_probe=1.000000000e-03
+truncation_change_Ez_ref=2.533406463e-02
+truncation_change_c_EX=3.296339686e-01
+truncation_change_c_EE=4.066445846e-01
+truncation_change_V_probe=1.432626066e-02
+truncation_converged=no
+front_mesh_identical=yes
+state=vacuum electrostatics, rho=0, flat perfect-conductor reference, closed emitter conductor, no emission

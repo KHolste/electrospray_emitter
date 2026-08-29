@@ -17,56 +17,120 @@ Randbedingung im Unendlichen
 Angelegt: V_emitter = 1500 V, V_extractor = 0 V
 Referenzpunkt: r = 0, z = 5e-07 m (kantenfern, netzunabhaengig)
 
-Netzkonvergenz
+Numerische Rueckschliessung des Emitterleiters
+  Der Leiter aus Emittermetall und Fluessigkeitssaeule endet bei
+  z = -0.0008 m und ist dort durch eine VOLLE leitende Scheibe von r = 0
+  bis r = 2e-05 m auf V_emitter geschlossen.  Randkennung:
+  numerical_emitter_back_closure -- kein Bauteil, kein Domaenenrand.
+  Die Scheibe wird mitgeloest, weil ein Leiter mit Loch ein anderes
+  mathematisches Objekt ist; sie liefert keinen einzigen berichteten
+  Feldwert.  Ihre Kante ist als nicht auswertbar markiert.
+  Abstand der Scheibe zur ausgewerteten Region (z >= -6e-05 m): 0.00074 m.
+  Panels: 35 von 360; Rotationsflaeche 1.25664e-09 m^2.
+  Offene Bogenenden im geloesten Netz: 0 -- vacuum_bem_mesh lehnt ein
+  Netz mit offenem Leiter ab, statt es zu dokumentieren.
+  Im Inneren des geschlossenen Leiters: max |V - V_emitter| = 9.283e-02 V
+  von 1500 V, max |E| = 1.026e+04 V/m gegen 8.088e+07 V/m an der Oberflaeche.
+  Das ist Diskretisierungsfehler und faellt mit der Verfeinerung
+  (Spalte interior_Emag_V_per_m in convergence.csv).
+
+Trunkierungsstudie -- und ihr Ergebnis
+  Vier zunehmende rueckwaertige Laengen, Domaene und size_scale fest,
+  Vernetzung an Spitze und Extraktor ueber alle Laengen bitweise
+  identisch (geprueft: ja).
+           L [m]          n_BEM   E_z(ref) [V/m]         c_EX [F]         c_EE [F]
+          0.0002            338  5.204798035e+07 -4.500687525e-15  5.508802953e-15
+          0.0004            346  4.930278869e+07 -6.868101687e-15  8.696345923e-15
+          0.0008            360  4.741774462e+07 -1.053828409e-14  1.425302421e-14
+          0.0016            388  4.624614188e+07 -1.572019404e-14  2.402105693e-14
+
+  Vorab festgelegte Toleranzen (es::truncation, vacuum_bem.hpp):
+    E_z(ref) 1.0e-03, c_EX 1.0e-03, Sondenpotentiale 1.0e-03 von |V_E - V_X|.
+  Gemessen bei der letzten Verdopplung (0.0008 m -> 0.0016 m):
+    E_z(ref)          2.533e-02  NICHT erreicht
+    c_EX              3.296e-01  NICHT erreicht
+    Sondenpotentiale  1.433e-02  NICHT erreicht
+    c_EE              4.066e-01  (ohne Toleranz)
+
+  ERGEBNIS: NICHT truncation-konvergiert.
+  Die Absicht war, den Leiter so weit nach hinten zu verlaengern, dass
+  das lokale Spitzenfeld stehen bleibt, und nur die Gesamtkapazitaet
+  als laengenabhaengig zu fuehren.  Die Messung gibt das nicht her.
+  E_z(ref) traegt einen 1/L-Schwanz -- pro Verdopplung 5.6, 4.0, 2.5,
+  1.5 Prozent zwischen 200 um und 3.2 mm -- und c_EX waechst um rund
+  ein Drittel je Verdopplung, ohne sich zu setzen.
+  Der Grund liegt in der Randbedingung, nicht in der Diskretisierung:
+  mit V -> 0 im Unendlichen und nur zwei Leitern traegt das System
+  Nettoladung.  Es gibt im Modell keine Rueckelektrode und keine
+  Umhausung, also traegt ein laengerer Emitter schlicht mehr Ladung,
+  und die wird an der Spitze ebenso gespuert wie am Extraktor.
+  FOLGE: emitter_back_length ist eine anzugebende Abmessung, kein
+  Konvergenzparameter.  Kein P2a-Wert wird als unabhaengig von ihr
+  ausgegeben.  Ob das lokale Feld unempfindlich wird, sobald eine
+  geerdete Umhausung im Modell ist, gehoert in die Phase, die eine
+  hinzufuegt.
+  Der benutzte Wert emitter_back_length = 0.0008 m ist ein BEISPIELWERT,
+  keine gemessene Abmessung -- wie extractor_outer_radius.
+
+Netzkonvergenz (bei emitter_back_length = 0.0008 m)
   Stufe    n_Netz    n_BEM         c_EE [F]          C_m [F]   E_z(ref) [V/m]    Residuum*
-  (* relativ, ausserhalb der markierten Kantenzonen)
-  0           404      161  8.661339165e-15  6.842876442e-15  4.933072204e+07    8.885e-04
-  1           593      228  8.664083722e-15  6.845054570e-15  4.932282924e+07    4.678e-04
-  2           942      341  8.665508961e-15  6.846168749e-15  4.931963963e+07    3.269e-04
-  3          1611      544  8.666203562e-15  6.846704111e-15  4.931834120e+07    3.365e-04
+  (* relativ, auf den auswertbaren Geraeteflaechen)
+  0           433      184  1.425272915e-14  1.053748229e-14  4.742627787e+07    3.404e-04
+  1           619      253  1.425292489e-14  1.053803450e-14  4.742013066e+07    3.146e-04
+  2           964      360  1.425302421e-14  1.053828470e-14  4.741774462e+07    3.189e-04
+  3          1625      544  1.425306640e-14  1.053838929e-14  4.741682261e+07    3.276e-04
 
   relative Aenderung zwischen den beiden feinsten Stufen
-    c_EE      : 8.015e-05
-    C_m       : 7.819e-05
-    E_z(ref)  : 2.633e-05
+    c_EE      : 2.960e-06
+    C_m       : 9.924e-06
+    E_z(ref)  : 1.944e-05
 
 Kapazitaetsgroessen auf der Referenzstufe 2 -- benannt, nicht "C"
-  c_EE (Maxwell-Selbstkoeffizient Emitter) : 8.665508961e-15 F
-  c_EX = c_XE (Influenzkoeffizient)        : -6.846168706e-15 / -6.846168792e-15 F
-  Reziprozitaetsfehler |c_EX-c_XE|/|c_EX|  : 1.249e-08
-  c_XX (Maxwell-Selbstkoeffizient Extraktor): 1.537010769e-13 F
-  C_m = -c_EX (Gegenkapazitaet)            : 6.846168749e-15 F
-  C_E,inf = c_EE + c_EX (gegen unendlich)  : 1.819340255e-15 F
-  Q_emitter/(V_E - V_X) am Arbeitspunkt    : 8.665508961e-15 F
+  c_EE (Maxwell-Selbstkoeffizient Emitter) : 1.425302421e-14 F
+  c_EX = c_XE (Influenzkoeffizient)        : -1.053828409e-14 / -1.053828531e-14 F
+  Reziprozitaetsfehler |c_EX-c_XE|/|c_EX|  : 1.160e-07
+  c_XX (Maxwell-Selbstkoeffizient Extraktor): 1.561457103e-13 F
+  C_m = -c_EX (Gegenkapazitaet)            : 1.053828470e-14 F
+  C_E,inf = c_EE + c_EX (gegen unendlich)  : 3.714740121e-15 F
+  Q_emitter/(V_E - V_X) am Arbeitspunkt    : 1.425302421e-14 F
     Bei V_extractor = 0 ist dieses Verhaeltnis identisch c_EE und
     NICHT die Gegenkapazitaet C_m.
-  Q_emitter = 1.299826344e-11 C, Q_extractor = -1.026925319e-11 C, Summe = 2.729010254e-12 C
+  Q_emitter = 2.137953632e-11 C, Q_extractor = -1.580742797e-11 C, Summe = 5.572108347e-12 C
   Die Summe ist nicht null: bei V(unendlich) = 0 traegt das System
   Nettoladung, und Q_E/(V_E-V_X) ist deshalb NICHT C_m.
+  ALLE diese Werte gelten fuer emitter_back_length = 0.0008 m und
+  extractor_outer_radius = 0.002 m.  c_EE ist keine Vorhersage fuer das
+  Geraet: die Kapazitaet eines Leiters haengt von seiner Laenge ab.
 
-Felder auf der Referenzstufe (Kantenzonen ausgeschlossen)
-  E_z am Referenzpunkt                     : 4.931963963e+07 V/m
-  groesstes |E_n| auf der ebenen Flaeche   : 5.173834812e+07 V/m
-  groesstes |E_n| am Emitter               : 8.425256510e+07 V/m
-  groesstes |E_n| am Extraktor             : 5.225791087e+05 V/m
-  groesstes |E_n| INNERHALB der Kantenzonen: 3.674518766e+08 V/m
-    Der letzte Wert ist KEINE konvergierte Groesse.  Die Austritts-,
+Felder auf der Referenzstufe (nur auswertbare Panels)
+  E_z am Referenzpunkt                     : 4.741774462e+07 V/m
+  groesstes |E_n| auf der ebenen Flaeche   : 4.973903629e+07 V/m
+  groesstes |E_n| am Emitter               : 8.088102493e+07 V/m
+  groesstes |E_n| am Extraktor             : 6.288184165e+05 V/m
+  groesstes |E_n| INNERHALB der Kantenzonen: 3.302022390e+08 V/m
+  groesstes |E_n| auf der Rueckschliessung : 1.982876251e+08 V/m
+    Die letzten beiden Werte sind KEINE Ergebnisse.  Die Austritts-,
     Stirn- und Aperturkanten sind unverrundet; das Feld einer scharfen
     Kante divergiert und folgt der Elementgroesse.  Verrundungsradien
-    sind ein P3-Parameter.
+    sind ein P3-Parameter.  Die Rueckschliessung ist kein Bauteil.
 
-Offener Emitterbogen und Abschirmung
-  Der Emitterbogen ist am Schnitt durch die Domaenensohle offen; der
-  offene Domaenenrand wurde NICHT als Deckel benutzt.  Der dahinter
-  liegende Hohlraum ist ein Rohr vom Radius 2e-05 m und der Laenge 0.0004 m
-  und daher stark abgeschirmt: max |V - V_emitter| = 3.906e-02 V von 1.5e+03 V.
-  Deshalb ist sigma/eps0 auf Stirnflaeche und ebener Fluessigkeits-
-  oberflaeche das einseitige Vakuumfeld.
+Potential an festen Punkten zwischen Emitter und Extraktor
+  Punkt                                       r [m]        z [m]          V [V]
+  axis_10_pct_of_gap                              0        5e-05       596.6806
+  axis_25_pct_of_gap                              0     0.000125       348.9943
+  axis_50_pct_of_gap                              0      0.00025       182.8487
+  axis_75_pct_of_gap                              0     0.000375       91.29061
+  axis_90_pct_of_gap                              0      0.00045       53.42846
+  off_axis_half_aperture_mid_gap             0.0001      0.00025       173.5133
+  off_axis_foot_radius_quarter_gap            2e-05     0.000125        347.165
+  groesste relative Aenderung dieser Werte bei der letzten Verdopplung
+  der rueckwaertigen Laenge: 1.433e-02 von |V_E - V_X|.
 
 Residuum der Dirichlet-Bedingung (Viertelpunkte, nicht Kollokation)
-  ausserhalb der Kantenzonen : max |V - V_soll| = 4.903e-01 V, relativ 3.269e-04
-  einschliesslich Kantenzonen: max |V - V_soll| = 1.318e+01 V, relativ 8.786e-03
-  groesstes Residuum bei r = 2e-05 m, z = -0.0003999 m
+  auf den auswertbaren Geraeteflaechen: max 4.827e-01 V, relativ 3.189e-04, RMS relativ 4.170e-05
+  ausserhalb der Kantenzonen  : max |V - V_soll| = 4.827e-01 V, relativ 3.218e-04
+  einschliesslich Kantenzonen : max |V - V_soll| = 1.376e+00 V, relativ 9.173e-04
+  groesstes Residuum bei r = 1.997e-05 m, z = -0.0008 m
   Das grosse Residuum sitzt dort, wo eine stueckweise konstante Dichte
   eine Singularitaet nicht darstellen kann.  Es faellt mit der
   Verfeinerung (siehe convergence.csv), und die Felder an diesen Stellen

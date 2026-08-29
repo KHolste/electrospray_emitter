@@ -1,0 +1,21 @@
+# Every reported number, with what it converged against and what it
+# still depends on.  mesh_convergence refers to convergence.csv,
+# truncation_convergence to truncation.csv.
+quantity,symbol,value_SI,unit,mesh_convergence,truncation_convergence,depends_on,note
+axial field at the reference point,Ez_ref,4.741774462e+07,V/m,converged (1.9e-05),not_converged,emitter_back_length; extractor_outer_radius; all device dimensions,local quantity; mesh converged but NOT independent of the rearward length
+potential at probe axis_10_pct_of_gap,V_probe,5.966806418e+02,V,converged,not_converged,emitter_back_length; extractor_outer_radius; all device dimensions,local quantity; same caveat as Ez_ref
+potential at probe axis_25_pct_of_gap,V_probe,3.489942740e+02,V,converged,not_converged,emitter_back_length; extractor_outer_radius; all device dimensions,local quantity; same caveat as Ez_ref
+potential at probe axis_50_pct_of_gap,V_probe,1.828486676e+02,V,converged,not_converged,emitter_back_length; extractor_outer_radius; all device dimensions,local quantity; same caveat as Ez_ref
+potential at probe axis_75_pct_of_gap,V_probe,9.129060675e+01,V,converged,not_converged,emitter_back_length; extractor_outer_radius; all device dimensions,local quantity; same caveat as Ez_ref
+potential at probe axis_90_pct_of_gap,V_probe,5.342845639e+01,V,converged,not_converged,emitter_back_length; extractor_outer_radius; all device dimensions,local quantity; same caveat as Ez_ref
+potential at probe off_axis_half_aperture_mid_gap,V_probe,1.735133223e+02,V,converged,not_converged,emitter_back_length; extractor_outer_radius; all device dimensions,local quantity; same caveat as Ez_ref
+potential at probe off_axis_foot_radius_quarter_gap,V_probe,3.471650315e+02,V,converged,not_converged,emitter_back_length; extractor_outer_radius; all device dimensions,local quantity; same caveat as Ez_ref
+Maxwell self coefficient of the emitter,c_EE,1.425302421e-14,F,converged (3.0e-06),not_applicable,emitter_back_length (first order); extractor_outer_radius; all device dimensions,the charge of a conductor grows with its length; NOT a device prediction
+Maxwell induction coefficient,c_EX,-1.053828409e-14,F,converged,not_converged,emitter_back_length; extractor_outer_radius; all device dimensions,grows by about a third per doubling of the rearward length
+mutual capacitance,C_m,1.053828470e-14,F,converged (9.9e-06),not_converged,emitter_back_length; extractor_outer_radius; all device dimensions,= -c_EX; C_m changes by a factor 2 between r_ext 0.5 mm and 2.5 mm
+Maxwell self coefficient of the extractor,c_XX,1.561457103e-13,F,converged,not_applicable,extractor_outer_radius; all device dimensions,
+emitter charge at the operating point,Q_E,2.137953632e-11,C,converged,not_converged,emitter_back_length; extractor_outer_radius; all device dimensions,Q_E + Q_X is not zero: with V = 0 at infinity the system carries net charge
+peak |E_n| on the flat liquid surface,Epeak_free,4.973903629e+07,V/m,converged,not_converged,emitter_back_length; all device dimensions,evaluable panels only; the pinned-edge zone is excluded
+largest |E_n| inside the marked edge zones,Eedge,3.302022390e+08,V/m,not_converged,not_applicable,element size,unrounded edges: the corner field diverges; rounding radii are a P3 parameter
+largest |E_n| on the numerical closure,Eclosure,1.982876251e+08,V/m,not_applicable,not_applicable,emitter_back_length,not a device surface; reported only so that its exclusion can be checked
+max |V - V_emitter| inside the closed conductor,interior_dV,9.282866323e-02,V,converged,not_applicable,element size,discretisation error only; falls with refinement

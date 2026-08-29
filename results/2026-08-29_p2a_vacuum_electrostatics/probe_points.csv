@@ -1,0 +1,10 @@
+# fixed points between emitter and extractor, placed from the geometry;
+# the same physical points at every mesh level and every back length
+index,name,r_m,z_m
+0,axis_10_pct_of_gap,0.000000000e+00,5.000000000e-05
+1,axis_25_pct_of_gap,0.000000000e+00,1.250000000e-04
+2,axis_50_pct_of_gap,0.000000000e+00,2.500000000e-04
+3,axis_75_pct_of_gap,0.000000000e+00,3.750000000e-04
+4,axis_90_pct_of_gap,0.000000000e+00,4.500000000e-04
+5,off_axis_half_aperture_mid_gap,1.000000000e-04,2.500000000e-04
+6,off_axis_foot_radius_quarter_gap,2.000000000e-05,1.250000000e-04

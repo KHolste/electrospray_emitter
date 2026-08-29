@@ -1,18 +1,20 @@
 # selection of vacuum-facing conductor panels; decided from region and
 # boundary tags only, never from coordinates or element order
-curve,boundary_id,side_a,side_b,n_elements,accepted,bem_tag,reason
-symmetry_axis.liquid,symmetry_axis,liquid,liquid,56,no,-,Symmetrieachse: kein Interface, keine Rotationsflaeche
-symmetry_axis.vacuum,symmetry_axis,vacuum,vacuum,84,no,-,Symmetrieachse: kein Interface, keine Rotationsflaeche
-free_surface_reference,free_surface_reference,liquid,vacuum,18,yes,flat_liquid_surface_reference,vacuum-facing conductor surface
-bore_wall,bore_wall,liquid,emitter_solid,63,no,-,innere Materialgrenze, kein Vakuumkontakt
-liquid_inlet,liquid_inlet,liquid,outside,13,no,-,offener Domaenenrand: kein Leiter, keine Randbedingung
-emitter_tip_land,emitter_tip_land,emitter_solid,vacuum,23,yes,emitter,vacuum-facing conductor surface
-emitter_outer_surface,emitter_outer_surface,emitter_solid,vacuum,72,yes,emitter,vacuum-facing conductor surface
-extractor_surface.aperture,extractor_surface,extractor_solid,vacuum,23,yes,extractor,vacuum-facing conductor surface
-extractor_surface.front,extractor_surface,extractor_solid,vacuum,96,yes,extractor,vacuum-facing conductor surface
-extractor_surface.back,extractor_surface,extractor_solid,vacuum,96,yes,extractor,vacuum-facing conductor surface
-extractor_surface.rim,extractor_surface,extractor_solid,vacuum,13,yes,extractor,vacuum-facing conductor surface
-open_boundary.z_min.emitter,open_boundary,emitter_solid,outside,17,no,-,offener Domaenenrand: kein Leiter, keine Randbedingung
-open_boundary.z_min.vacuum,open_boundary,vacuum,outside,146,no,-,offener Domaenenrand: kein Leiter, keine Randbedingung
-open_boundary.r_max,open_boundary,vacuum,outside,86,no,-,offener Domaenenrand: kein Leiter, keine Randbedingung
-open_boundary.z_max,open_boundary,vacuum,outside,136,no,-,offener Domaenenrand: kein Leiter, keine Randbedingung
+# 'numerical' marks the rearward closure: solved, never reported
+curve,boundary_id,side_a,side_b,n_elements,accepted,bem_tag,numerical,reason
+symmetry_axis.liquid,symmetry_axis,liquid,liquid,68,no,-,no,Symmetrieachse: kein Interface, keine Rotationsflaeche
+symmetry_axis.vacuum,symmetry_axis,vacuum,vacuum,69,no,-,no,Symmetrieachse: kein Interface, keine Rotationsflaeche
+symmetry_axis.vacuum_behind_closure,symmetry_axis,vacuum,vacuum,59,no,-,no,Symmetrieachse: kein Interface, keine Rotationsflaeche
+free_surface_reference,free_surface_reference,liquid,vacuum,18,yes,flat_liquid_surface_reference,no,vacuum-facing conductor surface
+bore_wall,bore_wall,liquid,emitter_solid,76,no,-,no,innere Materialgrenze, kein Vakuumkontakt
+emitter_tip_land,emitter_tip_land,emitter_solid,vacuum,23,yes,emitter,no,vacuum-facing conductor surface
+emitter_outer_surface,emitter_outer_surface,emitter_solid,vacuum,90,yes,emitter,no,vacuum-facing conductor surface
+numerical_emitter_back_closure.liquid,numerical_emitter_back_closure,liquid,vacuum,13,yes,emitter,yes,numerical closure of the conductor, not a device surface
+numerical_emitter_back_closure.solid,numerical_emitter_back_closure,emitter_solid,vacuum,22,yes,emitter,yes,numerical closure of the conductor, not a device surface
+extractor_surface.aperture,extractor_surface,extractor_solid,vacuum,23,yes,extractor,no,vacuum-facing conductor surface
+extractor_surface.front,extractor_surface,extractor_solid,vacuum,79,yes,extractor,no,vacuum-facing conductor surface
+extractor_surface.back,extractor_surface,extractor_solid,vacuum,79,yes,extractor,no,vacuum-facing conductor surface
+extractor_surface.rim,extractor_surface,extractor_solid,vacuum,13,yes,extractor,no,vacuum-facing conductor surface
+open_boundary.z_min,open_boundary,vacuum,outside,105,no,-,no,offener Domaenenrand: kein Leiter, keine Randbedingung
+open_boundary.r_max,open_boundary,vacuum,outside,122,no,-,no,offener Domaenenrand: kein Leiter, keine Randbedingung
+open_boundary.z_max,open_boundary,vacuum,outside,105,no,-,no,offener Domaenenrand: kein Leiter, keine Randbedingung
