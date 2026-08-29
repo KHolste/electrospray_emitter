@@ -1,5 +1,7 @@
 #include "es/electrocapillary.hpp"
 
+#include "es/load_projection.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -541,13 +543,30 @@ MaxwellLoad maxwell_load(const MeniscusMesh& mm, const DielectricSolution& sol,
         Emag > 0.0 ? std::sqrt(std::max(0.0, Emag * Emag - En * En)) / Emag : 0.0);
   }
 
-  // --- segments: the conservative projection --------------------------------
-  //
-  // Trapezoidal integration of the nodal load against the revolved area
-  // element.  Summing the segments returns the total by construction, so the
-  // projection preserves the integrated Maxwell force exactly; the segment mean
-  // of an integrable singularity stays finite where the pointwise value does
-  // not.
+  assemble_load_segments(out, fs);
+  return out;
+}
+
+// --- segments: the conservative projection ----------------------------------
+//
+// Trapezoidal integration of the nodal load against the revolved area element.
+// Summing the segments returns the total by construction, so the projection
+// preserves the integrated Maxwell force exactly; the segment mean of an
+// integrable singularity stays finite where the pointwise value does not.
+//
+// Lifted out of maxwell_load() in P0 so that the manufactured loads of
+// load_projection.hpp run THIS quadrature and not a copy of it.  Nothing about
+// it changed; it does not know where the nodal values came from.
+void assemble_load_segments(MaxwellLoad& out, const FreeSurface& fs) {
+  out.seg_tau0.clear();
+  out.seg_tau1.clear();
+  out.seg_tau_mid.clear();
+  out.seg_d_mid.clear();
+  out.seg_area.clear();
+  out.seg_force.clear();
+  out.seg_pressure.clear();
+  out.total_force = 0.0;
+  out.axial_force = 0.0;
   for (std::size_t k = 0; k + 1 < out.node_r.size(); ++k) {
     const Real r0 = out.node_r[k], r1 = out.node_r[k + 1];
     const Real z0 = out.node_z[k], z1 = out.node_z[k + 1];
@@ -568,7 +587,6 @@ MaxwellLoad maxwell_load(const MeniscusMesh& mm, const DielectricSolution& sol,
     out.total_force += force;
     out.axial_force += force * nz;
   }
-  return out;
 }
 
 Real MaxwellLoad::pressure_at_distance(Real d) const {
@@ -632,7 +650,8 @@ EdgeGateResult run_edge_gate(const DielectricDeviceParameters& base,
                              const DielectricMaterials& materials, Real V_emitter,
                              Real V_extractor, Metallisation metallisation, FarField far_field,
                              const FreeSurface& surface, const std::string& tag, Real Pi,
-                             const std::vector<int>& levels, Real gamma_over_a) {
+                             const std::vector<int>& levels, Real gamma_over_a,
+                             std::size_t memory_cap_bytes) {
   EdgeGateResult gate;
   gate.shape_tag = tag;
   gate.Pi = Pi;
@@ -650,6 +669,7 @@ EdgeGateResult run_edge_gate(const DielectricDeviceParameters& base,
     s.far_field = far_field;
     s.V_emitter = V_emitter;
     s.V_extractor = V_extractor;
+    s.memory_cap_bytes = memory_cap_bytes;
     DielectricSolution sol =
         solve_dielectric_on(mesh.device, s, DielectricDiagnostics::FieldOnly);
     MaxwellLoad L = maxwell_load(mesh, sol, gamma_over_a);
@@ -778,154 +798,17 @@ EdgeGateResult run_edge_gate(const DielectricDeviceParameters& base,
 }
 
 // ===========================================================================
-// The load actually used by the coupling: a conservative tau table
+// The load actually used by the coupling
 // ===========================================================================
+//
+// The type that carries it -- ProjectedLoad -- used to live here in an
+// anonymous namespace, which is exactly why its central claim (the load handed
+// to the capillary solver is CONTINUOUS and carries the integrated Maxwell
+// force) could not be checked from a test.  P0 moved it to
+// include/es/load_projection.hpp unchanged in substance and put an audit and a
+// test around it.  What is left here is the use of it.
 
 namespace {
-
-/// The load the coupled iteration actually carries, over a fixed grid of
-/// normalised arclength.
-///
-/// WHY NOT SIMPLY THE PIECEWISE-CONSTANT SEGMENT LOAD.  That load is the
-/// conservative projection and it is what the force bookkeeping uses -- but as
-/// a right-hand side it is discontinuous, and an integrator cannot converge
-/// against a discontinuous right-hand side: the automatic refinement of the
-/// capillary solver ran to its cap and reported AccuracyNotReached at every
-/// voltage.  The defect was in the projection, not in the integrator.
-///
-/// WHAT IS BUILT INSTEAD, AND WHY IT IS STILL EXACTLY CONSERVATIVE.  The bin
-/// data are the CUMULATIVE force G and area A from the apex.  Both are
-/// interpolated by a monotone cubic (Fritsch-Carlson), and the load is
-///
-///     p(tau) = G'(tau) / A'(tau).
-///
-/// Then for every bin  int p dA = int G' dtau = G(tau_b+1) - G(tau_b), which is
-/// exactly the force that bin carried, so the integrated Maxwell force is
-/// preserved bin by bin and therefore in total.  G' and A' are continuous, so
-/// the right-hand side is continuous and the integrator converges again.
-struct TauLoad {
-  static constexpr int kBins = 128;
-  std::vector<Real> p;      ///< bin pressure [Pa] -- the conservative projection
-  std::vector<Real> area;   ///< bin revolved area [m^2]
-
-  TauLoad()
-      : p(static_cast<std::size_t>(kBins), 0.0), area(static_cast<std::size_t>(kBins), 0.0) {}
-
-  static TauLoad from(const MaxwellLoad& L) {
-    TauLoad t;
-    std::vector<Real> force(static_cast<std::size_t>(kBins), 0.0);
-    const Real db = 1.0 / static_cast<Real>(kBins);
-    for (std::size_t k = 0; k < L.seg_force.size(); ++k) {
-      const Real t0 = L.seg_tau0[k], t1 = L.seg_tau1[k];
-      const Real span = std::max(t1 - t0, 1e-300);
-      const int b0 = std::max(0, std::min(kBins - 1, static_cast<int>(t0 / db)));
-      const int b1 = std::max(0, std::min(kBins - 1, static_cast<int>(t1 / db)));
-      for (int b = b0; b <= b1; ++b) {
-        const Real lo = std::max(t0, static_cast<Real>(b) * db);
-        const Real hi = std::min(t1, static_cast<Real>(b + 1) * db);
-        const Real f = std::max(0.0, hi - lo) / span;
-        force[static_cast<std::size_t>(b)] += f * L.seg_force[k];
-        t.area[static_cast<std::size_t>(b)] += f * L.seg_area[k];
-      }
-    }
-    for (int b = 0; b < kBins; ++b) {
-      const std::size_t i = static_cast<std::size_t>(b);
-      t.p[i] = t.area[i] > 0.0 ? force[i] / t.area[i] : 0.0;
-    }
-    return t;
-  }
-
-  /// Monotone cubic (Fritsch-Carlson) slopes for a set of cumulative values on
-  /// a uniform grid.  Monotone because the cumulative quantities are.
-  static std::vector<Real> monotone_slopes(const std::vector<Real>& y, Real h) {
-    const std::size_t n = y.size();
-    std::vector<Real> d(n, 0.0), delta(n - 1, 0.0);
-    for (std::size_t k = 0; k + 1 < n; ++k) delta[k] = (y[k + 1] - y[k]) / h;
-    d[0] = delta[0];
-    d[n - 1] = delta[n - 2];
-    for (std::size_t k = 1; k + 1 < n; ++k) {
-      if (delta[k - 1] * delta[k] <= 0.0) {
-        d[k] = 0.0;
-      } else {
-        const Real w1 = 2.0 * h + h, w2 = h + 2.0 * h;
-        d[k] = (w1 + w2) / (w1 / delta[k - 1] + w2 / delta[k]);
-      }
-    }
-    return d;
-  }
-
-  /// p(tau) = G'(tau) / A'(tau) from the monotone cubic interpolants.
-  Real at(Real tau) const {
-    const Real t = std::min(1.0, std::max(0.0, tau));
-    const Real h = 1.0 / static_cast<Real>(kBins);
-    if (cum_force_.empty()) build_cumulative();
-    int b = static_cast<int>(t / h);
-    b = std::max(0, std::min(kBins - 1, b));
-    const Real u = (t - static_cast<Real>(b) * h) / h;
-    const std::size_t i = static_cast<std::size_t>(b);
-    auto slope = [&](const std::vector<Real>& y, const std::vector<Real>& d) {
-      const Real y0 = y[i], y1 = y[i + 1], d0 = d[i] * h, d1 = d[i + 1] * h;
-      const Real g00 = 6 * u * u - 6 * u, g10 = 3 * u * u - 4 * u + 1;
-      const Real g01 = -6 * u * u + 6 * u, g11 = 3 * u * u - 2 * u;
-      return (g00 * y0 + g10 * d0 + g01 * y1 + g11 * d1) / h;
-    };
-    const Real dA = slope(cum_area_, slope_area_);
-    if (!(dA > 0.0)) return p[i];
-    return slope(cum_force_, slope_force_) / dA;
-  }
-
-  static Real difference(const TauLoad& a, const TauLoad& b) {
-    Real d = 0.0;
-    for (std::size_t k = 0; k < a.p.size(); ++k) d = std::max(d, std::abs(a.p[k] - b.p[k]));
-    return d;
-  }
-
-  static TauLoad blend(const TauLoad& old_load, const TauLoad& fresh, Real w) {
-    TauLoad t;
-    for (std::size_t k = 0; k < t.p.size(); ++k) {
-      t.p[k] = (1.0 - w) * old_load.p[k] + w * fresh.p[k];
-      t.area[k] = fresh.area[k];
-    }
-    return t;
-  }
-
-  /// True when the table carries no load at all.  Then the problem IS the P3a
-  /// problem and is handed to the capillary solver as such -- same right-hand
-  /// side, same requested accuracy, same answer bit for bit.  Passing an
-  /// all-zero load function instead would take the P3b path and return a shape
-  /// that differs from P3a only by the resolution the two asked for, which
-  /// would make the zero-field cross-check compare two things that were never
-  /// the same computation.
-  bool is_zero() const {
-    for (Real v : p)
-      if (v != 0.0) return false;
-    return true;
-  }
-
-  /// Integrated force of the table [N] -- the quantity that must survive the
-  /// reconstruction.
-  Real integrated_force() const {
-    Real f = 0.0;
-    for (std::size_t k = 0; k < p.size(); ++k) f += p[k] * area[k];
-    return f;
-  }
-
- private:
-  mutable std::vector<Real> cum_force_, cum_area_, slope_force_, slope_area_;
-
-  void build_cumulative() const {
-    const Real h = 1.0 / static_cast<Real>(kBins);
-    cum_force_.assign(static_cast<std::size_t>(kBins) + 1, 0.0);
-    cum_area_.assign(static_cast<std::size_t>(kBins) + 1, 0.0);
-    for (int b = 0; b < kBins; ++b) {
-      const std::size_t i = static_cast<std::size_t>(b);
-      cum_force_[i + 1] = cum_force_[i] + p[i] * area[i];
-      cum_area_[i + 1] = cum_area_[i] + area[i];
-    }
-    slope_force_ = monotone_slopes(cum_force_, h);
-    slope_area_ = monotone_slopes(cum_area_, h);
-  }
-};
 
 DielectricSetup setup_from(const CoupledRequest& q) {
   DielectricSetup s;
@@ -936,6 +819,7 @@ DielectricSetup setup_from(const CoupledRequest& q) {
   s.far_field = q.far_field;
   s.V_emitter = q.V_emitter;
   s.V_extractor = q.V_extractor;
+  s.memory_cap_bytes = q.memory_cap_bytes;
   return s;
 }
 
@@ -972,7 +856,7 @@ CoupledPoint solve_coupled(const CoupledRequest& q) {
     }
   }
 
-  TauLoad load;             // starts at zero: the field-free problem
+  ProjectedLoad load;             // starts at zero: the field-free problem
   MaxwellLoad measured;
   Real shape_change = 0.0, load_change = 0.0;
 
@@ -1007,9 +891,9 @@ CoupledPoint solve_coupled(const CoupledRequest& q) {
 
     // 3./4./5. one-sided normal field, Maxwell pressure, conservative projection
     measured = maxwell_load(mesh, sol, gamma_over_a);
-    const TauLoad fresh = TauLoad::from(measured);
-    load_change = TauLoad::difference(load, fresh);
-    load = (it == 1) ? fresh : TauLoad::blend(load, fresh, q.relaxation);
+    const ProjectedLoad fresh = ProjectedLoad::from(measured);
+    load_change = ProjectedLoad::difference(load, fresh);
+    load = (it == 1) ? fresh : ProjectedLoad::blend(load, fresh, q.relaxation);
 
     // 6. Young-Laplace with the space-dependent load
     CapillaryRequest cr;

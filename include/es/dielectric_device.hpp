@@ -138,6 +138,13 @@ struct DielectricSetup {
   Real V_emitter{1500.0};
   Real V_extractor{0.0};
 
+  /// Memory the band factorisation may use.  Passed straight to solve_axisym(),
+  /// whose default this repeats, so nothing changes for a caller that leaves it
+  /// alone.  It exists because a mesh study that stops at the level the default
+  /// happens to allow is a study of the default and not of the discretisation:
+  /// P0 needs one level beyond it and says so in the run log.
+  std::size_t memory_cap_bytes{2ull << 30};
+
   Real applied_span() const { return V_emitter - V_extractor; }
 };
 

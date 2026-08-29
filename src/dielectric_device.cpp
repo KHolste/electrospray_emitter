@@ -512,7 +512,7 @@ DielectricSolution solve_dielectric_on(DeviceVolumeMesh mesh, const DielectricSe
       prob.far_edges.push_back({g.node(g.nr - 1, j), g.node(g.nr - 1, j + 1)});
   }
 
-  out.fem = solve_axisym(prob);
+  out.fem = solve_axisym(prob, LinearSolver::Band, s.memory_cap_bytes);
   out.cell_eps_r = prob.eps_r;
   out.cell_active = prob.active;
 

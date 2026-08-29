@@ -239,6 +239,14 @@ struct MaxwellLoad {
 MaxwellLoad maxwell_load(const MeniscusMesh& m, const DielectricSolution& sol,
                          Real gamma_over_a);
 
+/// Assemble the conservative segment quantities of `out` from its already
+/// filled nodal arrays (node_r, node_z, node_tau, node_d_edge, node_pM) and the
+/// surface geometry.  maxwell_load() calls it; so do the manufactured loads of
+/// load_projection.hpp, so that an audit exercises the production quadrature
+/// rather than a second copy of it.  It knows nothing of where the nodal values
+/// came from.
+void assemble_load_segments(MaxwellLoad& out, const FreeSurface& fs);
+
 // ---------------------------------------------------------------------------
 // The coupling gate
 // ---------------------------------------------------------------------------
@@ -352,7 +360,8 @@ EdgeGateResult run_edge_gate(const DielectricDeviceParameters& base,
                              const DielectricMaterials& materials, Real V_emitter,
                              Real V_extractor, Metallisation metallisation, FarField far_field,
                              const FreeSurface& surface, const std::string& tag, Real Pi,
-                             const std::vector<int>& levels, Real gamma_over_a);
+                             const std::vector<int>& levels, Real gamma_over_a,
+                             std::size_t memory_cap_bytes = (2ull << 30));
 
 // ---------------------------------------------------------------------------
 // The coupled solve
@@ -442,6 +451,8 @@ struct CoupledRequest {
   Metallisation metallisation{Metallisation::FrontAndAperture};
   FarField far_field{FarField::Asymptotic};
   Real relaxation{coupling::kRelaxation};
+  /// Handed to the field solve; see DielectricSetup::memory_cap_bytes.
+  std::size_t memory_cap_bytes{2ull << 30};
   /// Shape to start from.  Empty = the P3a solution for delta_p_exit, which is
   /// the field-free member of this branch.
   const CapillaryMeniscus* initial_shape{nullptr};
