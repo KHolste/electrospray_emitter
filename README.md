@@ -169,6 +169,7 @@ Konfigurationsdatei plus `key=value`-Overrides auf der Kommandozeile
 | `es_vacuum` | P2a: statische Vakuum-Elektrostatik auf der P1-Geometrie | **überholt** — behandelt den Emitterkörper als Metall. Bleibt als unabhängige BEM-Vergleichsrechnung für ε_r = 1 erhalten, siehe `docs/08_dielectric_model.md` |
 | `es_dielectric` | P2b: dielektrische Elektrostatik auf dem **abgeschnittenen Säulenmodell** | kantenfernes Feld **netz**konvergent und gegen die BEM geprüft; Kantenfelder nicht. Der Lauf ist jetzt eine **Diagnose**: sein Rückschnitt verschiebt Flüssigkeitssäule und Dielektrikum gemeinsam, ist also eine Geometrieänderung der Elektrode und keine Randverschiebung |
 | `es_reservoir` | P2c: Gerätegeometrie und Flüssigkeitsvorrat entkoppelt; Vorrat als dielektrisch umschlossenes Plenum | Frontgeometrie über alle Varianten **bitgenau** identisch (nachgewiesen); lokales Feld am Meniskus ändert sich je Vergrößerungsstufe um 1·10⁻⁴, das **Maximum über alle Sondenpunkte** um 2·10⁻³ und verfehlt damit die vorab festgelegte Grenze 10⁻³ — offen ausgewiesen, siehe `docs/08_dielectric_model.md`, 8.9. Globale Ladungen bleiben vorratsabhängig |
+| `es_capillary` | P3a: statischer Kapillarmeniskus an der Austrittskante, **ohne** elektrisches Feld | Young-Laplace in Bogenlängenparametrisierung, Kontaktlinie an `phi_2/2` gepinnt, kein Kontaktwinkel. Gegen die geschlossene Kugelkappe geprüft (Normalabstand ≤ 3·10⁻¹³·a), Netzkonvergenz vierter Ordnung, Residuum unabhängig aus den Knotenkoordinaten. Gültig für &#124;Δp&#124; ≤ 2γ/a; darüber eigener Status statt Ersatzform. Stoffwerte für EMI-BF4 ausdrücklich `illustrative`, siehe `docs/09_capillary_model.md` |
 
 ```sh
 ./build/es_field --help          # Schlüsselreferenz
@@ -186,6 +187,10 @@ python python/plot_reservoir.py results/2026-08-29_p2c_reservoir_decoupling
 ./build/es_dielectric examples/device_p1.cfg examples/dielectric_p2b.cfg \
     results/2026-08-29_p2b_dielectric_electrostatics meta.commit=$(git rev-parse HEAD)
 python python/plot_dielectric.py results/2026-08-29_p2b_dielectric_electrostatics
+
+./build/es_capillary examples/device_p1.cfg examples/capillary_p3a.cfg \
+    results/2026-08-29_p3a_capillary_meniscus meta.commit=$(git rev-parse HEAD)
+python python/plot_capillary.py results/2026-08-29_p3a_capillary_meniscus
 ```
 
 Bekanntes Problem: verschiedene Anwendungen überschreiben bei gleichem
@@ -198,9 +203,12 @@ nicht zwingend zu dem Zustand, den der Bericht ausweist.
 include/es/  types constants elliptic linalg geometry bem fluid
              emission meniscus beam config io status
              device_geometry boundary_mesh vacuum_bem
+             axisym_fem volume_mesh dielectric_device materials
+             liquid capillary
 src/         Implementierungen
 apps/        es_field es_meniscus es_operate es_beam es_vacuum
-tests/       10 Testprogramme
+             es_dielectric es_reservoir es_capillary
+tests/       14 Testprogramme (C++) + test_provenance.py
 examples/    Konfigurationsbeispiele
 python/      Auswertung und Plots (keine Rechnung)
 docs/        Neuausrichtung, Modellspezifikation, Umbauplan
