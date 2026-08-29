@@ -1,0 +1,26 @@
+P3b -- selbstkonsistentes statisches Elektro-Kapillargleichgewicht
+  a = phi_2/2 = 5e-06 m, gamma/a = 9040 Pa, Stoffstatus illustrative
+  Referenznetzstufe 2, Gate-Stufen 1..4, V_max = 4000 V
+
+  bewegliches Netz geprueft: 6 Formen x 3 Stufen
+  Feldfenster geschrieben
+  Feldpruefungen: Polaritaet 0.0e+00, Quadratik 0.0e+00, Ladung 1.4e-03, Tangentialanteil 3.0e-02
+  Gate pi+0.00 (Pi = +0.00): Passed  beta = -0.444, dF = 1.65e-02, dLast = 5.31e-03, Grenzkraft 7.7914e-07 / 7.5993e-07 N (2.53e-02)
+  Gate pi+0.50 (Pi = +0.50): Passed  beta = -0.292, dF = 1.29e-02, dLast = 3.37e-03, Grenzkraft 8.8209e-07 / 8.4891e-07 N (3.91e-02)
+  Gate pi-0.50 (Pi = -0.50): FailedExclusion  beta = -0.611, dF = 2.16e-02, dLast = 1.31e-02, Grenzkraft 7.0340e-07 / 7.4550e-07 N (5.65e-02)
+  Gate pi+1.50 (Pi = +1.50): Passed  beta = 0.054, dF = 7.67e-03, dLast = 8.57e-03, Grenzkraft 1.3022e-06 / 1.2729e-06 N (2.30e-02)
+  Gate pi-1.50 (Pi = -1.50): FailedNotIntegrable  beta = -1.095, dF = 4.40e-02, dLast = 7.04e-02, Grenzkraft 5.8413e-07 / -1.0268e-06 N (1.57e+00)
+  Gate pi+1.90 (Pi = +1.90): Passed  beta = 0.308, dF = 5.19e-03, dLast = 8.89e-03, Grenzkraft 1.8100e-06 / 1.7871e-06 N (1.28e-02)
+  Gate bestanden fuer Kontaktwinkel psi in [0.00, 71.81] Grad; ausserhalb wird
+  nicht gekoppelt.
+  Nullfeld gegen P3a: groesster Knotenabstand 0.000e+00 a
+  Ast dp0_pos   (Pi = +0.00, Polaritaet +1): 10 Punkte bis 1439.5 V, Ende ContinuationStepTooSmall
+  Ast dp0_neg   (Pi = +0.00, Polaritaet -1): 10 Punkte bis -1439.5 V, Ende ContinuationStepTooSmall
+  Ast dp_plus   (Pi = +0.50, Polaritaet +1): 8 Punkte bis 1236.3 V, Ende ContinuationStepTooSmall
+  Ast dp_minus  (Pi = -0.50): EdgeLoadNotWellPosed -- Kontaktwinkel -14.48 Grad ausserhalb [0.00, 71.81]
+  Polaritaet: groesster Formunterschied 0.000e+00 a
+  Konvergenz am Punkt klein (500 V) gerechnet
+  Konvergenz am Punkt mittel (1000 V) gerechnet
+  Konvergenz am Punkt gross (1400 V) gerechnet
+
+geschrieben nach results/2026-08-29_p3b_electrocapillary

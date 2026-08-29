@@ -1,0 +1,159 @@
+P3b -- selbstkonsistentes statisches Elektro-Kapillargleichgewicht
+=================================================================
+
+WAS GERECHNET WURDE
+  gamma kappa(s) = delta_p_exit + eps0 E_n(s)^2 / 2, achsensymmetrisch,
+  statisch.  E_n ist das vakuumseitige Normalfeld auf der freien
+  Oberflaeche der Fluessigkeit, die ein idealer Leiter auf V_emitter ist.
+  Die Elektrostatik ist das unveraenderte dielektrische P2c-Problem.
+
+VORZEICHEN
+  sigma = eps0 E_n, Traktion = sigma * E_n/2 * n = p_M n mit p_M >= 0.
+  Die Last zieht IMMER nach aussen, unabhaengig von der Polaritaet, und
+  geht deshalb wie eine Erhoehung des Innendrucks in die Gleichung ein.
+  Gemessen: E_n(+V) + E_n(-V) = 0.00e+00 relativ, F(+V) - F(-V) = 0.00e+00
+  relativ, F(2V)/F(V) - 4 = 0.00e+00, Ladung aus sigma gegen die
+  FEM-Knotenreaktionen 1.38e-03 relativ, |E_t|/|E| kantenfern 2.96e-02.
+
+DAS KANTEN-GATE
+  Form pi+0.00 (Pi = +0.00): Passed
+    Singularitaetsexponent p_M ~ d^beta: beta = -0.444 (R^2 = 0.9996).
+    Integrierbar gegen 2 pi r ds fuer beta > -1: ja.
+    Kantenferne Last, zwei feinste Stufen: 5.307e-03 (Grenze 2.0e-02).
+    Gesamtkraft, zwei feinste Stufen  : 1.648e-02 (Grenze 5.0e-02).
+    Grenzkraft ueber die Netzstufen   : 7.791373e-07 N
+    Grenzkraft ueber die Ausschlussdistanz: 7.599288e-07 N
+    Abweichung der beiden             : 2.528e-02 (Grenze 5.0e-02).
+    Halbierung der Ausschlussdistanz  : 1.134e-01 (Grenze 5.0e-02) -- NICHT
+      eingehalten, und diese Groesse kann es nicht: sie vergleicht den
+      Kraftinhalt zweier verschiedener Gebiete der Oberflaeche und ist
+      kein Diskretisierungsfehler.  Sie wird berichtet, entscheidet
+      aber nicht; siehe docs/10_electrocapillary_model.md.
+    Punktweiser Kantenwert p_M (feinste Stufe): 2.772e+04 Pa -- waechst mit
+      jeder Verfeinerung und wird nirgends verwendet.
+  Form pi+0.50 (Pi = +0.50): Passed
+    Singularitaetsexponent p_M ~ d^beta: beta = -0.292 (R^2 = 0.9970).
+    Integrierbar gegen 2 pi r ds fuer beta > -1: ja.
+    Kantenferne Last, zwei feinste Stufen: 3.366e-03 (Grenze 2.0e-02).
+    Gesamtkraft, zwei feinste Stufen  : 1.292e-02 (Grenze 5.0e-02).
+    Grenzkraft ueber die Netzstufen   : 8.820854e-07 N
+    Grenzkraft ueber die Ausschlussdistanz: 8.489126e-07 N
+    Abweichung der beiden             : 3.908e-02 (Grenze 5.0e-02).
+    Halbierung der Ausschlussdistanz  : 8.479e-02 (Grenze 5.0e-02) -- NICHT
+      eingehalten, und diese Groesse kann es nicht: sie vergleicht den
+      Kraftinhalt zweier verschiedener Gebiete der Oberflaeche und ist
+      kein Diskretisierungsfehler.  Sie wird berichtet, entscheidet
+      aber nicht; siehe docs/10_electrocapillary_model.md.
+    Punktweiser Kantenwert p_M (feinste Stufe): 2.374e+04 Pa -- waechst mit
+      jeder Verfeinerung und wird nirgends verwendet.
+  Form pi-0.50 (Pi = -0.50): FailedExclusion
+    Singularitaetsexponent p_M ~ d^beta: beta = -0.611 (R^2 = 1.0000).
+    Integrierbar gegen 2 pi r ds fuer beta > -1: ja.
+    Kantenferne Last, zwei feinste Stufen: 1.311e-02 (Grenze 2.0e-02).
+    Gesamtkraft, zwei feinste Stufen  : 2.162e-02 (Grenze 5.0e-02).
+    Grenzkraft ueber die Netzstufen   : 7.034033e-07 N
+    Grenzkraft ueber die Ausschlussdistanz: 7.455018e-07 N
+    Abweichung der beiden             : 5.647e-02 (Grenze 5.0e-02).
+    Halbierung der Ausschlussdistanz  : 1.467e-01 (Grenze 5.0e-02) -- NICHT
+      eingehalten, und diese Groesse kann es nicht: sie vergleicht den
+      Kraftinhalt zweier verschiedener Gebiete der Oberflaeche und ist
+      kein Diskretisierungsfehler.  Sie wird berichtet, entscheidet
+      aber nicht; siehe docs/10_electrocapillary_model.md.
+    Punktweiser Kantenwert p_M (feinste Stufe): 2.968e+04 Pa -- waechst mit
+      jeder Verfeinerung und wird nirgends verwendet.
+  Form pi+1.50 (Pi = +1.50): Passed
+    Singularitaetsexponent p_M ~ d^beta: beta = 0.054 (R^2 = 0.7116).
+    Integrierbar gegen 2 pi r ds fuer beta > -1: ja.
+    Kantenferne Last, zwei feinste Stufen: 8.570e-03 (Grenze 2.0e-02).
+    Gesamtkraft, zwei feinste Stufen  : 7.672e-03 (Grenze 5.0e-02).
+    Grenzkraft ueber die Netzstufen   : 1.302203e-06 N
+    Grenzkraft ueber die Ausschlussdistanz: 1.272873e-06 N
+    Abweichung der beiden             : 2.304e-02 (Grenze 5.0e-02).
+    Halbierung der Ausschlussdistanz  : 3.640e-02 (Grenze 5.0e-02) -- NICHT
+      eingehalten, und diese Groesse kann es nicht: sie vergleicht den
+      Kraftinhalt zweier verschiedener Gebiete der Oberflaeche und ist
+      kein Diskretisierungsfehler.  Sie wird berichtet, entscheidet
+      aber nicht; siehe docs/10_electrocapillary_model.md.
+    Punktweiser Kantenwert p_M (feinste Stufe): 1.609e+04 Pa -- waechst mit
+      jeder Verfeinerung und wird nirgends verwendet.
+  Form pi-1.50 (Pi = -1.50): FailedNotIntegrable
+    Singularitaetsexponent p_M ~ d^beta: beta = -1.095 (R^2 = 0.9980).
+    Integrierbar gegen 2 pi r ds fuer beta > -1: NEIN.
+    Kantenferne Last, zwei feinste Stufen: 7.045e-02 (Grenze 2.0e-02).
+    Gesamtkraft, zwei feinste Stufen  : 4.395e-02 (Grenze 5.0e-02).
+    Grenzkraft ueber die Netzstufen   : 5.841296e-07 N
+    Grenzkraft ueber die Ausschlussdistanz: -1.026753e-06 N
+    Abweichung der beiden             : 1.569e+00 (Grenze 5.0e-02).
+    Halbierung der Ausschlussdistanz  : 2.640e-01 (Grenze 5.0e-02) -- NICHT
+      eingehalten, und diese Groesse kann es nicht: sie vergleicht den
+      Kraftinhalt zweier verschiedener Gebiete der Oberflaeche und ist
+      kein Diskretisierungsfehler.  Sie wird berichtet, entscheidet
+      aber nicht; siehe docs/10_electrocapillary_model.md.
+    Punktweiser Kantenwert p_M (feinste Stufe): 3.402e+04 Pa -- waechst mit
+      jeder Verfeinerung und wird nirgends verwendet.
+  Form pi+1.90 (Pi = +1.90): Passed
+    Singularitaetsexponent p_M ~ d^beta: beta = 0.308 (R^2 = 0.9873).
+    Integrierbar gegen 2 pi r ds fuer beta > -1: ja.
+    Kantenferne Last, zwei feinste Stufen: 8.891e-03 (Grenze 2.0e-02).
+    Gesamtkraft, zwei feinste Stufen  : 5.193e-03 (Grenze 5.0e-02).
+    Grenzkraft ueber die Netzstufen   : 1.809962e-06 N
+    Grenzkraft ueber die Ausschlussdistanz: 1.787089e-06 N
+    Abweichung der beiden             : 1.280e-02 (Grenze 5.0e-02).
+    Halbierung der Ausschlussdistanz  : 1.667e-02 (Grenze 5.0e-02) -- NICHT
+      eingehalten, und diese Groesse kann es nicht: sie vergleicht den
+      Kraftinhalt zweier verschiedener Gebiete der Oberflaeche und ist
+      kein Diskretisierungsfehler.  Sie wird berichtet, entscheidet
+      aber nicht; siehe docs/10_electrocapillary_model.md.
+    Punktweiser Kantenwert p_M (feinste Stufe): 2.212e+04 Pa -- waechst mit
+      jeder Verfeinerung und wird nirgends verwendet.
+  WO DAS GATE BESTANDEN IST.  Die Singularitaet an der Kontaktlinie
+  haengt vom Winkel ab, unter dem die Oberflaeche die Kante verlaesst.
+  Gemessen: fuer eine ebene oder nach aussen gewoelbte Oberflaeche ist die
+  Last integrierbar und die schwache Projektion konvergiert; fuer eine nach
+  innen gezogene wird die Leiterkante einspringend, der Exponent faellt und
+  bei Pi = -1.5 ist er mit -1.095 nicht mehr integrierbar.  Gekoppelt wird
+  ausschliesslich im Bereich psi = 0.00 .. 71.81 Grad.
+
+VERWENDETE LASTPROJEKTION
+  Segmentweise konservativ: die Normalkraft jedes Oberflaechensegments
+  wird mit dem einseitigen Feld integriert, der Segmentdruck ist Kraft
+  durch Rotationsflaeche.  Die Summe ueber die Segmente ist per
+  Konstruktion die integrierte Maxwell-Kraft.  Fuer die Uebergabe an den
+  Kapillarloeser wird daraus eine STETIGE Last gebaut, indem die
+  kumulierte Kraft und die kumulierte Flaeche monoton kubisch
+  interpoliert werden und p = G'/A' gesetzt wird; die Binintegrale
+  bleiben dabei exakt erhalten.
+
+BEWEGLICHES NETZ
+  Die Zeile des P2c-Netzes, die die freie Oberflaeche traegt, wird auf die
+  vorgeschriebene Meridiankurve gezogen; das Band reicht 1.5 Bohrungs-
+  radien nach oben und unten und endet auf vorhandenen Netzzeilen, so dass
+  der ebene Fall bitgleich das P2c-Netz ist.  Zellen koennen nicht
+  invertieren: in den verformten Spalten haengt r nur von i ab.  Gemessen
+  wird es trotzdem -- siehe mesh_quality.csv.
+
+NULLFELD-RUECKPRUEFUNG
+  Bei V_emitter = V_extractor = 0 reproduziert P3b die P3a-Loesung.
+  Groesster Knotenabstand ueber vier Druecke: 0.000e+00 a.
+
+FORTSETZUNG UEBER DIE SPANNUNG
+  dp0_pos   Pi = +0.00, Polaritaet +1: 10 konvergierte Punkte, letzte
+            Spannung 1439.5 V, erste gescheiterte 1465.8 V, Ende ContinuationStepTooSmall
+  dp0_neg   Pi = +0.00, Polaritaet -1: 10 konvergierte Punkte, letzte
+            Spannung -1439.5 V, erste gescheiterte -1465.8 V, Ende ContinuationStepTooSmall
+  dp_plus   Pi = +0.50, Polaritaet +1: 8 konvergierte Punkte, letzte
+            Spannung 1236.3 V, erste gescheiterte 1262.7 V, Ende ContinuationStepTooSmall
+  dp_minus  Pi = -0.50, Polaritaet +1: 0 konvergierte Punkte, letzte
+            Spannung 0.0 V, erste gescheiterte 0.0 V, Ende EdgeLoadNotWellPosed
+  Groesster Formunterschied zwischen den Polaritaeten: 0.000e+00 a.
+  WAS DAS ENDE EINES ASTES IST UND WAS NICHT.  Es ist die Stelle, an der
+  dieser Loeser mit dieser Schrittweite und diesen Grenzen stehen bleibt.
+  Es ist KEIN Emissionsbeginn, KEIN Taylor-Kegel-Onset und KEINE Aussage
+  ueber dynamische Stabilitaet: nichts davon wird in P3b gerechnet.
+
+WAS AUSDRUECKLICH FEHLT
+  Keine Emission, keine endliche Leitfaehigkeit der Fluessigkeit, keine
+  Stroemung, keine Viskositaet, keine Raumladung, keine Zeitabhaengigkeit,
+  keine dynamische Stabilitaet, kein Taylor-Kegel, kein Cone-Jet, keine
+  Schwerkraft.  delta_p_exit bleibt eine Eingabe; P3b bestimmt weder den
+  Vorrats- noch den Speisedruck.  Die Stoffwerte sind illustrative.

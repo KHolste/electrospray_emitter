@@ -1,0 +1,7 @@
+# Unabhaengige Pruefungen der Feld- und Flussauswertung, ebene Oberflaeche.
+check,value,bound,note
+polarity_En_sign,0.000000000e+00,0,E_n(+V) + E_n(-V) relativ; muss null sein
+polarity_force,0.000000000e+00,0,p_M ist polaritaetsunabhaengig
+quadratic_scaling,0.000000000e+00,0,F(2V)/F(V) = 4
+charge_sigma_vs_reaction,1.381819800e-03,1e-2,Ladung aus sigma = eps0 E_n gegen die FEM-Knotenreaktionen ohne den Kontaktknoten
+tangential_fraction_edge_far,2.962742042e-02,,|E_t|/|E| auf der Aequipotentialflaeche kantenfern; ein Diskretisierungsmass ohne feste Grenze - die Netzabhaengigkeit steht in gate_levels.csv
