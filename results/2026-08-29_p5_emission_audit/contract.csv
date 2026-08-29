@@ -1,0 +1,10 @@
+# Jeder Pfad, der eine Zahl liefern koennte, und was er stattdessen
+# meldet.  current_density ist ueberall null, weil kein Pfad rechnet --
+# nicht, weil eine Rechnung null ergaebe.
+case,polarity,enabled,equation_validated,E_n_V_per_m,status,current_density_A_per_m2
+ausgeliefert,positive,no,no,1.000000000e+09,Disabled,0.000000000e+00
+eingeschaltet,positive,yes,no,1.000000000e+09,MissingEmissionParameters,0.000000000e+00
+Gleichung_freigegeben_Barriere_fehlt,positive,yes,yes,1.000000000e+09,MissingEmissionParameters,0.000000000e+00
+ausgeliefert,negative,no,no,-1.000000000e+09,Disabled,0.000000000e+00
+eingeschaltet,negative,yes,no,-1.000000000e+09,MissingEmissionParameters,0.000000000e+00
+Gleichung_freigegeben_Barriere_fehlt,negative,yes,yes,-1.000000000e+09,MissingEmissionParameters,0.000000000e+00

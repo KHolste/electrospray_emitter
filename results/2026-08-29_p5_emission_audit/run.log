@@ -1,0 +1,33 @@
+P5 -- Emissionsvertrag.  Status: BLOCKED, Modell abgeschaltet.
+
+WARUM.  Ein Emissionsmodell darf nur aus einer vollstaendig geprueften
+Gleichung mit belegten Parametern rechnen.  Beides fehlt:
+  * Die Ratengleichung von Iribarne und Thomson wurde in diesem Lauf an
+    KEINER Primaerquelle gelesen -- Vorfaktor, genaue Definition der
+    Flaechenladungsdichte und Gueltigkeitsbereich sind unbelegt.  Eine
+    gelesene Sekundaerquelle nennt das Modell fuer KLEINE Ionen gut
+    gestuetzt und macht ausdruecklich einen Vorbehalt fuer groessere --
+    also genau fuer den Fall ionischer Fluessigkeiten.
+  * Fuer EMI-BF4 gibt es keine belegte Aktivierungsbarriere.  Der Wert
+    1,09 eV in src/fluid.cpp hat keine Quelle, und die genannte Spanne
+    1,0 bis 1,4 eV ist bei 298 K ein Faktor 1e7 im Strom.
+
+  Emissionsmodell (positive): Disabled
+    aktiviert NEIN, Gleichung geprueft NEIN, T = 0 K, 1 Spezies
+      EMI+       z = +1, m = 1.84602e-25 kg [belegt]
+                 dG FEHLT -- keine belegte Zahl
+                 Die Aktivierungsbarriere FEHLT.  Es gibt keine belegte Zahl fuer EMI-BF4, und j haengt exponentiell von ihr ab: die in der Literatur genannte Spanne 1,0 bis 1,4 eV ist bei 298 K ein Faktor 1e7 im Strom.
+    Das Emissionsmodell ist abgeschaltet.  Das ist der Auslieferungszustand und keine Panne: eine Emission darf erst rechnen, wenn Gleichung und Parameter belegt sind.
+  Emissionsmodell (negative): Disabled
+    aktiviert NEIN, Gleichung geprueft NEIN, T = 0 K, 1 Spezies
+      BF4-       z = -1, m = 1.44151e-25 kg [belegt]
+                 dG FEHLT -- keine belegte Zahl
+                 Die Aktivierungsbarriere FEHLT, und sie ist NICHT die des Kations: Masse, Solvatationsenergie und die Zusammensetzung der emittierten Cluster unterscheiden sich zwischen den Polaritaeten.
+    Das Emissionsmodell ist abgeschaltet.  Das ist der Auslieferungszustand und keine Panne: eine Emission darf erst rechnen, wenn Gleichung und Parameter belegt sind.
+  contract.csv geschrieben: kein Pfad liefert eine Zahl.
+  sensitivity.csv und barrier_leverage.csv geschrieben (dimensionslos bzw. als Verhaeltnis).
+
+  Hebelwirkung der Barriere: von 1,0 auf 1,4 eV aendert sich die Rate bei
+  festem Feld um den Faktor 5772973.239019.
+
+Kein Pfad hat eine Zahl geliefert -- der Vertrag haelt.

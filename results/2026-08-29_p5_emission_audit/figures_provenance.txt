@@ -1,0 +1,14 @@
+stamp=baaf6fd18335
+head_commit=baaf6fd183356d708aaa0add4f5439c2908fed6e
+data_commit=baaf6fd183356d708aaa0add4f5439c2908fed6e
+working_tree_dirty=no
+releasable=yes
+ignored_prefix=results/2026-08-29_p5_emission_audit
+ignored_file=results/2026-08-29_p5_emission_audit/README.md
+ignored_file=results/2026-08-29_p5_emission_audit/barrier_leverage.csv
+ignored_file=results/2026-08-29_p5_emission_audit/contract.csv
+ignored_file=results/2026-08-29_p5_emission_audit/fig1_blocker.png
+ignored_file=results/2026-08-29_p5_emission_audit/figures_provenance.txt
+ignored_file=results/2026-08-29_p5_emission_audit/meta.txt
+ignored_file=results/2026-08-29_p5_emission_audit/run.log
+ignored_file=results/2026-08-29_p5_emission_audit/sensitivity.csv

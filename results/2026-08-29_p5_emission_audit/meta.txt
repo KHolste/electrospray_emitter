@@ -1,0 +1,10 @@
+app=es_emission_audit (P5)
+phase=P5
+status=blocked
+commit=baaf6fd183356d708aaa0add4f5439c2908fed6e
+model_enabled=no
+equation_validated=no
+barrier_sourced=no
+mass_sourced=yes
+blocker=Ratengleichung nicht an einer Primaerquelle geprueft; keine belegte Aktivierungsbarriere fuer EMI-BF4
+exit_code=0

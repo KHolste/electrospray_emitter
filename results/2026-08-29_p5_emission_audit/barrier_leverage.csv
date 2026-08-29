@@ -1,0 +1,11 @@
+# Wie stark eine unbelegte Barriere durchschlaegt.  Bei FESTEM Feld
+# wird die Rate zweier Barrieren verglichen; die Zahlen sind
+# Verhaeltnisse und tragen deshalb keine unbelegte absolute Groesse.
+dG_eV,E_star_V_per_m,rate_ratio_to_1.09eV_at_1e9_V_per_m
+0.8000,4.444553867e+08,7.980216424e+04
+0.9000,5.625138488e+08,1.628038922e+03
+1.0000,6.944615418e+08,3.321351943e+01
+1.0900,8.250897578e+08,1.000000000e+00
+1.2000,1.000024620e+09,1.382340796e-02
+1.3000,1.173640006e+09,2.820104745e-04
+1.4000,1.361144622e+09,5.753277913e-06
