@@ -261,6 +261,11 @@ void AxisymProblem::check() const {
                              "false und lokalisiert Punkte selbst.");
   if (!cell_source.empty() && static_cast<Index>(cell_source.size()) != m.n_cells())
     throw std::runtime_error("AxisymProblem: cell_source hat nicht die Zellenzahl");
+  if (!node_source_density.empty() &&
+      static_cast<Index>(node_source_density.size()) != m.n_nodes())
+    throw std::runtime_error("AxisymProblem: node_source_density hat nicht die Knotenzahl");
+  if (!node_charge.empty() && static_cast<Index>(node_charge.size()) != m.n_nodes())
+    throw std::runtime_error("AxisymProblem: node_charge hat nicht die Knotenzahl");
   // The coefficient bound depends on what the coefficient MEANS.  A relative
   // permittivity below one is unphysical; a conductivity of 1.5 S/m or a
   // viscosity of 0.036 Pa s are perfectly ordinary.  So the strict bound is
@@ -337,8 +342,33 @@ AxisymSolution solve_axisym(const AxisymProblem& p, LinearSolver which,
         element_source(m, i, j, p.cell_source[static_cast<std::size_t>(c)], fe);
         for (int a = 0; a < 4; ++a) f[static_cast<std::size_t>(gi[a])] += fe[a];
       }
+      if (!p.node_source_density.empty()) {
+        // int rho N_a 2 pi r dA with rho bilinear inside the element.
+        const std::array<Index, 4> cn = m.cell_nodes(i, j);
+        const Real rho[4] = {p.node_source_density[static_cast<std::size_t>(cn[0])],
+                             p.node_source_density[static_cast<std::size_t>(cn[1])],
+                             p.node_source_density[static_cast<std::size_t>(cn[2])],
+                             p.node_source_density[static_cast<std::size_t>(cn[3])]};
+        for (int q = 0; q < 4; ++q) {
+          const GaussPoint g = gauss_point(m, i, j, kGaussXi[q], kGaussEta[q]);
+          const Real xi = kGaussXi[q], eta = kGaussEta[q];
+          const Real N[4] = {(1 - xi) * (1 - eta), xi * (1 - eta), xi * eta, (1 - xi) * eta};
+          Real r_here = 0.0;
+          for (int a = 0; a < 4; ++a) r_here += N[a] * rho[a];
+          const Real w = r_here * 2.0 * pi * g.r * g.detJ * kGaussW;
+          for (int a = 0; a < 4; ++a) f[static_cast<std::size_t>(gi[a])] += w * N[a];
+        }
+      }
     }
   }
+
+  // --- discrete nodal charges ----------------------------------------------
+  //
+  // sum_p q_p N_a(x_p) has already been accumulated per node by the caller;
+  // here it only has to reach the load vector.  No 2 pi r: see the header.
+  if (!p.node_charge.empty())
+    for (Index n = 0; n < N; ++n)
+      f[static_cast<std::size_t>(to_internal(n))] += p.node_charge[static_cast<std::size_t>(n)];
 
   // --- far-field Robin term -------------------------------------------------
   //

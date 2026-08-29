@@ -149,8 +149,28 @@ struct AxisymProblem {
   // numbers does, and each caller has to say which meaning it intends.
   Real coefficient_scale{8.8541878128e-12};   ///< eps0 by default
   /// Volumetric source per cell, constant within the cell.  Empty means zero,
-  /// which is what every electrostatic problem uses.
+  /// which is what every electrostatic problem uses.  Integrated as
+  /// int s N_a 2 pi r dA.
   std::vector<Real> cell_source;
+  /// Volumetric source at the NODES, bilinear inside the element.  Integrated
+  /// as int rho N_a 2 pi r dA on the same Gauss points.  Used by the space
+  /// charge problem, where rho is a field and not a cell constant; adds to
+  /// cell_source rather than replacing it.
+  std::vector<Real> node_source_density;
+  /// DISCRETE charge assigned to a node [C].  Added to the load vector
+  /// DIRECTLY, with no 2 pi r factor -- and that is not an omission.
+  ///
+  /// The weak form of div(eps grad phi) = -rho is
+  ///     int eps grad N_a . grad phi dV = int rho N_a dV ,
+  /// and for a set of point charges rho = sum_p q_p delta(x - x_p) the right
+  /// hand side is exactly sum_p q_p N_a(x_p).  The revolved volume element is
+  /// already inside the integral that produced the charge; applying 2 pi r a
+  /// second time would multiply every macroparticle by its own radius.
+  ///
+  /// Because sum_a N_a = 1 at every point, the deposition conserves charge
+  /// EXACTLY: the sum over the nodes of what was deposited is the sum of the
+  /// macroparticle charges, to round-off.  That is measured, not assumed.
+  std::vector<Real> node_charge;
 
   std::vector<char> fixed;        ///< per node: Dirichlet?
   std::vector<Real> fixed_value;  ///< per node: the value [V]
