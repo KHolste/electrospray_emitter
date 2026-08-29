@@ -1,0 +1,14 @@
+# Stoffdatensatz mit Status und Fundstelle.  Ein Wert ohne Herkunft ist
+# keine Eingabe, sondern eine Behauptung.
+key,value
+substance,EMI-BF4 (1-Ethyl-3-methylimidazolium-tetrafluoroborat)
+status,illustrative
+status_meaning,Beispielwert ohne Primaerquelle. Traegt ausschliesslich eine dimensionslose Demonstration.
+temperature_K,2.981500000e+02
+surface_tension_N_per_m,4.520000000e-02
+density_kg_per_m3,1.279000000e+03
+source,Stoffidentitaet belegt: KunzeFynn-2024-12-10.pdf  Abschnitt 2.3.2  gedruckte Seite 28 (PDF-Seite 36)  sowie Tabelle 'List of Publications'  gedruckte Seite 30 (PDF-Seite 38)  Publikationen I-IV.  Die ZAHLENWERTE stammen NICHT daraus: die Dissertation enthaelt keine Stoffwerttabelle und keinen numerischen Wert fuer Oberflaechenspannung oder Dichte.  gamma und rho sind unveraendert aus der quellenlosen Tabelle in src/fluid.cpp uebernommen.
+caveat,Nur fuer ein gekennzeichnetes Stoffbeispiel verwendbar.  Kein absoluter Druck  keine absolute Apexhoehe und keine Betriebsspannung darf auf diesen Datensatz gestuetzt werden.  Die Pruefung des Loesers laeuft unabhaengig davon dimensionslos.
+not_used_viscosity_Pa_s,3.710000000e-02
+not_used_conductivity_S_per_m,1.360000000e+00
+not_used_relative_permittivity,1.280000000e+01

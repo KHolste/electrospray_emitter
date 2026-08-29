@@ -1,0 +1,14 @@
+# Verhalten an und jenseits der Grenze des darstellbaren Bereichs.
+# Erwartet: |Pi| < 2 loesbar, |Pi| = 2 HemisphericalLimit, |Pi| > 2
+# PressureOutsideCapillaryRange -- ohne Ersatzform.
+Pi,delta_p_Pa,status,shape_returned,message
+1.900000000000e+00,1.717600000e+04,Solved,yes,
+1.999000000000e+00,1.807096000e+04,Solved,yes,
+1.999999999000e+00,1.807999999e+04,AccuracyNotReached,yes,Die automatische Verfeinerung hat ihre Obergrenze erreicht  ohne die geforderte Genauigkeit zu unterschreiten.  Erreicht wurde 0.000000 bei 131072 Intervallen; gefordert war 0.000000.
+2.000000000000e+00,1.808000000e+04,HemisphericalLimit,no,Der Druck liegt auf der hemisphaerischen Grenze |Pi| = 2. Die Halbkugel ist eine gueltige Loesung und geschlossen bekannt  aber die Schiessbedingung r(L) = a wird dort tangential (doppelte Nullstelle). Die numerische Form wird deshalb nicht als geloest ausgegeben.  Pi = 2.000000.
+2.000000001000e+00,1.808000001e+04,PressureOutsideCapillaryRange,no,Zu diesem Druck gibt es bei diesem Pinningradius keine glatte Oberflaeche: die Meridiankurve wird senkrecht  bevor sie den Kontaktradius erreicht (|Pi| > 2). Es wird keine Ersatzform und kein letzter Iterationsstand zurueckgegeben.  Pi = 2.000000.
+2.001000000000e+00,1.808904000e+04,PressureOutsideCapillaryRange,no,Zu diesem Druck gibt es bei diesem Pinningradius keine glatte Oberflaeche: die Meridiankurve wird senkrecht  bevor sie den Kontaktradius erreicht (|Pi| > 2). Es wird keine Ersatzform und kein letzter Iterationsstand zurueckgegeben.  Pi = 2.001000.
+2.050000000000e+00,1.853200000e+04,PressureOutsideCapillaryRange,no,Zu diesem Druck gibt es bei diesem Pinningradius keine glatte Oberflaeche: die Meridiankurve wird senkrecht  bevor sie den Kontaktradius erreicht (|Pi| > 2). Es wird keine Ersatzform und kein letzter Iterationsstand zurueckgegeben.  Pi = 2.050000.
+3.000000000000e+00,2.712000000e+04,PressureOutsideCapillaryRange,no,Zu diesem Druck gibt es bei diesem Pinningradius keine glatte Oberflaeche: die Meridiankurve wird senkrecht  bevor sie den Kontaktradius erreicht (|Pi| > 2). Es wird keine Ersatzform und kein letzter Iterationsstand zurueckgegeben.  Pi = 3.000000.
+-2.050000000000e+00,-1.853200000e+04,PressureOutsideCapillaryRange,no,Zu diesem Druck gibt es bei diesem Pinningradius keine glatte Oberflaeche: die Meridiankurve wird senkrecht  bevor sie den Kontaktradius erreicht (|Pi| > 2). Es wird keine Ersatzform und kein letzter Iterationsstand zurueckgegeben.  Pi = -2.050000.
+-3.000000000000e+00,-2.712000000e+04,PressureOutsideCapillaryRange,no,Zu diesem Druck gibt es bei diesem Pinningradius keine glatte Oberflaeche: die Meridiankurve wird senkrecht  bevor sie den Kontaktradius erreicht (|Pi| > 2). Es wird keine Ersatzform und kein letzter Iterationsstand zurueckgegeben.  Pi = -3.000000.

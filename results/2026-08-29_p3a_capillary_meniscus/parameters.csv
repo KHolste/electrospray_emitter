@@ -1,0 +1,17 @@
+# self-describing parameter set, SI units
+name,value_SI,unit,role
+phi_3,4.000000000e-05,m,outer diameter at the emitter foot
+phi_1,2.000000000e-05,m,outer diameter of the tip land
+phi_2,1.000000000e-05,m,diameter of the exit bore
+emitter_height,6.000000000e-05,m,axial length of the outer taper
+extraction_distance,5.000000000e-04,m,tip plane to extractor face
+extractor_aperture_diameter,4.000000000e-04,m,
+extractor_thickness,1.000000000e-04,m,
+extractor_outer_radius,2.000000000e-03,m,mandatory; strictly inside domain_radius
+emitter_back_length,0.000000000e+00,m,NUMERICAL rearward continuation of the emitter conductor; 0 = none. Not a physical emitter length
+domain_radius,3.000000000e-03,m,open computational domain
+domain_z_min,-4.000000000e-04,m,open computational domain
+domain_z_max,1.500000000e-03,m,open computational domain
+cone_half_angle,1.651486774e-01,rad,derived
+land_width,5.000000000e-06,m,derived
+contact_radius,5.000000000e-06,m,derived

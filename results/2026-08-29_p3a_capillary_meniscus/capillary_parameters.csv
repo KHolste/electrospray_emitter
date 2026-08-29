@@ -1,0 +1,10 @@
+# Groessen des Kapillarproblems, SI.
+name,value_SI,unit,role
+contact_radius,5.000000000e-06,m,gepinnter Kontaktradius a = phi_2/2
+contact_z,0.000000000e+00,m,Lage der gepinnten Kontaktlinie
+surface_tension,4.520000000e-02,N/m,gamma
+capillary_pressure_scale,9.040000000e+03,Pa,gamma/a
+delta_p_max,1.808000000e+04,Pa,hemisphaerische Grenze 2 gamma/a
+bond_number,6.937337030e-06,-,rho g a^2 / gamma (Schwerkraft NICHT gekoppelt)
+hydrostatic_over_capillary,6.937337030e-06,-,rho g a / (gamma/a) = Bond-Zahl
+requested_accuracy,1.000000000e-11,-,geforderte relative Profilgenauigkeit

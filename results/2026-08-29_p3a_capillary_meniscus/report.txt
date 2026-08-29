@@ -1,0 +1,98 @@
+P3a -- statischer Kapillarmeniskus ohne elektrisches Feld
+=========================================================
+
+WAS GERECHNET WURDE
+  gamma (dpsi/ds + sin psi / r) = delta_p_exit, achsensymmetrisch, in
+  Bogenlaengenparametrisierung (r(s), z(s), psi(s)) vom Apex zur Kante.
+  delta_p_exit = p_fluessig - p_vakuum an der Austrittsebene z = 0.
+  Positives delta_p woelbt die Oberflaeche nach +z (zum Extraktor),
+  negatives zieht sie in die Bohrung; delta_p = 0 ergibt exakt eben.
+  Der Grenzwert sin(psi)/r -> dpsi/ds auf der Achse ist analytisch
+  eingesetzt (dpsi/ds|Apex = kappa/2); es wird nirgends durch r = 0
+  geteilt.
+
+GEOMETRIE UND RANDBEDINGUNGEN
+  Pinningradius a = phi_2/2 = 5e-06 m, direkt aus DeviceParameters.
+  Kontaktlinie gepinnt bei (r, z) = (5e-06, 0) m.
+  Kein Kontaktwinkel: an einer gepinnten Kante waere er eine zweite,
+  widerspruechliche Festlegung.  Beides gleichzeitig wird abgelehnt.
+  Symmetrie bei r = 0: psi(0) = 0.
+
+STOFFDATEN
+  Stoff  : EMI-BF4 (1-Ethyl-3-methylimidazolium-tetrafluoroborat)
+  Status : illustrative -- Beispielwert ohne Primaerquelle. Traegt ausschliesslich eine dimensionslose Demonstration.
+  T = 298.1 K, gamma = 0.0452 N/m, rho = 1279 kg/m^3
+  Fundstelle: Stoffidentitaet belegt: KunzeFynn-2024-12-10.pdf, Abschnitt 2.3.2, gedruckte Seite 28 (PDF-Seite 36), sowie Tabelle 'List of Publications', gedruckte Seite 30 (PDF-Seite 38), Publikationen I-IV.  Die ZAHLENWERTE stammen NICHT daraus: die Dissertation enthaelt keine Stoffwerttabelle und keinen numerischen Wert fuer Oberflaechenspannung oder Dichte.  gamma und rho sind unveraendert aus der quellenlosen Tabelle in src/fluid.cpp uebernommen.
+  Vorbehalt : Nur fuer ein gekennzeichnetes Stoffbeispiel verwendbar.  Kein absoluter Druck, keine absolute Apexhoehe und keine Betriebsspannung darf auf diesen Datensatz gestuetzt werden.  Die Pruefung des Loesers laeuft unabhaengig davon dimensionslos.
+  mu, K und eps_r sind vorgemerkt und gehen in P3a NICHT ein.
+
+SCHWERKRAFT
+  Bond-Zahl Bo = rho g a^2 / gamma = 6.9373e-06 fuer a = 5e-06 m.
+  Der hydrostatische Druck ueber eine Bohrungsradiushoehe betraegt damit
+  6.9373e-06 der Kapillardruckskala gamma/a = 9040 Pa, also 0.0627 Pa.
+  Ueber die groesste hier gerechnete Apexhoehe |h| = 4.338e-06 m ist der
+  hydrostatische Druck rho g |h| = 0.0544 Pa, also 6.02e-06 der Kapillar-
+  druckskala.  Die Vernachlaessigung ist damit fuer diese Geometrie
+  quantitativ gerechtfertigt -- fuer eine millimetergrosse Geometrie
+  waere sie es NICHT (Bo skaliert mit a^2).
+  Nicht behauptet wird damit der kapillare Aufstieg vom Vorrat bis zur
+  Kante: der gefuellte Zulauf ist eine VORAUSSETZUNG dieses Laufs.
+
+GUELTIGER DRUCKBEREICH
+  |Pi| = |delta_p| a / gamma <= 2, also |delta_p| <= 2 gamma/a = 18080 Pa.
+  Pi = 2 ist die Halbkugel (psi = 90 Grad an der Kante).  Darueber gibt es
+  keine glatte, an a gepinnte Flaeche: der Kugelradius 2 gamma/delta_p
+  waere kleiner als a.  Der Loeser stellt das an der integrierten Form
+  fest -- die Meridiankurve wird senkrecht, bevor sie a erreicht -- und
+  meldet PressureOutsideCapillaryRange.  Im Sweep wurden 22 von 421
+  Punkten so abgelehnt; der groesste geloeste |Pi| war 1.990.
+
+NUMERIK GEGEN GESCHLOSSENE LOESUNG
+  Kennung         Pi      h/a     Profil/a       |dz|/a         dA/A         dV/V   Residuum
+  pi-1.98     -1.980 -0.86761    5.675e-14    5.675e-14    2.892e-14    4.859e-14   2.07e-08
+  pi-1.50     -1.500 -0.45142    8.030e-14    8.038e-14    2.515e-14    8.829e-14   2.16e-08
+  pi-1.00     -1.000 -0.26795    2.212e-13    2.213e-13    4.499e-14    3.675e-13   2.18e-08
+  pi-0.50     -0.500 -0.12702    3.347e-13    3.345e-13    3.514e-14    1.265e-12   1.02e-08
+  pi+0.00      0.000  0.00000    0.000e+00    0.000e+00    2.633e-15    0.000e+00   0.00e+00
+  pi+0.50      0.500  0.12702    3.347e-13    3.345e-13    3.514e-14    1.265e-12   1.02e-08
+  pi+1.00      1.000  0.26795    2.212e-13    2.213e-13    4.499e-14    3.675e-13   2.18e-08
+  pi+1.50      1.500  0.45142    8.030e-14    8.038e-14    2.515e-14    8.829e-14   2.16e-08
+  pi+1.98      1.980  0.86761    5.675e-14    5.675e-14    2.892e-14    4.859e-14   2.07e-08
+  Das Residuum wird ALLEIN aus den Knotenkoordinaten gebildet und teilt
+  keinen Code mit dem Integrator.
+
+KONSTANTE MITTLERE KRUEMMUNG
+  Pi = -1.980: kappa gemessen in [-3.960000e+05, -3.960000e+05] 1/m, analytisch -3.960000e+05 1/m, Spannweite/kappa = 3.57e-09
+  Pi = -1.500: kappa gemessen in [-3.000000e+05, -3.000000e+05] 1/m, analytisch -3.000000e+05 1/m, Spannweite/kappa = 4.89e-09
+  Pi = -1.000: kappa gemessen in [-2.000000e+05, -2.000000e+05] 1/m, analytisch -2.000000e+05 1/m, Spannweite/kappa = 7.28e-09
+  Pi = -0.500: kappa gemessen in [-1.000000e+05, -1.000000e+05] 1/m, analytisch -1.000000e+05 1/m, Spannweite/kappa = 6.77e-09
+  Pi = +0.000: kappa gemessen in [0.000000e+00, 0.000000e+00] 1/m, analytisch 0.000000e+00 1/m, Spannweite/kappa = 0.00e+00
+  Pi = +0.500: kappa gemessen in [1.000000e+05, 1.000000e+05] 1/m, analytisch 1.000000e+05 1/m, Spannweite/kappa = 6.77e-09
+  Pi = +1.000: kappa gemessen in [2.000000e+05, 2.000000e+05] 1/m, analytisch 2.000000e+05 1/m, Spannweite/kappa = 7.28e-09
+  Pi = +1.500: kappa gemessen in [3.000000e+05, 3.000000e+05] 1/m, analytisch 3.000000e+05 1/m, Spannweite/kappa = 4.89e-09
+  Pi = +1.980: kappa gemessen in [3.960000e+05, 3.960000e+05] 1/m, analytisch 3.960000e+05 1/m, Spannweite/kappa = 3.57e-09
+
+DISKRETISIERUNG
+  Es gibt keine Netzeingabe.  Eingabe ist die geforderte relative
+  Profilgenauigkeit (1.0e-11); die Intervallzahl wird durch Verdopplung
+  bestimmt, bis die Aenderung zur halben Aufloesung darunter liegt.
+    Pi = -1.980 ->  2048 Intervalle, Schaetzfehler 4.17e-12
+    Pi = -1.500 ->  1024 Intervalle, Schaetzfehler 1.37e-12
+    Pi = -1.000 ->   512 Intervalle, Schaetzfehler 3.00e-12
+    Pi = -0.500 ->   256 Intervalle, Schaetzfehler 4.44e-12
+    Pi = +0.000 ->   128 Intervalle, Schaetzfehler 2.07e-15
+    Pi = +0.500 ->   256 Intervalle, Schaetzfehler 4.44e-12
+    Pi = +1.000 ->   512 Intervalle, Schaetzfehler 3.00e-12
+    Pi = +1.500 ->  1024 Intervalle, Schaetzfehler 1.37e-12
+    Pi = +1.980 ->  2048 Intervalle, Schaetzfehler 4.17e-12
+
+WAS AUSDRUECKLICH FEHLT
+  Kein elektrisches Feld, kein Maxwell-Druck, keine Kopplung an den
+  FEM-Elektrostatiksolver, keine Betriebsspannung.  Keine Emission,
+  keine Raumladung.  Keine Stroemung, kein viskoser Druckabfall, keine
+  Speiseimpedanz.  Keine Zeitabhaengigkeit und keine Stabilitaetsaussage:
+  dass eine Loesung hier existiert, sagt nichts darueber, ob sie stabil
+  ist.  Kein Taylor-Kegel, kein Cone-Jet -- die Formen hier sind
+  Kugelkappen.  Keine Schwerkraft (siehe Bond-Zahl oben).  Die
+  P2c-Vorratsgeometrie ist unveraendert und wird nicht volumetrisch
+  geloest.
