@@ -1,0 +1,29 @@
+P2 -- Stoffdatenaudit fuer EMI-BF4
+
+Stoffdatensatz EMI-BF4 (1-Ethyl-3-methylimidazolium-tetrafluoroborat) (CAS 143314-16-3), M = 0.19797 kg/mol
+  Stoffidentitaet: Stoffidentitaet des Geraets: KunzeFynn-2024-12-10.pdf, Abschnitt 2.3.2, gedruckte Seite 28 (PDF-Seite 36), und Tabelle 'List of Publications', gedruckte Seite 30 (PDF-Seite 38), Publikationen I-IV.  Molmasse und CAS aus dem IoLiTec-Datenblatt IL-0006 sowie aus den ILThermo-Komponentendaten.
+  surface_tension          14 Quellen, gewaehlt: 0.0540097 N/m bei 298,15 K
+      Souckova, M.; Klomfar, J.; Patek, J. (2011) Fluid Phase Equilib. 303(2), 184-190.
+      Methode du Nouy ring method | Reinheit 99.8 mass % | Wasser 0.0164 water mass %
+      Literaturstreuung bei 298,15 K: 19.1 % ueber 11 Quellen
+  density                  80 Quellen, gewaehlt: 1280.9 kg/m^3 bei 298,15 K
+      Miranda, Carlos F.P.; Santos, Luis M.N.B.F. (2025) Fluid Phase Equilib. 597, 114458.
+      Methode Vibrating tube method | Reinheit 99 mass % | Wasser 0.0100 water mass %(dried by vacuum heating)
+      Literaturstreuung bei 298,15 K: 1.0 % ueber 60 Quellen
+  dynamic_viscosity        32 Quellen, gewaehlt: 0.03637 Pa s bei 298,15 K
+      Miranda, Carlos F.P.; Santos, Luis M.N.B.F. (2025) Fluid Phase Equilib. 597, 114458.
+      Methode Concentric cylinders viscometry | Reinheit 99 mass % | Wasser 0.0100 water mass %(dried by vacuum heating)
+      Literaturstreuung bei 298,15 K: 54.4 % ueber 22 Quellen
+  kinematic_viscosity       3 Quellen, KEINE ausgewaehlt -> MissingMaterialData
+  electrical_conductivity  24 Quellen, gewaehlt: 1.55836 S/m bei 298,15 K
+      Vila, J.; Fernandez-Castro, B.; Rilo, E.; Carrete, J.; Dominguez-Perez, M.; Rodriguez, J. R.; Garcia, M.; Varela, L. M.; Cabeza, O. (2012) Fluid Phase Equilib. 320, 1-10.
+      Methode Alternating current cell with electrodes | Reinheit 98 mass % | Wasser 0.1 water mass %
+      Literaturstreuung bei 298,15 K: 46.2 % ueber 21 Quellen
+  relative_permittivity     4 Quellen, KEINE ausgewaehlt -> MissingMaterialData
+  sources.csv geschrieben
+  points.csv geschrieben
+  summary.csv geschrieben
+
+  gamma illustrativ 0.045200 N/m, belegt 0.054010 N/m: Faktor 1.194905 auf jede Druckskala und 1.093117 auf jede Spannung.
+  Belegtes Band bei 298.150000 K: 0.044300 .. 0.054600 N/m ueber 11 Quellen; Streuung 19.070648 %.
+  impact.csv geschrieben

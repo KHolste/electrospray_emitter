@@ -1,0 +1,9 @@
+# Was der belegte gamma-Wert an den P3a/P3b-Zahlen aendert.  gamma geht
+# LINEAR in die Gleichgewichtsgleichung ein, die Spannung skaliert mit
+# sqrt(gamma).  Das sind Skalierungen der vorhandenen Rechnung, keine
+# neuen Rechnungen.
+quantity,scaling,illustrative,selected,band_lo,band_hi,factor_selected,factor_lo,factor_hi
+pressure_scale_gamma_over_a,linear in gamma,4.520000000e-02,5.400970060e-02,4.430000000e-02,5.460000000e-02,1.194904881e+00,9.800884956e-01,1.207964602e+00
+delta_p_exit_for_fixed_Pi,linear in gamma,4.520000000e-02,5.400970060e-02,4.430000000e-02,5.460000000e-02,1.194904881e+00,9.800884956e-01,1.207964602e+00
+voltage_for_fixed_shape,sqrt(gamma),4.520000000e-02,5.400970060e-02,4.430000000e-02,5.460000000e-02,1.093117048e+00,9.899941897e-01,1.099074430e+00
+maxwell_force_for_fixed_shape,linear in gamma,4.520000000e-02,5.400970060e-02,4.430000000e-02,5.460000000e-02,1.194904881e+00,9.800884956e-01,1.207964602e+00
