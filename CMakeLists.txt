@@ -41,6 +41,7 @@ add_library(es_core STATIC
   src/linalg.cpp
   src/fluid.cpp
   src/geometry.cpp
+  src/device_geometry.cpp
   src/bem.cpp
   src/emission.cpp
   src/meniscus.cpp
@@ -65,9 +66,13 @@ endforeach()
 add_executable(branch_figure tools/branch_figure.cpp)
 target_link_libraries(branch_figure PRIVATE es_core)
 
+add_executable(device_figure tools/device_figure.cpp)
+target_link_libraries(device_figure PRIVATE es_core)
+
 # ----------------------------------------------------------------------- tests
 enable_testing()
-foreach(t test_elliptic test_bem test_meniscus test_emission test_beam test_config test_regressions)
+foreach(t test_elliptic test_bem test_meniscus test_emission test_beam test_config
+           test_regressions test_device_geometry)
   add_executable(${t} tests/${t}.cpp)
   target_link_libraries(${t} PRIVATE es_core)
   add_test(NAME ${t} COMMAND ${t})

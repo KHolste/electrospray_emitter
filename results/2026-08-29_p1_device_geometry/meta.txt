@@ -1,0 +1,55 @@
+parametrische P1-Geometrie
+==========================
+
+Erzeugt aus examples/device_p1.cfg durch tools/device_figure.cpp.
+Achsensymmetrisch in der Meridianhalbebene (r, z), SI-Einheiten.
+z = 0 ist die Stirnebene des Emitters, z waechst zum Extraktor.
+
+In dieser Phase wird KEINE Physik geloest: die Randkennungen sind
+Bezeichner, keine Randbedingungen. Die Flaeche 'free_surface_reference'
+ist die ebene Referenzflaeche am Bohrungsaustritt, nicht ein gerechneter
+Meniskus.
+
+parametrische P1-Geometrie (achsensymmetrisch, r-z, SI)
+  phi_3 (Fuss)              :      4e-05 m
+  phi_1 (Stirnflaeche)      :      2e-05 m
+  phi_2 (Bohrung)           :      1e-05 m
+  emitter_height            :      6e-05 m
+  extraction_distance       :     0.0005 m
+  extractor_aperture_diam.  :     0.0004 m
+  extractor_thickness       :     0.0001 m
+  Domaene r x z             :      0.003 m x [-0.0004, 0.0015] m
+  abgeleitet: Kegelhalbwinkel 9.462 deg, Stirnflaechenbreite 5e-06 m,
+              Kontaktradius 5e-06 m
+
+Gebiete (Rotationsvolumen)
+  emitter_solid    meridian_area =     5.7e-09 m^2   revolved_volume =  4.3982e-13 m^3
+  liquid           meridian_area =       2e-09 m^2   revolved_volume =  3.1416e-14 m^3
+  extractor_solid  meridian_area =     2.8e-07 m^2   revolved_volume =  2.8149e-09 m^3
+  vacuum           meridian_area =  5.4123e-06 m^2   revolved_volume =  5.0906e-08 m^3
+  Summe                                                  5.3721e-08 m^3
+  Domaene                                                5.3721e-08 m^3   (Abweichung 0)
+
+Raender (Rotationsflaechen)
+  symmetry_axis.liquid               symmetry_axis          meridian_length =     0.0004 m  revolved_area =          0 m^2
+  symmetry_axis.vacuum               symmetry_axis          meridian_length =     0.0015 m  revolved_area =          0 m^2
+  free_surface_reference             free_surface_reference meridian_length =      5e-06 m  revolved_area =  7.854e-11 m^2
+  bore_wall                          bore_wall              meridian_length =     0.0004 m  revolved_area =  1.257e-08 m^2
+  liquid_inlet                       liquid_inlet           meridian_length =      5e-06 m  revolved_area =  7.854e-11 m^2
+  emitter_tip_land                   emitter_tip_land       meridian_length =      5e-06 m  revolved_area =  2.356e-10 m^2
+  emitter_outer_surface              emitter_outer_surface  meridian_length =  0.0004008 m  revolved_area =  4.846e-08 m^2
+  extractor_surface.aperture         extractor_surface      meridian_length =     0.0001 m  revolved_area =  1.257e-07 m^2
+  extractor_surface.front            extractor_surface      meridian_length =     0.0028 m  revolved_area =  2.815e-05 m^2
+  extractor_surface.back             extractor_surface      meridian_length =     0.0028 m  revolved_area =  2.815e-05 m^2
+  open_boundary.z_min.emitter        open_boundary          meridian_length =    1.5e-05 m  revolved_area =  1.178e-09 m^2
+  open_boundary.z_min.vacuum         open_boundary          meridian_length =    0.00298 m  revolved_area =  2.827e-05 m^2
+  open_boundary.r_max.lower          open_boundary          meridian_length =     0.0009 m  revolved_area =  1.696e-05 m^2
+  open_boundary.r_max.extractor      open_boundary          meridian_length =     0.0001 m  revolved_area =  1.885e-06 m^2
+  open_boundary.r_max.upper          open_boundary          meridian_length =     0.0009 m  revolved_area =  1.696e-05 m^2
+  open_boundary.z_max                open_boundary          meridian_length =      0.003 m  revolved_area =  2.827e-05 m^2
+
+Merkmale (Kreise)
+  pinned_contact_edge            r =      5e-06 m, z =          0 m
+  emitter_outer_edge             r =      1e-05 m, z =          0 m
+  extractor_aperture_edge_front  r =     0.0002 m, z =     0.0005 m
+  extractor_aperture_edge_back   r =     0.0002 m, z =     0.0006 m

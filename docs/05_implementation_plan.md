@@ -10,6 +10,51 @@ Priorisierung, nicht der Terminplanung.
 
 ---
 
+## Verbindliche Reihenfolge der Meniskus- und Emissionsstufen
+
+Diese drei Stufen bauen aufeinander auf und dürfen nicht vermischt werden. Jede
+setzt die vorhergehende voraus; keine darf übersprungen werden, um schneller zu
+einem Ergebnis zu kommen.
+
+### Stufe I — quasistationärer emittierender Meniskus  (P5)
+
+Gekoppeltes stationäres Problem: Strömung, Ladungstransport, alle
+Sprungbedingungen einschließlich der tangentialen Maxwell-Spannung,
+Ionenverdampfung, hydraulische Speisung. Ergebnis ist ein Betriebspunkt, kein
+Zeitverlauf. Erst hiermit hat der Begriff „Emissionsstrom" eine Grundlage.
+
+### Stufe II — lineare Stabilitätsanalyse  (nach P5)
+
+Linearisierung um eine Stufe-I-Lösung, Eigenmoden und Wachstumsraten.
+Liefert erstmals eine Aussage über **dynamische** Stabilität, getrennt nach
+Störungsmoden. Erst danach darf im Code oder in einer Ausgabe von „stabil",
+„instabil" oder „Onset" die Rede sein.
+
+### Stufe III — zeitabhängige Freiflächenrechnung  (nach Stufe II)
+
+Verfolgung der freien Oberfläche in der Zeit: Kegelbildung, Übergang in den
+Cone-Jet, gegebenenfalls Tropfenablösung. Erst hier werden Vorgänge erfasst, die
+kein stationäres Modell enthalten kann.
+
+### Abgrenzung zum vorhandenen statischen Umkehrpunkt
+
+Der heute berechnete **statische Umkehrpunkt** (`find_static_fold`) gehört zu
+**keiner** dieser drei Stufen. Er ist das diskrete Maximum eines statischen,
+nicht emittierenden Lösungsastes bei perfekter Leitfähigkeit und ohne Strömung.
+
+Er ist:
+
+* **kein** Ergebnis von Stufe I — dort fließt Strom und die Oberfläche ist keine
+  Äquipotentialfläche mehr,
+* **kein** Nachweis dynamischer Stabilität — das ist Stufe II,
+* **kein** Emissionsbeginn und **kein** Cone-Jet-Übergang — Letzteres ist
+  Stufe III.
+
+Er bleibt als eigenständige, so benannte Größe erhalten und wird nicht in eine
+der drei Stufen umgedeutet.
+
+---
+
 ## P0 — Absichern, bevor irgendetwas gebaut wird
 
 **Aufwand: 3–5 d**
@@ -56,24 +101,51 @@ nicht als wiederholbarer Skript-/CI-Schritt eingerichtet.
 
 **Aufwand: 8–12 d. Die Geometriefestlegungen liegen vor (siehe [README.md](README.md)).**
 
-1. Parametrisches Modell nach [04_geometry_model.md](04_geometry_model.md),
-   einschließlich der Zwangsprüfungen aus 4.3.
-2. Randvernetzung mit krümmungs- und merkmalsgesteuerter Größenfunktion,
-   beschränkte Wachstumsrate.
-3. Volumenvernetzung des Gebiets (für P4), zunächst strukturiert; unstrukturiert
-   nur, falls die Geometrie es erzwingt.
-4. A-posteriori-Verfeinerung mit den Indikatoren aus 4.4, Abbruch über
-   Zielgrößen.
-5. **Bindend:** kein Netz-, Elementgrößen- oder Verfeinerungsparameter in der
-   Benutzerschnittstelle. Der Benutzer gibt Geometrie und eine Genauigkeits-
-   vorgabe vor, sonst nichts. Die Schlüssel `h_tip` und `h_far` des Prototyps
-   entfallen ersatzlos.
+### P1a — parametrische Gerätegeometrie  *(erledigt)*
 
-**Gate P1.** Netzunabhängigkeit von Kapazität und Spitzenfeld über drei
+1. Parametrisches achsensymmetrisches r-z-Modell in `include/es/device_geometry.hpp`:
+   ∅₁, ∅₂, ∅₃, `emitter_height`, `extraction_distance`,
+   `extractor_aperture_diameter`, `extractor_thickness`, offene Domäne.
+   SI-Einheiten intern.
+2. Validierung der Eingaben, einschließlich 0 < ∅₂ < ∅₁ ≤ ∅₃, positiver Längen
+   und Kollisionsfreiheit.
+3. Achsensymmetrischer Vertrag: Meridianlänge, Meridianfläche, Rotationsfläche
+   und Rotationsvolumen sind getrennte, unterschiedlich benannte Größen; die
+   beiden letzten tragen den Faktor 2πr. Analytisch geprüft gegen Zylinder,
+   Kegelstumpf und Kegel; die Gebietsvolumina addieren sich exakt zum
+   Domänenvolumen.
+4. Benannte Gebiete (Vakuum, Flüssigkeit, Emitter, Extraktor), benannte
+   Randkurven (Symmetrieachse, Emitteraußenfläche, Stirnfläche, Bohrungswand,
+   Referenzfläche am Austritt, Flüssigkeitseinlass, Extraktorfläche, offene
+   Ränder) und benannte nulldimensionale Merkmale (gepinnte Austrittskante,
+   äußere Stirnkante, Aperturkanten). **Keine Randbedingungen** — Bezeichner.
+5. Reservierte Parameter (Kantenradius, Kontaktwinkel, verjüngte Bohrung,
+   poröser Emitter, Kollektor) sind strukturell vorgesehen und schlagen
+   geschlossen fehl, wenn sie benutzt werden.
+
+### P1b — automatische Vernetzung  *(blockiert)*
+
+Die Strategie steht in [04_geometry_model.md](04_geometry_model.md) 4.4, das
+**Verfahren** nicht. Siehe [07_mesher_decision.md](07_mesher_decision.md): drei
+zu treffende Entscheidungen (Eigenbau oder Bibliothek; strukturiert oder
+unstrukturiert; Rand- jetzt und Volumenvernetzung erst zu P4). Bis dahin wurde
+bewusst kein provisorischer Vernetzer eingebaut.
+
+**Bindend, sobald gebaut wird:** kein Netz-, Elementgrößen- oder
+Verfeinerungsparameter in der Benutzerschnittstelle. Der Benutzer gibt Geometrie
+und eine Genauigkeitsvorgabe vor, sonst nichts. Die Schlüssel `h_tip` und
+`h_far` des Prototyps entfallen ersatzlos.
+
+**Gate P1a — bestanden.** Rotationsmaße analytisch gegen Zylinder, Kegelstumpf
+und Kegel geprüft; Gebietsvolumina addieren sich zum Domänenvolumen; alle
+Randkennungen vorhanden und eindeutig benannt; Validierung und Fail-Closed der
+reservierten Parameter getestet.
+
+**Gate P1b — offen.** Netzunabhängigkeit von Kapazität und Spitzenfeld über drei
 Verfeinerungsstufen; die Verifikationsgeometrien Kugel und Rotationsellipsoid
 werden vom neuen Vernetzer automatisch mit derselben Genauigkeit aufgelöst wie
-bisher mit manueller Größenvorgabe; **die Referenzgeometrie der Skizze läuft
-ohne jede Netzangabe durch**.
+bisher mit manueller Größenvorgabe; **die Referenzgeometrie läuft ohne jede
+Netzangabe durch**.
 
 ---
 
