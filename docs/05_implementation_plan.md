@@ -17,11 +17,17 @@ Priorisierung, nicht der Terminplanung.
 1. Alle elf Befunde aus [01_gap_analysis.md](01_gap_analysis.md) als
    **fehlschlagende Tests** festschreiben, bevor sie repariert werden. Diese
    Tests bleiben dauerhaft im Bestand.
-2. Den OpenMP/AVX2-Absturz auflösen: Bau unter WSL2/Ubuntu mit
-   `-fsanitize=address,undefined`, dieselbe Testfolge. Ergebnis ist entweder ein
-   konkreter Speicherfehler im Projektcode (dann beheben) oder ein minimaler
-   Reproduktionsfall gegen GCC (dann melden). Bis dahin gilt der Punkt als
-   **offen**, nicht als erledigt.
+2. **Erledigt.** Der Absturz mit `-march=native` ist aufgeklärt: AVX-Codegen
+   emittiert alignment-pflichtige 256-Bit-Stackzugriffe in einem Frame, den GCC
+   nicht auf 32 Byte nachrichtet; die Win64-ABI garantiert nur 16 Byte. Nachweis
+   über Minimalfall, Faktorexperiment und Disassemblat in
+   [01_gap_analysis.md](01_gap_analysis.md) Abschnitt 1.2. ASan und UBSan unter
+   WSL2/Ubuntu melden für alle sechs Tests **und** alle vier Anwendungen keinen
+   Befund. Verbleibend: ein Reproduktionsfall ohne Projektabhängigkeit für einen
+   GCC-Bugreport (niedrige Priorität, blockiert nichts).
+2b. Den Sanitizer-Lauf unter WSL2 als wiederholbaren Schritt einrichten
+   (Skript oder CI-Job), damit er bei jeder Phase erneut läuft und nicht einmalig
+   bleibt.
 3. Ausgabepräfixe je Anwendung eindeutig machen; jede Ausgabedatei bekommt einen
    Kopf mit Programmversion, Commit-Hash, vollständigem Parametersatz und dem
    Zustand, zu dem sie gehört.
@@ -29,15 +35,16 @@ Priorisierung, nicht der Terminplanung.
    umstellen. Insbesondere die Verifikationstabelle: was dort steht, gilt für
    die Elektrostatik und die Bahnintegration, nicht für die Emitterphysik.
 
-**Gate P0.** Sanitizer-Lauf ohne Befund oder dokumentierter Reproduktionsfall;
-alle elf Befunde durch fehlschlagende Tests abgedeckt; Ausgabedateien
-selbstbeschreibend.
+**Gate P0.** Sanitizer-Lauf ohne Befund **(erreicht)**; alle elf Befunde durch
+fehlschlagende Tests abgedeckt **(offen)**; Ausgabedateien selbstbeschreibend
+und je Anwendung eindeutig benannt **(offen)**; Haupt-README auf die
+Sprachregelung umgestellt **(erreicht)**.
 
 ---
 
 ## P1 — Geometrie und automatische Vernetzung
 
-**Aufwand: 8–12 d. Voraussetzung: offene Fragen 1–5 beantwortet.**
+**Aufwand: 8–12 d. Die Geometriefestlegungen liegen vor (siehe [README.md](README.md)).**
 
 1. Parametrisches Modell nach [04_geometry_model.md](04_geometry_model.md),
    einschließlich der Zwangsprüfungen aus 4.3.
@@ -47,11 +54,16 @@ selbstbeschreibend.
    nur, falls die Geometrie es erzwingt.
 4. A-posteriori-Verfeinerung mit den Indikatoren aus 4.4, Abbruch über
    Zielgrößen.
+5. **Bindend:** kein Netz-, Elementgrößen- oder Verfeinerungsparameter in der
+   Benutzerschnittstelle. Der Benutzer gibt Geometrie und eine Genauigkeits-
+   vorgabe vor, sonst nichts. Die Schlüssel `h_tip` und `h_far` des Prototyps
+   entfallen ersatzlos.
 
 **Gate P1.** Netzunabhängigkeit von Kapazität und Spitzenfeld über drei
 Verfeinerungsstufen; die Verifikationsgeometrien Kugel und Rotationsellipsoid
 werden vom neuen Vernetzer automatisch mit derselben Genauigkeit aufgelöst wie
-bisher mit manueller Größenvorgabe.
+bisher mit manueller Größenvorgabe; **die Referenzgeometrie der Skizze läuft
+ohne jede Netzangabe durch**.
 
 ---
 
@@ -175,7 +187,8 @@ eigene Rechnung bestätigt oder begründet widerlegt.
 **Aufwand: laufend**
 
 Vergleich mit publizierten I–U-Kennlinien, TOF-Spektren und Strahlprofilen; wenn
-vorhanden, mit eigenen Messdaten (offene Frage 7). Erst nach dieser Phase ist
+vorhanden, mit eigenen Messdaten (zunächst nicht verfügbar; Datenimport ist
+strukturell vorzusehen). Erst nach dieser Phase ist
 die Bezeichnung „validiert" für die Emitterphysik zulässig.
 
 ---

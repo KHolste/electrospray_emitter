@@ -30,47 +30,69 @@ Um genau die Vermischung zu vermeiden, die zur Neuausrichtung geführt hat:
 | **offen** | Nicht geprüft, oder Prüfung nicht abgeschlossen. |
 
 Ein interner Konsistenztest und die Reproduktion einer einprogrammierten
-Skalierung sind ausdrücklich **keine** Validierung. Wo im bisherigen Haupt-README
-„verifiziert" steht, ist im Sinne dieser Tabelle „gegen eine analytische Lösung
-geprüft" gemeint — das trifft für die Elektrostatik zu und für nichts sonst.
+Skalierung sind ausdrücklich **keine** Validierung.
 
 ---
 
-## Offene Fragen, die vor Implementierungsbeginn zu klären sind
+## Festgelegte Rahmenbedingungen
 
-Diese Punkte blockieren Teile des Entwurfs. Sie sind in
-[04_geometry_model.md](04_geometry_model.md) und
-[02_model_specification.md](02_model_specification.md) an der jeweiligen Stelle
-ausführlicher begründet.
+Diese Punkte waren offen und sind entschieden. Sie sind für den gesamten
+Entwurf bindend.
 
-**Geometrie (aus der Skizze nicht eindeutig ablesbar)**
+### Geometrie (Referenzfall)
 
-1. Ist die Bohrung zylindrisch (∅₂ über die ganze Länge) oder verjüngt sie sich
-   von einem größeren Wert an der Basis auf ∅₂ am Austritt? Die Skizze zeigt die
-   beiden inneren Begrenzungslinien annähernd parallel; die grüne Füllung ist
-   dagegen konisch gezeichnet. Der Entwurf nimmt vorläufig **zylindrisch** an
-   und bietet die Verjüngung als optionalen Parameter an.
-2. Ist das äußere Rechteck („mesh") ein physikalisches Gehäuse auf definiertem
-   Potential, oder nur die Berechnungsdomäne? Für die BEM ist es entbehrlich,
-   für den Poisson-Löser der Raumladung nicht.
-3. Existiert stromab der Extraktionselektrode ein Kollektor bzw. eine
-   Beschleunigungselektrode auf eigenem Potential?
-4. Ist die Stirnfläche am Emitteraustritt scharfkantig oder verrundet? Das
-   entscheidet, ob die Kontaktlinie gepinnt ist (Gibbs) oder über einen
-   Kontaktwinkel läuft (Young) — zwei verschiedene Randbedingungen mit
-   verschiedenen Lösungsmengen.
-5. Ist der Emitterkörper ein massives, innen benetztes Röhrchen (wie gezeichnet)
-   oder poröses Material? Der Speiseweg unterscheidet sich (Hagen-Poiseuille
-   gegen Darcy).
+| Punkt | Festlegung |
+|---|---|
+| Bohrung | **zylindrisch**, ∅₂ über die ganze Länge konstant. Die grüne Verjüngung in der Skizze ist der Meniskus, nicht die Bohrung. |
+| Äußeres Rechteck | **Simulationsdomäne**, kein leitendes Gehäuse auf festem Potential. |
+| Stromab des Extraktors | zunächst **verlängerte offene Domäne**. Ein Kollektor ist als optionale Elektrode vorzusehen, aber nicht im Referenzfall. |
+| Austrittskante | zunächst **scharf**, Kontaktlinie **gepinnt** (Gibbs). Ein endlicher Kantenradius mit Kontaktwinkelbedingung ist als spätere Erweiterung strukturell vorzusehen. |
+| Emitterkörper | **massiv mit zentraler Kapillare**. Speisung über Hagen-Poiseuille bzw. die daraus abgeleitete hydraulische Impedanz. Poröse Emitter mit Darcy-Strömung sind ein **separates späteres Modell**. |
 
-**Physik / Betriebsbereich**
+### Physik und Ausbaustufen
 
-6. Welcher Betriebsbereich ist das Ziel: reines PIR, Cone-Jet, oder beides? Der
-   Aufwand unterscheidet sich erheblich; PIR ist mit stationären Rechnungen
-   erreichbar, der Cone-Jet-Übergang nicht.
-7. Liegen eigene Messdaten vor (I–U-Kennlinien, TOF-Spektren, Strahlprofile)?
-   Ohne solche Daten bleibt Validierungsstufe C
-   ([06_validation_matrix.md](06_validation_matrix.md)) auf publizierte Daten
-   Dritter beschränkt.
-8. Soll die zeitabhängige Dynamik (Startvorgang, Instabilität, Tröpfchenabriss)
-   erfasst werden, oder genügen stationäre Betriebspunkte?
+| Punkt | Festlegung |
+|---|---|
+| Betriebsregime | Langfristig PIR **und** Cone-Jet/Mischbetrieb, aber als **getrennte Modelle**. Priorität: ein wissenschaftlich belastbares **PIR**-Modell. |
+| Zeitabhängigkeit | Zunächst **quasistationär**. Zeitabhängigkeit erst für eine spätere Ausbaustufe (Instabilitäten, Einschwingvorgänge, Regimewechsel). |
+| Validierungsdaten | Zunächst **keine eigenen Messdaten**. Validierung gegen unabhängige Literaturdaten; ein Datenimport für eigene Messungen ist strukturell vorzusehen. |
+
+### Netzerzeugung — bindende Anforderung
+
+**Die Vernetzung erfolgt automatisch. Der Benutzer gibt ausschließlich
+Geometrie- und Genauigkeitsparameter vor, niemals ein Netz, Elementgrößen oder
+Verfeinerungszonen.**
+
+Konkret bedeutet das:
+
+* Aus den Geometrieparametern (∅₁, ∅₂, ∅₃, Höhe, Profil, Extraktorabstand,
+  Apertur, Dicke) wird das Rand- **und** das Volumennetz ohne weitere Eingaben
+  erzeugt.
+* Die Elementgröße folgt einer Größenfunktion aus lokaler Krümmung und
+  Merkmalsgröße mit beschränkter Wachstumsrate — nicht aus Benutzerangaben.
+* Verfeinert wird a posteriori an Meniskusspitze, Kontaktlinie,
+  Elektrodenkanten, Extraktoröffnung und Strahlkern, gesteuert von einem
+  Fehlerindikator.
+* Abbruchkriterium ist die **Netzunabhängigkeit von Zielgrößen** (Apexfeld,
+  Apexkrümmungsradius, Emissionsstrom, emittierende Fläche, Divergenzwinkel),
+  nicht eine Elementzahl.
+* Der Benutzer steuert nur über eine Genauigkeitsvorgabe (z. B. zulässige
+  relative Abweichung der Zielgrößen) und optional eine Obergrenze für den
+  Rechenaufwand.
+
+Der derzeitige Prototyp erfüllt das **nicht**: dort werden `h_tip` und `h_far`
+von Hand gesetzt, es gibt keinen Fehlerschätzer und keine Verfeinerung.
+Ausführung in [04_geometry_model.md](04_geometry_model.md), Abschnitt 4.4;
+Umsetzung in Phase P1 des [Stufenplans](05_implementation_plan.md).
+
+---
+
+## Verbleibende offene Punkte
+
+Keine, die den Entwurf blockieren. Zwei Punkte sind zum Zeitpunkt der
+Implementierung zu klären:
+
+1. Genauigkeitsvorgabe für die adaptive Verfeinerung: welche relative
+   Abweichung der Zielgrößen soll die Voreinstellung sein?
+2. Für die spätere Kollektorelektrode: Position, Potential und ob sie als
+   Absorber oder als abbildendes Element modelliert werden soll.

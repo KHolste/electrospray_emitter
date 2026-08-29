@@ -1,69 +1,108 @@
 # electrospray — Simulation von Kolloid-/Electrospray-Emittern
 
-Axialsymmetrischer Simulationscode für Emitter ionischer Flüssigkeiten:
-Elektrostatik, elektrifizierter Meniskus (Taylor-Cone), Emissionsmodell und
-Strahltransport. C++20, keine externen Abhängigkeiten außer CMake und einem
-C++-Compiler.
-
-```
-Stufe 1  Elektrostatik        axialsymmetrische BEM (Randelementmethode)
-Stufe 2  Meniskus             Young-Laplace + Maxwell-Stress, freie Oberfläche
-Stufe 3  Emission             Iribarne-Thomson (PIR) + Cone-Jet-Korrelation
-Stufe 4  Strahltransport      Ring-Makroteilchen mit selbstkonsistenter Raumladung
-```
+> ## ⚠ Status: Prototyp, keine validierte Simulation
+>
+> Dieser Code ist ein **Prototyp in Neuausrichtung**. Er ist nicht geeignet, um
+> Emitter auszulegen oder Messdaten zu interpretieren.
+>
+> Belastbar geprüft ist ausschließlich die **raumladungsfreie Elektrostatik**
+> (gegen analytische Lösungen für Kugel und Rotationsellipsoid) sowie die
+> **Bahnintegration** (Energieerhaltung). Die eigentliche Emitterphysik —
+> Meniskus im Betrieb, Emission, Raumladung — ist **nicht validiert** und in
+> Teilen nachweislich fehlerhaft.
+>
+> Die Neuausrichtung, die bestätigten Fehlerbefunde und der Umbauplan stehen in
+> **[docs/](docs/)**. Vor jeder Benutzung bitte
+> [docs/01_gap_analysis.md](docs/01_gap_analysis.md) lesen.
 
 ---
 
-## 1. Warum BEM und nicht FEM
+Axialsymmetrischer Simulationscode für Emitter ionischer Flüssigkeiten.
+C++20, keine externen Abhängigkeiten außer CMake und einem C++-Compiler.
 
-Die Unbekannte ist die Flächenladungsdichte σ auf dem Rand; das Potential ist
+## 1. Was der Code enthält
 
-    V(r,z) = ∫ σ(s') G(r,z; r',z') ds'
-    G      = r' K(m) / (π ε₀ S),   S² = (r+r')² + (z−z')²,   m = 4rr'/S²
+| Baustein | Was er tut | Prüfstand |
+|---|---|---|
+| Axialsymmetrische BEM | Laplace-Gleichung für vorgegebene Elektrodenpotentiale | gegen analytische Lösungen geprüft |
+| Statischer Meniskus | Young-Laplace mit Maxwell-Zug, perfekt leitend, ohne Strömung | im feldfreien Grenzfall geprüft; im Betriebsfall nicht |
+| Emissionsformeln | Iribarne-Thomson-Rate; Cone-Jet-Korrelationen | Formeln korrekt programmiert; keine Validierung des Ergebnisses |
+| Strahlverfolgung | Bahnintegration im gelösten Feld | Energieerhaltung geprüft; Raumladungsmodell unbrauchbar |
 
-mit K dem vollständigen elliptischen Integral erster Art. Das ist die einmal
-über den Azimut integrierte Freiraum-Greensfunktion. Vier Konsequenzen, die
-genau auf dieses Problem passen:
+Die Sprachregelung folgt [docs/README.md](docs/README.md): *geprüft* heißt
+Vergleich mit einer unabhängigen Referenz mit angegebener Abweichung;
+*validiert* wird für keinen Teil der Emitterphysik beansprucht.
 
-* **Nur der Rand wird vernetzt.** Der Meniskus-Solver bewegt die freie
-  Oberfläche in jeder Iteration — Neuvernetzung kostet nichts.
-* **Kein künstlicher Fernfeldrand.** Das Außenraumproblem geht bis unendlich.
-  Bei Nadel-Extraktor-Geometrien ist das der entscheidende Vorteil.
-* **E_n = σ/ε₀ exakt.** Das Normalfeld an der Oberfläche ist die *primäre*
-  Unbekannte, nicht eine numerische Ableitung des Potentials. Da sowohl der
-  Maxwell-Stress als auch die Feldverdampfungsrate von genau dieser Größe
-  getrieben werden, ist das der Unterschied zwischen brauchbar und nutzlos.
-* **N ~ 10³** in Axialsymmetrie — die dichte Matrix ist irrelevant.
+## 2. Was geprüft ist
 
-Die logarithmische Kernsingularität wird durch geometrisch verfeinerte Panels
-aufgelöst; das komplementäre Argument `mc = 1 − m` wird direkt als `d²/S²`
-gebildet, ohne Auslöschung bei m → 1.
+| Prüfung | Referenz | Abweichung |
+|---|---|---|
+| Elliptische Integrale K, E | exakte Werte, unabhängige Quadratur | 10⁻¹⁴ |
+| Kapazität isolierte Kugel | 4πε₀R | 2,5·10⁻⁶ |
+| Spitzenfeld Rotationsellipsoid (Aspekt 20) | prolat-sphäroidale Analytik | 1,8·10⁻³ |
+| Randbedingungsresiduum | Dirichletdaten an Kollokationspunkten | 1,5·10⁻¹⁵ |
+| Fernfeld-Monopol | Q/4πε₀R | 10⁻³ |
+| Meniskus ohne Feld | Kugelkappe R = 2γ/Δp | 4·10⁻⁶ |
+| Energieerhaltung Trajektorie | E_kin/q = Potentialdifferenz | 7·10⁻⁶ |
+| Ring-Kern (Fernfeld, Gradient) | Punktladung, E = −∇V | 10⁻⁵ |
 
-## 2. Der Meniskus-Solver — und warum h die Fortsetzungsvariable ist
+Das ist die Elektrostatik und die Bahnintegration. Vollständige Matrix mit
+offenen Punkten: [docs/06_validation_matrix.md](docs/06_validation_matrix.md).
 
-Auf der freien Oberfläche gilt
+Ein Hinweis zum Kegelhalbwinkel: der Meniskusast läuft gegen 49,16° und damit
+in die Nähe von Taylors 49,29°. Das ist ein **Diskretisierungstest** des
+Young-Laplace-Lösers, liegt auf dem *instabilen* Ast und ist kein Nachweis über
+Emissionsphysik, Betriebspunkt oder Stabilität. In einer früheren Fassung dieses
+README stand er in dieser Rolle — das war überzogen.
 
-    γ ( dφ/ds + sin(φ)/r ) = Δp − ρ g z + (ε₀/2) E_n²
+## 3. Was nicht geprüft ist, und was nachweislich falsch ist
 
-Physikalische Eingangsgrößen sind der Speisedruck Δp und die Spannung U; die
-Apex-Höhe h ist Ergebnis. **Aber h(U) hat am Emissionsbeginn eine senkrechte
-Tangente** — das *ist* der Onset: eine Sattel-Knoten-Bifurkation, jenseits derer
-keine statische Lösung mehr existiert. Ein Marsch in U kann diesen Punkt
-prinzipiell nie erreichen; die Iteration hört irgendwo davor auf zu
-konvergieren, und das Ergebnis sieht aus wie ein numerisches Versagen statt wie
-die Physik, die es ist.
+Ausführlich in [docs/01_gap_analysis.md](docs/01_gap_analysis.md), hier die
+Punkte, die man kennen muss, bevor man dem Code eine Zahl glaubt:
 
-Der Solver dreht deshalb die Rollen um: **h wird vorgegeben, U gesucht.** Diese
-Parametrisierung ist durch den Umkehrpunkt hindurch regulär, der ganze Ast
-inklusive Fold wird verfolgt, und die Onset-Spannung ist das Maximum von U(h).
-Alles danach ist der instabile Ast — reale Lösungen, aber bei fester Spannung
-nicht realisierbar.
+* **Der emittierende Betrieb ist nicht modelliert.** Der Meniskus wird statisch
+  und perfekt leitend gerechnet, die Ionenrate danach auf dessen Feld
+  angewandt. Higuera (2008) zeigt, dass im rein ionischen Regime die Strömung
+  viskositätsdominiert ist und der Strom von der endlichen Leitfähigkeit
+  kontrolliert wird — die Perfect-Conductor-Annahme trifft dort den
+  kontrollierenden Mechanismus nicht. Die ausgegebenen Ionenströme sind keine
+  Vorhersage.
+* **„Onset" ist im Code nicht das, was der Name behauptet.** Ausgegeben wird das
+  Maximum eines statischen Lösungsastes. Verlust der statischen Stabilität,
+  messbarer Emissionsbeginn und Cone-Jet-Übergang sind drei verschiedene Dinge;
+  eine Stabilitätsanalyse findet nicht statt. `find_onset()` meldet zudem auch
+  dann einen Umkehrpunkt, wenn der Ast streng monoton steigt.
+* **`solve_at_voltage()` ist unzuverlässig.** Bei 500 V liefert es eine als
+  konvergiert gekennzeichnete Form, deren Feld zu 872 V gehört.
+* **Das Raumladungsmodell ist nicht wohlgestellt.** Ring-Makroteilchen ohne
+  Regularisierung; das Eigenfeld divergiert, am eigenen Ring entstehen
+  `inf`/`NaN`. Wird durch Poisson-FEM/FVM mit PIC ersetzt.
+* **Tropfen werden mit der Ionenverdampfungsrate gewichtet**, um einen Faktor
+  8·10⁴ neben dem Cone-Jet-Strom. Das Cone-Jet-Modell ist nicht an den
+  Strahltransport gekoppelt.
+* **Negative Emission ist nicht umgesetzt.** Beide Polaritäten liefern
+  identischen Strom und identisches q/m.
+* **Stoffdaten ohne Einzelnachweis.** Die Werte in `src/fluid.cpp` sind
+  literaturtypisch, aber nicht quellenbelegt und nicht zitierfähig.
+* **Empirische Korrelationen stehen gleichrangig neben feldgekoppelten
+  Rechnungen.** Die Cone-Jet-Formeln sind an ε_r ≳ 40 etabliert; ionische
+  Flüssigkeiten liegen bei ε_r ≈ 12.
 
-Ein Nebenprodukt, das als Validierung taugt: **der Taylor-Winkel 49.3° steht
-nirgends im Code.** Er entsteht aus der gekoppelten Rechnung, wenn man dem Ast
-folgt (siehe unten).
+## 4. Netzerzeugung
 
-## 3. Bauen
+Die Zielfassung erzeugt das Netz **automatisch**: der Benutzer gibt Geometrie-
+und Genauigkeitsparameter vor, kein Netz. Größenverteilung aus Krümmung und
+Merkmalsgröße, danach a-posteriori-Verfeinerung an Meniskusspitze,
+Kontaktlinie, Elektrodenkanten, Extraktoröffnung und Strahlkern, mit Abbruch
+über Netzunabhängigkeit von Zielgrößen (Apexfeld, Strom, emittierende Fläche,
+Divergenz). Spezifikation:
+[docs/04_geometry_model.md](docs/04_geometry_model.md), Abschnitt 4.4.
+
+**Der aktuelle Prototyp leistet das nicht.** Dort werden Elementgrößen
+(`h_tip`, `h_far`) von Hand im Konfigurationsfile gesetzt; es gibt weder einen
+Fehlerschätzer noch Verfeinerung.
+
+## 5. Bauen
 
 ```sh
 cmake -S . -B build -G Ninja
@@ -71,130 +110,72 @@ cmake --build build
 cd build && ctest --output-on-failure
 ```
 
-Getestet mit MinGW-w64 GCC 16.1 unter Windows 11, CMake 4.3, Ninja. OpenMP wird
-automatisch genutzt, wenn vorhanden.
+Getestet mit MinGW-w64 GCC 16.1 unter Windows 11, CMake 4.3, Ninja, sowie GCC
+13.3 unter Ubuntu 24.04 (WSL2). OpenMP wird genutzt, wenn vorhanden.
 
-**Zu `-march=native`:** bewusst nicht Standard. Auf MinGW-w64 GCC 16.1 stürzt
-der Code beim Programmende ab, sobald `-mavx2` und libgomp zusammenkommen —
-keins von beiden allein, und `-mstackrealign` hilft nicht. Das ist ein
-Toolchain-Defekt, kein Codefehler (die Zahlen stimmten in allen geprüften
-Fällen mit dem skalaren Build überein). Wer es trotzdem will:
-`cmake -S . -B build -DES_NATIVE_ARCH=ON`.
+### `-march=native` ist abgeschaltet — Grund
 
-## 4. Anwendungen
+Mit AVX-Codegen (`-mavx`, `-mavx2`, und damit `-march=native` auf gängigen
+CPUs) stürzt der Code unter MinGW-w64 GCC 16.1 **nichtdeterministisch in etwa
+der Hälfte der Läufe** mit SIGSEGV ab. Ursache ist im Disassemblat belegt:
 
-Alle Programme lesen eine Config-Datei und akzeptieren `key=value`-Overrides
-auf der Kommandozeile (Kommandozeile schlägt Datei). Werte tragen Einheiten:
-`10um`, `1.5kV`, `500Pa`, `0.5nL/s`, `25C`, `15deg`.
+```
+=> vmovdqa %ymm0,0x20(%rsp)      rsp = 0x5ffaf0  ->  Ziel 0x5ffb10
+```
 
-| Programm      | Zweck |
-|---------------|-------|
-| `es_field`    | Laplace-Lösung, Spitzenfeld, Feldüberhöhung, Spannungssweep, Feldgitter (CSV/VTK) |
-| `es_meniscus` | Fortsetzung des Gleichgewichtsastes → Onset-Spannung, Meniskusform |
-| `es_operate`  | Vollständiger Betriebspunkt: Meniskus bei U, Ionenstrom, Cone-Jet-Vergleich, Schub/Isp |
-| `es_beam`     | Strahltransport, Divergenz, Extraktor-Interzeption, Raumladung |
+`vmovdqa` verlangt 32-Byte-Ausrichtung, die Zieladresse ist aber nur
+16-Byte-ausgerichtet. Der Prolog von `main()` richtet den Stack nicht nach
+(kein `and $-32,%rsp`), emittiert aber fünf alignment-pflichtige
+256-Bit-Zugriffe. Die Win64-ABI garantiert nur 16 Byte; ob der Stack zufällig
+32-Byte-ausgerichtet startet, entscheidet die Adressraum-Randomisierung — daher
+die Nichtdeterminismus.
+
+Nicht reproduzierbar unter Linux/GCC 13.3. ASan und UBSan melden nichts.
+`-mstackrealign` hilft nicht. `-mprefer-vector-width=128` vermeidet es.
+
+Wer die Host-CPU-Codegen trotzdem will:
+`cmake -S . -B build -DES_NATIVE_ARCH=ON` — mit dem obigen Vorbehalt.
+
+## 6. Anwendungen
+
+Konfigurationsdatei plus `key=value`-Overrides auf der Kommandozeile
+(Kommandozeile schlägt Datei). Werte tragen Einheiten: `10um`, `1.5kV`,
+`500Pa`, `0.5nL/s`, `25C`, `15deg`. Nicht gelesene Schlüssel werden gemeldet.
+
+| Programm | Zweck | Vertrauenswürdigkeit |
+|---|---|---|
+| `es_field` | Laplace-Lösung, Spitzenfeld, Feldüberhöhung, Feldgitter | Elektrostatik geprüft |
+| `es_meniscus` | Fortsetzung des statischen Astes | Ast ja, „Onset"-Etikett nein |
+| `es_operate` | Betriebspunkt, Ionenstrom, Schub/Isp | **nicht belastbar**, siehe Abschnitt 3 |
+| `es_beam` | Strahltransport, Divergenz, Interzeption | ohne Raumladung brauchbar, mit nicht |
 
 ```sh
+./build/es_field --help          # Schlüsselreferenz
 ./build/es_meniscus examples/capillary_emibf4.cfg
-./build/es_meniscus examples/capillary_emibf4.cfg emitter.r_bore=5um extractor.gap=300um
-./build/es_field    examples/capillary_emibf4.cfg output.grid=true
-./build/es_field --help          # vollständige Schlüsselreferenz
+python python/plot.py out_capillary
 ```
 
-Nicht gelesene Config-Schlüssel werden am Ende gemeldet — ein stillschweigend
-ignorierter Tippfehler ist in einer Parameterstudie der teuerste Fehler.
-
-Plots aus den CSV-Dateien:
-
-```sh
-python python/plot.py out_capillary        # Meniskusast, Form, Oberflächenfeld
-python python/plot_beam.py out_capillary   # Trajektorien und Strahlprofil
-```
-
-## 5. Verifikation
-
-`ctest` prüft gegen analytische Lösungen, nicht nur gegen sich selbst.
-
-| Test | Referenz | Ergebnis |
-|------|----------|----------|
-| Elliptische Integrale K, E | AGM gegen Simpson-Quadratur und exakte Werte | 1e-14 |
-| Kugelkapazität | 4πε₀R | 2.5e-6 (640 Elemente) |
-| Rotationsellipsoid, Aspekt 20 | Prolat-sphäroidale Analytik, Spitzenfeld | 0.18 % (600 Elemente) |
-| Randbedingungs-Residuum | Potentialintegral an allen Kollokationspunkten | 1.5e-15 |
-| Fernfeld-Monopol | Q/(4πε₀R) bei 0.5 m | 1e-3 |
-| Meniskus ohne Feld | Kugelkappe R = 2γ/Δp | 4e-6 |
-| Onset, Netzkonvergenz | 81 vs. 141 Knoten | 2.5e-5 |
-| Onset vs. Taylor/Smith | geschlossene Formel | Faktor 0.86 |
-| **Kegelhalbwinkel entlang des Astes** | Taylor 49.29° | **49.16°** |
-| Energieerhaltung im Strahl | E_kin/q = Potentialdifferenz | 7e-6 |
-| Ring-Kern | E = −∇V, Punktladungslimes | 1e-9 |
-
-Der Halbwinkel läuft entlang des Astes monoton
-81° → 75° → 68° → 62° → 56° → 51° → **49.16°** gegen den Taylor-Winkel.
-
-## 6. Was der Code kann — und was nicht
-
-**Gültig:**
-* Onset-Spannung und Meniskusform für kapillare Emitter mit gepinnter
-  Kontaktlinie, statisch oder bei kleinen Flüssen (PIR-Bereich).
-* Feldüberhöhung beliebiger axialsymmetrischer Elektrodengeometrien.
-* Strahloptik und Extraktor-Interzeption, mit und ohne Raumladung.
-* Betriebspunkt-Sweeps und Geometrieoptimierung.
-
-**Bekannte Grenzen — bitte lesen:**
-
-1. **Der statische Meniskus löst die Emissionsstruktur nicht auf.** Bei einer
-   10-µm-Kapillare beträgt der Apex-Krümmungsradius am Onset noch ~9 µm und das
-   Feld nur ~0.05 V/nm. Feldverdampfung braucht ~1 V/nm, also einen
-   Krümmungsradius im 10-nm-Bereich. Diese Struktur ist der *Jet* bzw. die
-   Kegelspitze, die das statische Modell nicht enthält. Mit 200-nm-Bohrung
-   erreicht die Rechnung 0.38 V/nm am Onset und 1.3 V/nm auf dem instabilen Ast
-   — das reproduziert korrekt, dass PIR sub-µm-Emitter erfordert, ersetzt aber
-   kein transientes Jet-Modell.
-2. **Keine Strömung.** Der viskose Druckabfall entlang des Kegels fehlt. Bei
-   Cone-Jet-Flussraten überschätzt das Modell die Apex-Höhe.
-3. **Kontaktlinie gepinnt und r-monoton.** Korrekt für eine scharfkantige
-   Kapillare. Für extern benetzte oder poröse Emitter ist die Behandlung der
-   Spitze als „gepinnt bei r_tip" nur eine Näherung erster Ordnung.
-   Überhängende Menisken (über die Halbkugel hinaus) werden bewusst nicht
-   verfolgt.
-4. **Die Cone-Jet-Vorfaktoren sind empirisch.** `I = f(ε_r)·√(γKQ/ε_r)` wurde an
-   Flüssigkeiten mit ε_r ≳ 40 etabliert. Ionische Flüssigkeiten liegen bei
-   ε_r ≈ 12, weit außerhalb. Der Code extrapoliert **nicht** heimlich: er hält
-   `f_current` als expliziten Eingabewert, setzt ihn auf den
-   Hochpermittivitätswert und **warnt**, wenn er außerhalb des Gültigkeitsbereichs
-   benutzt wird. Vor Vertrauen in Absolutströme an eigenen I(Q)-Daten fitten.
-5. **ΔG_solvation ist der dominierende Fitparameter.** Literaturwerte für
-   EMI-BF4 streuen etwa 1.0–1.4 eV, und der Strom hängt exponentiell davon ab.
-   Als Fitgröße behandeln, nicht als Konstante.
-6. **Stoffdaten streuen.** Die Tabelle in `src/fluid.cpp` enthält
-   literaturtypische Raumtemperaturwerte als Startpunkt, keine Messwerte der
-   eigenen Charge. Leitfähigkeit ist besonders wasserempfindlich. Alles
-   überschreibbar über `[fluid]`.
-7. **Die Temperaturmodelle (VFT) sind generisch**, nicht flüssigkeitsspezifisch
-   gefittet.
+Bekanntes Problem: verschiedene Anwendungen überschreiben bei gleichem
+`output.prefix` einander kommentarlos, und die geschriebenen Dateien gehören
+nicht zwingend zu dem Zustand, den der Bericht ausweist.
 
 ## 7. Struktur
 
 ```
-include/es/     types constants elliptic linalg geometry bem fluid
-                emission meniscus beam config io
-src/            Implementierungen
-apps/           es_field es_meniscus es_operate es_beam
-tests/          test_elliptic test_bem test_meniscus test_emission test_beam
-examples/       Config-Beispiele
-python/         Plot-Skripte (nur Auswertung, nicht Rechnung)
+include/es/  types constants elliptic linalg geometry bem fluid
+             emission meniscus beam config io
+src/         Implementierungen
+apps/        es_field es_meniscus es_operate es_beam
+tests/       6 Testprogramme
+examples/    Konfigurationsbeispiele
+python/      Auswertung und Plots (keine Rechnung)
+docs/        Neuausrichtung, Modellspezifikation, Umbauplan
 ```
 
-Die Bibliothek `es_core` ist ohne die Anwendungen nutzbar; jedes Modul hat einen
-Header mit den Annahmen und Gültigkeitsgrenzen im Kopfkommentar.
+## 8. Weiteres Vorgehen
 
-## 8. Naheliegende Erweiterungen
-
-* Viskoser Druckabfall entlang des Kegels → Cone-Jet-Betriebspunkte
-* Blockweises Matrix-Update: bei bewegtem Meniskus ändert sich nur ein Teil der
-  Einflussmatrix; der Elektrodenblock ließe sich cachen (~3× im Meniskus-Loop)
-* Emitter-Arrays: das Green'sche Funktionsgerüst ist axialsymmetrisch, ein Array
-  bräuchte 3D-BEM oder ein Einheitszellenmodell mit Spiegelladungen
-* Transientes Jet-Modell für die nm-Skala am Apex
-* Time-of-Flight-Spektren aus der Clusterverteilung
+Kein neuer Funktionsumfang, bis die Punkte aus
+[docs/05_implementation_plan.md](docs/05_implementation_plan.md) Phase P0
+abgearbeitet sind. Danach Geometrie und automatische Vernetzung (P1),
+Elektrostatik konsolidieren (P2), Meniskus neu (P3), Volumenlöser und PIC (P4),
+emittierender Betrieb im PIR (P5).

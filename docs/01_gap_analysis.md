@@ -20,7 +20,7 @@ Bohrung, 40 µm außen, Extraktor 500 µm entfernt, Apertur ∅ 400 µm, EMI-BF4
 | 7 | 1100 V liefert nur ~4,2·10⁻¹⁶ A | **bestätigt** | Gemessen 4,215·10⁻¹⁶ A bei Apexfeld 0,032 V/nm. Das sind rund 2600 Ionen/s. Kein Betriebspunkt. |
 | 8 | Negative Emission nicht umgesetzt | **bestätigt** | U = +1500 V und U = −1500 V liefern identisches Spitzenfeld (1,193·10⁸ V/m) und identischen Strom (4,744·10⁻¹² A). `qm_cluster()` benutzt ausschließlich `M_cation`. Eine Anion-Clusterreihe hätte hier q/m = 5,81·10⁵ statt 5,07·10⁵ C/kg. |
 | 9 | Netzkonvergenz nur für die Onset-Spannung geprüft | **bestätigt, mit Einschränkung** | Der Test prüft nur U_onset. Nachgeholt für 61/81/121/161 Knoten: U_onset 1179,82 → 1179,76 V; E_apex 5,1124 → 5,1056·10⁷ V/m (0,13 %); I_ion 1,9122 → 1,9132·10⁻¹⁵ A (0,05 %); A_emit 3,198 → 3,150·10⁻¹⁰ m² **nicht monoton** (3,198 / 3,150 / 3,103 / 3,150). Die Kritik am Test ist berechtigt; die Größen sind an diesem Punkt zufällig konvergiert, das war nie gezeigt. A_emit ist als diskrete Elementsumme ohnehin quantisiert und kein zur Netzverfeinerung glatt konvergierender Funktionalwert. |
-| 10 | OpenMP + `-march=native` nicht als Compilerfehler abschließbar | **bestätigt — meine frühere Bewertung war falsch** | siehe 1.2 |
+| 10 | OpenMP + `-march=native` nicht als Compilerfehler abschließbar | **bestätigt; inzwischen aufgeklärt** | Die Kritik traf zu: der Punkt war unbelegt geschlossen. Inzwischen mit Minimalfall, Faktorexperiment (je 30 Läufe) und Disassemblat aufgeklärt — OpenMP ist unbeteiligt, Auslöser ist AVX-Stack-Ausrichtung. Siehe 1.2. |
 | 11 | Empirische Skalengesetze ≠ selbstkonsistente Betriebspunktrechnung | **bestätigt als Konstruktionsfehler** | `cone_jet()` ist eine reine Formelauswertung ohne Kopplung an Geometrie, Feld oder Meniskus. Sie steht im selben Ausgabeblock wie die feldgekoppelte Ionenrechnung, was Gleichrangigkeit suggeriert. |
 
 ### Zusatzbefund, nicht in der Liste
@@ -32,53 +32,104 @@ Zwischenbewertung geführt (die untersuchte Datei stammte vom Strahllauf, nicht
 vom Meniskuslauf). Für eine Parameterstudie ist das eine Fehlerquelle
 derselben Klasse wie ein stillschweigend ignorierter Konfigurationsschlüssel.
 
-### 1.2 Zum OpenMP-Absturz: revidierte Bewertung
+### 1.2 Zum Absturz mit `-march=native`: aufgeklärt
 
-Ich hatte im Haupt-README geschrieben, das sei „ein Toolchain-Defekt, kein
-Codefehler". **Das war nicht belegt und ist nach den jetzigen Messungen eher
-unwahrscheinlich.**
+**Zwei meiner früheren Aussagen waren beide unbelegt.** Zuerst hatte ich das im
+Haupt-README als „Toolchain-Defekt, kein Codefehler" abgeschlossen. Danach hatte
+ich das revidiert und auf latentes Undefined Behaviour im Projektcode getippt.
+Beide Male fehlte die Grundlage. Erst die folgende Untersuchung klärt es.
 
-Bisektion über die Übersetzungseinheiten (GCC 16.1 MinGW-w64, OpenMP aktiv,
-Testfall `test_meniscus`):
+**Fehler in meiner vorigen Bisektion.** Der Absturz ist **nichtdeterministisch**
+— je nach Konfiguration 0 bis 19 von 30 Läufen. Meine Leave-one-out-Bisektion
+über die Übersetzungseinheiten hatte jede Konfiguration **genau einmal**
+ausgeführt. Bei einer Ausfallrate um 50 % ist das reines Rauschen; die daraus
+gezogene Folgerung („verschwindet und kehrt zurück, wenn Flags an unbeteiligten
+Übersetzungseinheiten umgeschaltet werden") war nicht haltbar.
 
-| Konfiguration | Ergebnis |
-|---|---|
-| alle Quellen + Test mit `-mavx2` | SIGSEGV |
-| alle Quellen mit `-mavx2`, Test ohne | läuft durch |
-| nur Test mit `-mavx2`, Quellen ohne | **SIGSEGV** |
-| je genau eine Quelldatei mit `-mavx2` (7 Varianten) | alle laufen durch |
-| alle außer `linalg` / `bem` / `meniscus`, Test mit `-mavx2` | läuft durch |
-| alle außer `elliptic` / `geometry` / `fluid` / `emission`, Test mit `-mavx2` | SIGSEGV |
+**Minimaler Reproduktionsfall.** 15 Zeilen, ein einziger `solve_at_height`-Aufruf,
+0,25 s Laufzeit, 16 von 30 Läufen mit SIGSEGV. Liegt als
+[`docs/repro/avx_stack_alignment.cpp`](repro/avx_stack_alignment.cpp) im
+Repositorium; für einen Bugreport genügt diese Datei plus die Bibliothek.
 
-Das Bild ist nicht das eines lokal falsch übersetzten Codestücks. Ein Absturz,
-der beim Umschalten von Optimierungsflags an *unbeteiligten* Übersetzungs-
-einheiten verschwindet und wiederkommt, ist die typische Signatur von latentem
-Undefined Behaviour im Programm — ein Zugriff außerhalb der Grenzen, der bei
-einem Speicherlayout harmlos landet und bei einem anderen nicht.
+**Faktorexperiment, je 30 Läufe:**
 
-Der Absturz tritt nach der letzten Ausgabezeile auf, also beim Abbau statischer
-Objekte. Das passt zu einer Heap-Korruption, die erst beim Freigeben auffällt.
+| Konfiguration | SIGSEGV |
+|---|---:|
+| `-march=native` + OpenMP-Pragmas | 6 / 30 |
+| `-march=native`, `-fopenmp` gelinkt, keine Pragmas | 12 / 30 |
+| `-march=native`, **kein OpenMP** | **14 / 30** |
+| ohne `-march=native`, OpenMP-Pragmas | 0 / 30 |
+| weder noch | 0 / 30 |
+| `-mavx2` | 16 / 30 |
+| `-mavx` | 19 / 30 |
+| `-msse4.2` | 0 / 30 |
+| `-mavx2 -mstackrealign` | 18 / 30 |
+| `-mavx2 -mprefer-vector-width=128` | **0 / 30** |
+| `-mavx2 -fno-tree-vectorize` | 11 / 30 |
+| `-mavx2 -O0` | 15 / 30 |
 
-Sanitizer-Lage in dieser Umgebung:
+**OpenMP ist unbeteiligt** — ohne jedes OpenMP stürzt es genauso ab. Auslöser
+ist 256-Bit-Vektorcodegen (AVX/AVX2); SSE4.2 ist unauffällig. Es tritt auch bei
+`-O0` und mit abgeschalteter Auto-Vektorisierung auf, ist also keine Frage der
+Schleifenoptimierung.
 
-* `-fsanitize=address,undefined`: `libasan`/`libubsan` sind in diesem
-  MinGW-Build nicht vorhanden.
-* `-D_GLIBCXX_DEBUG`: übersetzt, startet aber nicht (Rückgabewert 127 ohne
-  Ausgabe, keine fehlenden DLLs) — bekannte ODR-Inkompatibilität mit der
-  vorgebauten libstdc++.
-* `-D_GLIBCXX_ASSERTIONS` bei `-O0` ohne OpenMP: läuft sauber durch, schlägt
-  nicht an. Das schließt einen Bereichsfehler in einem `std::vector::operator[]`
-  auf diesem Pfad **nicht** aus, weil dieser Schalter nur einen Teil der
-  Prüfungen aktiviert.
-* **WSL2 mit Ubuntu ist auf dem Rechner vorhanden.** Das ist der belastbare Weg
-  zu ASan/UBSan.
+**Ursache, im Disassemblat belegt.** Unter gdb gefangenes Signal:
 
-**Status: offen.** Kein Compilerfehler, kein Codefehler — unbelegt. Der
-Workaround (`-march=native` nicht als Voreinstellung) bleibt, ist aber als
-Notbehelf zu kennzeichnen und nicht als Lösung. Auflösung in Phase P0 des
-Stufenplans.
+```
+Thread 1 received signal SIGSEGV, Segmentation fault.
+0x...49b in main () at min3.cpp:9
+      MeniscusSolver s(make_capillary_open(cp), mp);
+=> 0x...49b <main()+203>:  vmovdqa %ymm0,0x20(%rsp)
+rsp   0x5ffaf0
+```
 
----
+`vmovdqa` ist ein alignment-pflichtiger 256-Bit-Store. Zieladresse
+`0x5ffaf0 + 0x20 = 0x5ffb10`, und `0x5ffb10 mod 32 = 16` — die Adresse ist nur
+16-Byte-ausgerichtet.
+
+Der Prolog von `main()` bestätigt es:
+
+```
+push %rsi ; push %rbx ; sub $0x378,%rsp ; call __main
+```
+
+Keine Stack-Nachrichtung (`and $-32,%rsp`: **0 Treffer** im gesamten `main`),
+aber **5** alignment-pflichtige 256-Bit-Zugriffe im selben Frame. Die Win64-ABI
+garantiert nur 16 Byte Stack-Ausrichtung. GCC nimmt hier 32 Byte an, ohne sie
+herzustellen.
+
+Das erklärt auch den Nichtdeterminismus: ob der Stack beim Prozessstart zufällig
+auf einer 32-Byte-Grenze liegt, entscheidet die Adressraum-Randomisierung.
+
+**Gegenprüfungen:**
+
+* ASan und UBSan unter Linux (GCC 13.3, Ubuntu 24.04): **keine Befunde**, weder
+  im Standardbau noch mit `-march=native`, weder in den Tests noch in den
+  Anwendungen.
+* Der Absturz **reproduziert unter Linux nicht** (GCC 13.3, gleiche Flags, je
+  drei Läufe von `test_meniscus`, `test_beam`, `test_bem` — alle sauber).
+* Unter gdb läuft das große Testprogramm durch; erst der schnelle
+  Minimalfall ließ sich unter gdb fangen. Klassischer Heisenbug: der Debugger
+  verändert das Stack-Layout.
+* `-mstackrealign` behebt es **nicht** — das ist Teil des Befunds, denn genau
+  dieses Flag sollte die Nachrichtung erzwingen.
+
+**Bewertung.** Codegenerierungsfehler in diesem MinGW-w64-GCC-16.1-Bau, kein
+Undefined Behaviour im Projektcode. Der Nachweis stützt sich auf das
+Disassemblat und die Adressarithmetik, nicht auf ein Ausschlussverfahren.
+
+**Was noch aussteht:** ein Reproduktionsfall **ohne Projektabhängigkeit**. Ein
+erster eigenständiger Kandidat (Struct mit acht `double`, `-mavx2`) erzeugt zwar
+ebenfalls zwei alignment-pflichtige 256-Bit-Zugriffe ohne Nachrichtung, stürzt
+aber in 0 von 30 Läufen ab — bei ihm fallen die Frame-Offsets zufällig auf
+32-Byte-Grenzen. Für einen Bugreport gegen GCC ist das noch zu erarbeiten; die
+Diagnose hängt nicht davon ab.
+
+**Konsequenz für den Code.** `-march=native` bleibt abgeschaltet. Das ist kein
+fachfremder Workaround, sondern die Vermeidung einer nachgewiesen defekten
+Codegenerierung; die Begründung steht jetzt im Haupt-README statt einer
+Vermutung. `-mprefer-vector-width=128` wäre die Alternative, falls
+Host-CPU-Codegen später gebraucht wird.
 
 ## 1.3 Systematische Lücken gegenüber der Zielsetzung
 

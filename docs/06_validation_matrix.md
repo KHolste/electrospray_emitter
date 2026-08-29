@@ -82,11 +82,13 @@ reproduzierbar bleibt.
 | C4 | Poröse Emitter, I–U und Lebensdauer | Legge & Lozano (2011) | P5 | offen |
 | C5 | TOF-Spektren, Speziesaufteilung Monomer/Dimer/Trimer | Literatur zur IL-Massenspektrometrie | P5 | offen |
 | C6 | Kolloidtriebwerk im Flug | ST7-DRS / LISA Pathfinder | P8 | offen |
-| C7 | **Eigene Messdaten** | offene Frage 7 | P8 | unbekannt |
+| C7 | **Eigene Messdaten** | zunächst nicht verfügbar; Import strukturell vorsehen | P8 | zurückgestellt |
 
-C7 ist der wertvollste Eintrag der Tabelle, falls vorhanden: nur damit lässt
-sich $\Delta G$ für die tatsächlich verwendete Flüssigkeitscharge anpassen,
-statt einen Literaturwert mit einem Streubereich von 1,0–1,4 eV zu übernehmen.
+C7 wäre der wertvollste Eintrag der Tabelle: nur damit ließe sich $\Delta G$ für
+die tatsächlich verwendete Flüssigkeitscharge anpassen, statt einen
+Literaturwert mit einem Streubereich von 1,0–1,4 eV zu übernehmen. Bis dahin
+gilt: $\Delta G$ bleibt ein deklarierter Anpassungsparameter aus der Literatur,
+und jede Stromangabe trägt die zugehörige Unsicherheit.
 
 ---
 

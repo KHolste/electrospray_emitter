@@ -1,10 +1,16 @@
 # 2. Modellspezifikation
 
-Jede Gleichung trägt Annahmen, Gültigkeitsbereich und Primärquelle. Der
-Prüfstatus der Quellen steht in [references.md](references.md); in diesem
-Session-Lauf bibliographisch verifizierte Stellen sind dort mit ✓ markiert,
-alle übrigen sind aus dem Gedächtnis wiedergegeben und **vor Zitation in einer
-Publikation zu prüfen**.
+Jede Gleichung trägt Annahmen, Gültigkeitsbereich und Primärquelle. Alle 27
+zitierten Fachartikel sind inzwischen bibliographisch gegen die Verlagsangaben
+geprüft; der Prüfstatus je Quelle steht in [references.md](references.md). Das
+Zeichen ✓ markiert hier zusätzlich diejenigen Arbeiten, deren veröffentlichte
+Zusammenfassung die ihnen zugeschriebene Aussage trägt.
+
+**Grenze dieser Prüfung:** die Originalarbeiten wurden nicht im Volltext
+gelesen. Bevor eine Gleichung aus einer dieser Quellen in den Code übernommen
+wird, ist die betreffende Stelle im Volltext nachzulesen — insbesondere
+Vorfaktoren und Gültigkeitsbereiche. Für Gañán-Calvo (1997) ist dabei das
+Erratum (Phys. Rev. Lett. **85**, 4193, 2000) zu berücksichtigen.
 
 ## 2.0 Gebiete, Symmetrie, Notation
 
@@ -114,8 +120,10 @@ $h$. Genau zwei der drei sind vorzugeben.
 * Elektrisch: $\phi=U_\mathrm{emitter}$ auf $\Sigma$.
 
 Der Prototyp implementiert ausschließlich Fall A und prüft die Pinning-Bedingung
-nicht. Die Skizze zeigt eine Stirnfläche, deren Kantenausführung offen ist
-(offene Frage 4).
+nicht. **Festgelegt:** der Referenzfall ist scharfkantig, also Fall A mit
+geprüfter Gibbs-Bedingung. Fall B ist als austauschbare Randbedingung
+vorzusehen, damit ein endlicher Kantenradius später ohne Umbau des
+Meniskuslösers nachrüstbar ist.
 
 **Annahmen.** (a) Statisch, $\mathbf{u}=0$. (b) Perfekter Leiter: $\Sigma$ ist
 Äquipotentialfläche, kein Feld in der Flüssigkeit. (c) Keine Massen- oder
@@ -151,6 +159,12 @@ mit $\ell$ einer charakteristischen Länge des stromführenden Bereichs. Higuera
 (2008) ✓ kommt für den rein ionischen Betrieb zu dem Ergebnis, dass genau
 dieser Widerstand den Emissionsstrom **kontrolliert**. Das Perfect-Conductor-
 Modell ist dort also nicht zulässig.
+
+Ein zweites, davon unabhängiges Argument: Collins et al. (2008) ✓ finden, dass
+elektrohydrodynamisches Tip Streaming **überhaupt nicht auftritt**, wenn die
+Flüssigkeit perfekt leitend *oder* perfekt isolierend ist. Die endliche
+Leitfähigkeit ist damit nicht eine Korrektur am Modell, sondern
+Voraussetzung des Vorgangs.
 
 ### 2.3 Numerische Formulierung
 
@@ -295,8 +309,10 @@ Kopplung von Speisedruck und Volumenstrom über eine Impedanz:
 $$\Delta p_\mathrm{feed} = Z_h\,Q,\qquad Q = \frac{\dot{m}}{\rho}$$
 
 Für einen zylindrischen Kanal der Länge $L_c$ und des Radius $a$ im laminaren
-Grenzfall $Z_h = 8\mu L_c/(\pi a^4)$ (Hagen-Poiseuille). Für poröse Emitter
-stattdessen Darcy mit Permeabilität. Welcher Fall zutrifft, ist offene Frage 5.
+Grenzfall $Z_h = 8\mu L_c/(\pi a^4)$ (Hagen-Poiseuille). **Festgelegt:** der
+Referenzfall ist der massive Emitter mit zentraler Kapillare, also
+Hagen-Poiseuille. Poröse Emitter mit Darcy-Strömung sind ein separates späteres
+Modell und nicht Teil dieser Spezifikation.
 
 Gallud & Lozano (2022) ✓ finden eine **minimale** hydraulische Impedanz als
 notwendige Bedingung für statisch stabilen emittierenden Betrieb — die Speisung

@@ -19,7 +19,7 @@ Gelesen wurden:
 | „diameter" (rot) | Aperturdurchmesser der Extraktionselektrode | `D_a` |
 | „thickness" (rot) | Dicke der Extraktionselektrode | `t_e` |
 | grün, „ionische Flüssigkeit" | Speisekanal und Meniskus | — |
-| „mesh" (äußeres Rechteck) | Berechnungsgebiet bzw. Gehäuse | `R_dom`, `z_min`, `z_max` |
+| „mesh" (äußeres Rechteck) | Simulationsdomäne (kein leitendes Gehäuse) | `R_dom`, `z_min`, `z_max` |
 
 Der linke, senkrecht schraffierte Balken ist als **Basisplatte** gelesen, aus
 der die verjüngte Emitterstruktur herausragt und die radial bis zum Gehäuse
@@ -28,7 +28,7 @@ reicht. Sie liegt auf Emitterpotential.
 ```
    r
    ^
-   |                                              [Gehaeuse / Domaenenrand]
+   |                                                    [Domaenenrand]
 R_dom +==================================================================+
    |  #                                                                  |
    |  #  Basisplatte (U_emitter)                                         |
@@ -60,7 +60,7 @@ d2/2  #        +----------------------+                            +####+|
 | `emitter.height` | axiale Länge der Verjüngung, `H` | m | `> 0` |
 | `emitter.outer_profile` | `cone` \| `concave` \| `convex` | — | |
 | `emitter.profile_exponent` | Formexponent für gekrümmte Profile | — | `> 0` |
-| `emitter.bore_profile` | `cylindrical` \| `tapered` | — | offene Frage 1 |
+| `emitter.bore_profile` | `cylindrical` \| `tapered` | — | Referenzfall: `cylindrical` |
 | `emitter.d2_base` | Bohrungsdurchmesser am Fuß (nur `tapered`) | m | `>= d2` |
 | `emitter.edge_radius_outer` | Verrundung Außenkante der Stirnfläche | m | `<= w` |
 | `emitter.edge_radius_inner` | Verrundung Innenkante (Kontaktlinie) | m | `<= w` |
@@ -97,8 +97,8 @@ $$r_\mathrm{aussen}(\zeta) = \frac{d_3}{2} - \left(\frac{d_3-d_1}{2}\right)\cdot
 | Schlüssel | Bedeutung |
 |---|---|
 | `domain.radius`, `domain.z_min`, `domain.z_max` | Berechnungsgebiet |
-| `domain.boundary` | `open` (BEM-Fernfeld) \| `dirichlet` (Gehäuse) |
-| `collector.enabled`, `collector.z`, `collector.radius` | optional, offene Frage 3 |
+| `domain.boundary` | `open` (BEM-Fernfeld, Referenzfall) \| `dirichlet` (Gehäuse) |
+| `collector.enabled`, `collector.z`, `collector.radius` | optional; im Referenzfall abgeschaltet |
 
 ### Potentiale und Betrieb
 
@@ -176,15 +176,27 @@ eine Verallgemeinerung; die vorhandenen Verifikationsgeometrien
 (`make_sphere`, `make_prolate_spheroid`) bleiben als Testfälle unverändert
 erhalten.
 
-## 4.6 Was aus der Skizze nicht hervorgeht
+## 4.6 Festlegungen zum Referenzfall
 
-Zusammenfassung der offenen Fragen 1–5 aus [README.md](README.md), an dieser
-Stelle mit der jeweils getroffenen Vorannahme:
+Die zunächst offenen Punkte sind entschieden. Die Tabelle hält fest, was gilt
+und was als Erweiterung strukturell vorzusehen ist.
 
-| Frage | Vorannahme im Entwurf | Auswirkung, falls falsch |
+| Punkt | Referenzfall | Spätere Erweiterung |
 |---|---|---|
-| Bohrung zylindrisch oder verjüngt? | zylindrisch, ∅₂ konstant | ändert Speiseimpedanz und Feld nahe der Kontaktlinie |
-| Rechteck = Gehäuse oder nur Domäne? | Domäne, `boundary = open` | bei geerdetem Gehäuse ändert sich das Feld messbar |
-| Kollektor stromab? | nicht vorhanden | zusätzliche Elektrode, Strahlaufweitung |
-| Stirnfläche scharf oder verrundet? | scharf, Kontaktlinie gepinnt | bei Verrundung gilt Fall B (Kontaktwinkel), andere Lösungsmenge |
-| massiv oder porös? | massiv, innen benetzt, Poiseuille | bei porös gilt Darcy, andere `Z_h`-Skalierung |
+| Bohrung | zylindrisch, `bore_profile = cylindrical` | `tapered` mit `d2_base` bleibt im Parametersatz vorgesehen |
+| Äußeres Rechteck | Simulationsdomäne, `domain.boundary = open` | Gehäuse auf festem Potential |
+| Stromab des Extraktors | verlängerte offene Domäne | optionale Kollektorelektrode (`collector.*`) |
+| Austrittskante | scharf, `wetting.mode = pinned` | endlicher `edge_radius_inner` mit `wetting.mode = contact_angle` |
+| Emitterkörper | massiv, zentrale Kapillare, `feed.model = poiseuille` | poröser Emitter, `feed.model = darcy`, als **separates Modell** |
+| Betriebsregime | PIR | Cone-Jet und Mischbetrieb als getrennte Modelle |
+| Zeitverhalten | quasistationär | zeitabhängig für Instabilitäten und Einschwingvorgänge |
+
+Zwei Konsequenzen für den Entwurf:
+
+1. Der Parametersatz in 4.2 bleibt vollständig — auch die Felder, die im
+   Referenzfall nicht benutzt werden (`bore_profile`, `edge_radius_inner`,
+   `collector.*`). Sie später nachzurüsten wäre teurer als sie jetzt vorzusehen.
+2. Die Kontaktlinienbehandlung muss von Anfang an **beide** Fälle als
+   austauschbare Randbedingung führen (Spezifikation 2.1, Fall A und B), auch
+   wenn nur Fall A implementiert wird. Andernfalls ist der Kantenradius später
+   nicht ohne Umbau des Meniskuslösers nachzurüsten.
