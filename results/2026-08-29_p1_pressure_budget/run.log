@@ -1,0 +1,26 @@
+P1 -- Druckhaushalt am Austritt
+  Stoffdatensatz: EMI-BF4 (1-Ethyl-3-methylimidazolium-tetrafluoroborat) [illustrative]
+  a = 0.000005 m, gamma/a = 9040.000000 Pa
+  Kanal: R = 0.000005 m, L = 0.000300 m
+
+WAS NICHT GERECHNET WIRD: kein Stroemungsloeser, kein kapillarer Aufstieg, keine
+bewegliche Kontaktlinie, keine Reservoirentleerung.  p_reservoir und Q sind
+Eingaben.  Der Kapillardruck des Meniskus steckt in P3a/P3b, nicht hier.
+
+  Druckhaushalt am Austritt (Budget): Ok
+    delta_p_exit          = 9040 Pa   (Pi = 1.0000)
+      p_res - p_vak       = +9040 Pa
+      - hydrostatisch     = +0 Pa
+      - viskos            = -0 Pa
+    Widerstand R_h        = 4.53477e+16 Pa s/m^3
+    mittlere Geschwindigkeit 0 m/s, Wandschubspannung 0 Pa
+    Re = 0 (Grenze 2300), Einlauflaenge 0 m = 0 L
+    gamma/a = 9040 Pa, im Kapillarbereich |dp| <= 2 gamma/a: ja
+    Der Druckhaushalt ist ausgewertet und die Gueltigkeitsgrenzen der Poiseuille-Beziehung sind eingehalten.
+  budget_vs_flow.csv geschrieben
+  sensitivity.csv geschrieben
+  pressure_scales.csv geschrieben
+
+  Einordnung: der viskose Term beim Referenzstrom ist 0.501634 gamma/a, die Hydrostatik ueber einen
+  Bohrungsradius 0.000007 gamma/a.
+  coupled_to_p3a.csv geschrieben

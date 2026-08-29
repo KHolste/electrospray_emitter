@@ -1,0 +1,8 @@
+# Der Nennpunkt des Druckhaushalts, Term fuer Term.
+term,value_Pa,note
+driving,9.040000000e+03,p_reservoir - p_vacuum
+hydrostatic,-0.000000000e+00,-rho g_z (z_exit - z_reservoir); wird abgezogen
+viscous,0.000000000e+00,8 mu L Q / (pi R^4); wird abgezogen
+delta_p_exit,9.040000000e+03,Ergebnis
+gamma_over_a,9.040000000e+03,Kapillardruckskala
+Pi,1.000000000e+00,delta_p_exit / (gamma/a)

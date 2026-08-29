@@ -1,0 +1,10 @@
+# Einordnung der Druckskalen.  gamma/a ist die Skala, gegen die der
+# Haushalt zaehlt; alles darunter aendert die Meniskusform kaum, alles
+# darueber verlaesst den Bereich, in dem eine gepinnte statische Form
+# ueberhaupt existiert (|delta_p| <= 2 gamma/a).
+scale,value_Pa,relative_to_gamma_over_a,note
+gamma_over_a,9.040000000e+03,1.000000000e+00,Kapillardruckskala
+capillary_limit,1.808000000e+04,2.000000000e+00,Grenze der gepinnten statischen Form
+viscous,4.534769963e+03,5.016338454e-01,8 mu L Q / (pi R^4) beim Referenzstrom
+hydrostatic_1mm,1.254270535e+01,1.387467406e-03,rho g h fuer 1 mm auf der Erde; im Orbit null
+hydrostatic_bore,6.271352675e-02,6.937337030e-06,rho g a -- die Bondzahl mal gamma/a
