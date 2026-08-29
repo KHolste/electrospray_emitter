@@ -42,6 +42,7 @@ add_library(es_core STATIC
   src/fluid.cpp
   src/liquid.cpp
   src/feed.cpp
+  src/transport.cpp
   src/geometry.cpp
   src/device_geometry.cpp
   src/boundary_mesh.cpp
@@ -70,7 +71,7 @@ endif()
 
 # ---------------------------------------------------------------- applications
 foreach(app es_field es_meniscus es_operate es_beam es_vacuum es_dielectric es_reservoir
-             es_capillary es_electrocapillary es_p3b_audit es_feed es_material)
+             es_capillary es_electrocapillary es_p3b_audit es_feed es_material es_transport)
   add_executable(${app} apps/${app}.cpp)
   target_link_libraries(${app} PRIVATE es_core)
 endforeach()
@@ -90,7 +91,7 @@ target_link_libraries(mesh_figure PRIVATE es_core)
 enable_testing()
 foreach(t test_elliptic test_bem test_meniscus test_emission test_beam test_config
            test_regressions test_device_geometry test_boundary_mesh test_vacuum_bem
-           test_axisym_fem test_dielectric_device test_reservoir test_capillary test_electrocapillary test_load_projection test_feed test_material_data)
+           test_axisym_fem test_dielectric_device test_reservoir test_capillary test_electrocapillary test_load_projection test_feed test_material_data test_transport)
   add_executable(${t} tests/${t}.cpp)
   target_link_libraries(${t} PRIVATE es_core)
   add_test(NAME ${t} COMMAND ${t})

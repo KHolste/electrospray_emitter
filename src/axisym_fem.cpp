@@ -146,6 +146,20 @@ void element_matrix(const QuadMesh& m, Index i, Index j, Real eps_abs, Real Ke[4
   }
 }
 
+/// Element load vector of a source that is constant within the cell:
+/// fe[a] = int N_a s 2 pi r dA, on the same four Gauss points.
+void element_source(const QuadMesh& m, Index i, Index j, Real s, Real fe[4]) {
+  for (int a = 0; a < 4; ++a) fe[a] = 0.0;
+  if (s == 0.0) return;
+  for (int q = 0; q < 4; ++q) {
+    const GaussPoint g = gauss_point(m, i, j, kGaussXi[q], kGaussEta[q]);
+    const Real xi = kGaussXi[q], eta = kGaussEta[q];
+    const Real N[4] = {(1 - xi) * (1 - eta), xi * (1 - eta), xi * eta, (1 - xi) * eta};
+    const Real w = s * 2.0 * pi * g.r * g.detJ * kGaussW;
+    for (int a = 0; a < 4; ++a) fe[a] += w * N[a];
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Symmetric band matrix, lower triangle.  store[i*(b+1) + (i-j)] = A(i,j).
 // ---------------------------------------------------------------------------
@@ -245,9 +259,24 @@ void AxisymProblem::check() const {
                              "die exakte Punktlokalisierung setzt das voraus.  Ein Aufrufer, "
                              "der die Zeilen bewusst verformt hat, setzt require_level_rows = "
                              "false und lokalisiert Punkte selbst.");
-  for (Index c = 0; c < m.n_cells(); ++c)
-    if (active[static_cast<std::size_t>(c)] && !(eps_r[static_cast<std::size_t>(c)] >= 1.0))
+  if (!cell_source.empty() && static_cast<Index>(cell_source.size()) != m.n_cells())
+    throw std::runtime_error("AxisymProblem: cell_source hat nicht die Zellenzahl");
+  // The coefficient bound depends on what the coefficient MEANS.  A relative
+  // permittivity below one is unphysical; a conductivity of 1.5 S/m or a
+  // viscosity of 0.036 Pa s are perfectly ordinary.  So the strict bound is
+  // applied only to the electrostatic use, which is the one with the default
+  // scale, and the general requirement is that the operator stay positive.
+  const bool electrostatic = (coefficient_scale == eps0);
+  for (Index c = 0; c < m.n_cells(); ++c) {
+    if (!active[static_cast<std::size_t>(c)]) continue;
+    const Real k = eps_r[static_cast<std::size_t>(c)];
+    if (electrostatic && !(k >= 1.0))
       throw std::runtime_error("AxisymProblem: aktive Zelle mit eps_r < 1");
+    if (!(k > 0.0))
+      throw std::runtime_error("AxisymProblem: aktive Zelle mit nicht positivem Koeffizienten");
+  }
+  if (!(coefficient_scale > 0.0))
+    throw std::runtime_error("AxisymProblem: coefficient_scale muss positiv sein");
   bool any_fixed = false;
   for (char f : fixed) any_fixed |= (f != 0);
   if (!any_fixed && far_field != FarField::Grounded)
@@ -298,11 +327,16 @@ AxisymSolution solve_axisym(const AxisymProblem& p, LinearSolver which,
       const Index c = m.cell(i, j);
       if (!p.active[static_cast<std::size_t>(c)]) continue;
       Real Ke[4][4];
-      element_matrix(m, i, j, eps0 * p.eps_r[static_cast<std::size_t>(c)], Ke);
+      element_matrix(m, i, j, p.coefficient_scale * p.eps_r[static_cast<std::size_t>(c)], Ke);
       const Index gi[4] = {idx(i, j), idx(i + 1, j), idx(i + 1, j + 1), idx(i, j + 1)};
       for (int a = 0; a < 4; ++a)
         for (int b = 0; b < 4; ++b)
           if (gi[a] >= gi[b]) K.add(gi[a], gi[b], Ke[a][b]);
+      if (!p.cell_source.empty()) {
+        Real fe[4];
+        element_source(m, i, j, p.cell_source[static_cast<std::size_t>(c)], fe);
+        for (int a = 0; a < 4; ++a) f[static_cast<std::size_t>(gi[a])] += fe[a];
+      }
     }
   }
 

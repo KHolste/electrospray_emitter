@@ -123,6 +123,35 @@ struct AxisymProblem {
   std::vector<Real> eps_r;
   std::vector<char> active;
 
+  // -------------------------------------------------------------------------
+  // THE SAME OPERATOR SERVES THREE PHYSICS PROBLEMS
+  //
+  // What is assembled is
+  //
+  //     -div( coefficient_scale * eps_r * grad phi ) = source ,
+  //
+  // and three different problems of this project are exactly that equation:
+  //
+  //   ELECTROSTATICS   scale = eps0, eps_r = the relative permittivity,
+  //                    source = 0.  phi is a potential [V] and the nodal
+  //                    reaction is a charge [C].  This is the DEFAULT, so
+  //                    every existing caller is untouched.
+  //   CONDUCTION       scale = 1, eps_r carries the conductivity sigma [S/m],
+  //                    source = 0.  phi is a potential [V] and the nodal
+  //                    reaction is a CURRENT [A].  div(sigma grad phi) = 0 is
+  //                    literally the same equation as div(eps grad phi) = 0.
+  //   FULLY DEVELOPED  scale = 1, eps_r carries the dynamic viscosity mu
+  //   PIPE FLOW        [Pa s], source = -dp/dz [Pa/m].  phi is then the axial
+  //                    velocity u_z [m/s].  See es/transport.hpp for why that
+  //                    reduction is exact and what it does NOT cover.
+  //
+  // Nothing about the assembly changes between them; only the meaning of the
+  // numbers does, and each caller has to say which meaning it intends.
+  Real coefficient_scale{8.8541878128e-12};   ///< eps0 by default
+  /// Volumetric source per cell, constant within the cell.  Empty means zero,
+  /// which is what every electrostatic problem uses.
+  std::vector<Real> cell_source;
+
   std::vector<char> fixed;        ///< per node: Dirichlet?
   std::vector<Real> fixed_value;  ///< per node: the value [V]
 
