@@ -17,3 +17,9 @@ KunzeFynn-*.pdf
 !results/**/*.csv
 !results/**/*.png
 !results/**/*.txt
+
+# Rohantworten der ILThermo-Abfrage.  Sie sind der Zwischenspeicher von
+# tools/fetch_material_data.py, nicht das Ergebnis: jede Zahl steht mit ihrer
+# Quelle in der erzeugten Datei src/material_data_emibf4.cpp, und eine fremde
+# Datenbank gehoert nicht als Ganzes in dieses Repositorium.
+tools/_ilthermo_cache/
