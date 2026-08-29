@@ -18,6 +18,30 @@
 using namespace es;
 using constants::pi;
 
+/// Read the branch selection from the configuration.  The application must make
+/// this choice explicitly and say so in its output: the solver refuses to pick
+/// when a voltage admits more than one meniscus.
+static BranchSide branch_side_from(const Config& cfg) {
+  const std::string v = cfg.str("meniscus.branch", "lower");
+  if (v == "lower") return BranchSide::LowerHeight;
+  if (v == "upper") return BranchSide::UpperHeight;
+  if (v == "none") return BranchSide::Unspecified;
+  throw std::runtime_error("meniscus.branch must be lower, upper or none");
+}
+
+/// Report the outcome of a voltage solve, including how many solutions the
+/// traced branch offered.
+static void report_branch_choice(const MeniscusSolution& m, BranchSide side) {
+  if (m.branch_crossings + (m.crossing_beyond_range ? 1 : 0) > 1) {
+    std::printf("\n  HINWEIS: zu dieser Spannung gehoeren %d Meniskusformen auf dem\n"
+                "  verfolgten Ast%s. Gewaehlt wurde ausdruecklich '%s'\n"
+                "  (meniscus.branch). Die Bezeichnungen betreffen nur die Apexhoehe,\n"
+                "  nicht Stabilitaet -- eine Stabilitaetsanalyse gibt es nicht.\n",
+                m.branch_crossings, m.crossing_beyond_range ? " sowie mindestens eine jenseits von h_max" : "",
+                to_string(side));
+  }
+}
+
 int main(int argc, char** argv) try {
   Config cfg;
   const std::vector<std::string> rest = Config::positional_args(argc, argv);
@@ -62,7 +86,8 @@ int main(int argc, char** argv) try {
   const Real U = s.voltage;
   std::printf("\nloese den Meniskus bei U = %.1f V (%.1f %% der Faltenspannung) ...\n", U,
               100.0 * U / fold.voltage);
-  MeniscusSolution m = solver.solve_at_voltage(U, h_max);
+  const BranchSide side = branch_side_from(cfg);
+  MeniscusSolution m = solver.solve_at_voltage(U, h_max, side);
   if (!m.ok()) {
     std::fprintf(stderr, "\nKEINE verwertbare Loesung: %s\n  %s\n", to_string(m.status),
                  explain(m.status));
@@ -72,6 +97,7 @@ int main(int argc, char** argv) try {
     return 2;
   }
   solver.realize(m);
+  report_branch_choice(m, side);
 
   std::printf("\nMeniskus (statisch, perfekt leitend, nicht emittierend)\n");
   std::printf("  Apexhoehe             : %10.4g m  (= %.3f r_c)\n", m.shape.height,

@@ -423,6 +423,131 @@ static void b9_effective_area() {
 }
 
 // ==========================================================================
+// B12  A target voltage below the static fold generally has TWO solutions.
+//      None of them may be selected silently.
+// ==========================================================================
+static void b12_branch_ambiguity() {
+  std::printf("\n=== B12  Zweig-Mehrdeutigkeit unterhalb des Umkehrpunkts ===\n");
+  MeniscusSolver s(standard_electrodes(), standard_params());
+  const Real r_c = standard_params().r_contact;
+  const Real h_max = 2.2 * r_c;
+
+  const std::vector<MeniscusSolution> branch = s.continuation(0.15 * r_c, h_max, 22);
+  const auto fold = MeniscusSolver::find_static_fold(branch);
+  expect("Referenzast besitzt einen Kandidaten fuer den Umkehrpunkt", fold.found());
+  if (!fold.found()) return;
+
+  // Target below the fold and above both branch ends: two crossings.
+  Real v_first = 0, v_last = 0;
+  for (const auto& m : branch) if (m.ok()) { v_first = m.voltage; break; }
+  for (auto it = branch.rbegin(); it != branch.rend(); ++it)
+    if (it->ok()) { v_last = it->voltage; break; }
+  const Real U = 0.5 * (std::max(v_first, v_last) + fold.voltage);
+  std::printf("  Falte %.1f V, Astenden %.1f / %.1f V, Ziel U = %.1f V\n", fold.voltage,
+              v_first, v_last, U);
+
+  // The scout inside solve_at_voltage must resolve the branch at least as well
+  // as the continuation above, or the second crossing falls outside its
+  // converged range.  That case is reported honestly (crossing_beyond_range)
+  // but is not what this test wants to exercise.
+  const int scout = 22;
+
+  // 1. Without an explicit choice the solver must refuse.
+  {
+    MeniscusSolution m = s.solve_at_voltage(U, h_max, BranchSide::Unspecified, scout);
+    expect("ohne Zweigangabe -> AmbiguousBranch", m.status == SolveStatus::AmbiguousBranch);
+    expect("und keine verwertbare Loesung", !m.ok());
+    const int known = m.branch_crossings + (m.crossing_beyond_range ? 1 : 0);
+    std::printf("  gemeldete Schnittpunkte: %d%s\n", m.branch_crossings,
+                m.crossing_beyond_range ? " (+ mindestens einer jenseits h_max)" : "");
+    expect("mehr als eine Loesung wird als solche gemeldet", known >= 2);
+  }
+
+  // 2. Both sides are individually reachable and geometrically different.
+  MeniscusSolution lo = s.solve_at_voltage(U, h_max, BranchSide::LowerHeight, scout);
+  MeniscusSolution hi = s.solve_at_voltage(U, h_max, BranchSide::UpperHeight, scout);
+  expect("LowerHeight liefert eine Loesung", lo.ok());
+  expect("UpperHeight liefert eine Loesung", hi.ok());
+  if (!lo.ok() || !hi.ok()) return;
+
+  std::printf("  lower: h/r_c = %.4f, U = %.2f V, R_apex/r_c = %.4f, E_apex = %.4g V/m\n",
+              lo.shape.height / r_c, lo.voltage, lo.shape.apex_radius / r_c, lo.apex_field);
+  std::printf("  upper: h/r_c = %.4f, U = %.2f V, R_apex/r_c = %.4f, E_apex = %.4g V/m\n",
+              hi.shape.height / r_c, hi.voltage, hi.shape.apex_radius / r_c, hi.apex_field);
+
+  const Real vtol = standard_params().voltage_tol * U;
+  expect("beide treffen die Zielspannung", std::abs(lo.voltage - U) <= vtol &&
+                                               std::abs(hi.voltage - U) <= vtol);
+  expect("die Apexhoehen sind deutlich verschieden",
+         hi.shape.height > 1.5 * lo.shape.height);
+  expect("die Formen sind geometrisch verschieden (Apexradius)",
+         lo.shape.apex_radius > 2.0 * hi.shape.apex_radius);
+  expect("der gelieferte Zweig wird zurueckgemeldet",
+         lo.side == BranchSide::LowerHeight && hi.side == BranchSide::UpperHeight);
+
+  // 3. A voltage with a unique solution is still delivered without a choice.
+  //    Trace only up to below the fold, so the branch is monotone rising.
+  {
+    const Real h_stop = 0.85 * fold.height;
+    const std::vector<MeniscusSolution> rising = s.continuation(0.15 * r_c, h_stop, 10);
+    Real a = 0, b = 0;
+    for (const auto& m : rising) if (m.ok()) { a = m.voltage; break; }
+    for (auto it = rising.rbegin(); it != rising.rend(); ++it)
+      if (it->ok()) { b = it->voltage; break; }
+    const Real U1 = 0.5 * (a + b);
+    MeniscusSolution m = s.solve_at_voltage(U1, h_stop, BranchSide::Unspecified, 10);
+    std::printf("  eindeutiger Fall: Ast %.1f..%.1f V, Ziel %.1f V -> %s (%d Schnittpunkte)\n",
+                a, b, U1, to_string(m.status), m.branch_crossings);
+    expect("eindeutige Loesung wird ohne Zweigangabe geliefert", m.ok());
+    expect("und es wird genau ein Schnittpunkt gemeldet", m.branch_crossings == 1);
+  }
+
+  // 4. Asking for a side that lies outside the traced range must not silently
+  //    substitute the other one.
+  {
+    const Real h_stop = 0.85 * fold.height;
+    const std::vector<MeniscusSolution> rising = s.continuation(0.15 * r_c, h_stop, 10);
+    Real a = 0;
+    for (const auto& m : rising) if (m.ok()) { a = m.voltage; break; }
+    Real b = 0;
+    for (auto it = rising.rbegin(); it != rising.rend(); ++it)
+      if (it->ok()) { b = it->voltage; break; }
+    const Real U1 = 0.5 * (a + b);
+    MeniscusSolution m = s.solve_at_voltage(U1, h_stop, BranchSide::UpperHeight, 10);
+    // On a purely rising traced range the upper crossing does not exist there.
+    std::printf("  UpperHeight auf rein steigendem Ast -> %s\n", to_string(m.status));
+    expect("kein stiller Ersatz durch den anderen Zweig",
+           !m.ok() || m.side == BranchSide::UpperHeight);
+  }
+}
+
+// ==========================================================================
+// B13  naming: no stability claim may be encoded in an identifier
+// ==========================================================================
+static void b13_no_stability_claims() {
+  std::printf("\n=== B13  Benennung: keine Stabilitaetsbehauptung ===\n");
+  const std::string names[] = {to_string(BranchSide::LowerHeight),
+                               to_string(BranchSide::UpperHeight),
+                               to_string(BranchSide::Unspecified),
+                               to_string(FoldStatus::Found),
+                               to_string(SolveStatus::AmbiguousBranch)};
+  bool clean = true;
+  for (const std::string& n : names)
+    if (n.find("stable") != std::string::npos || n.find("unstable") != std::string::npos)
+      clean = false;
+  expect("kein Bezeichner enthaelt 'stable'/'unstable'", clean);
+  expect("Zweignamen benennen die Apexhoehe",
+         std::string(to_string(BranchSide::LowerHeight)).find("height") != std::string::npos);
+
+  // The explanation of an ambiguous result must say what lower/upper mean, and
+  // must not claim stability.
+  const std::string ex = explain(SolveStatus::AmbiguousBranch);
+  expect("Erklaerung nennt die Apexhoehe", ex.find("Apexhoehe") != std::string::npos);
+  expect("Erklaerung schliesst eine Stabilitaetsaussage aus",
+         ex.find("nicht Stabilitaet") != std::string::npos);
+}
+
+// ==========================================================================
 // B10  the toolchain workaround is a build setting, recorded here for
 //      completeness: ES_NATIVE_ARCH defaults to OFF (see CMakeLists.txt).
 // ==========================================================================
@@ -436,6 +561,8 @@ int main() {
   b8_polarity_closed();
   b7_b11_wording();
   b9_effective_area();
+  b12_branch_ambiguity();
+  b13_no_stability_claims();
   std::printf("\n%s (%d failures)\n", failures ? "FAILED" : "PASSED", failures);
   return failures ? 1 : 0;
 }

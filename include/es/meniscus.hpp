@@ -111,6 +111,22 @@ struct MeniscusShape {
 /// spherical cap when h == r_c.
 MeniscusShape initial_shape(Real r_c, Real z_c, Real h, int n_nodes, Real clustering);
 
+/// Which intersection of the branch with the target voltage is meant.
+///
+/// The names refer to the APEX HEIGHT and to nothing else.  In particular they
+/// are not "stable" and "unstable": no stability analysis is implemented, so
+/// no such claim may be encoded in an identifier.  Which of the two, if either,
+/// is dynamically stable is open until phase P3.
+enum class BranchSide {
+  /// Refuse to choose.  A target voltage with more than one solution returns
+  /// SolveStatus::AmbiguousBranch.
+  Unspecified = 0,
+  LowerHeight,   ///< the intersection at the smaller apex height
+  UpperHeight,   ///< the intersection at the larger apex height
+};
+
+const char* to_string(BranchSide s);
+
 struct MeniscusSolution {
   MeniscusShape shape;
   Real voltage{0};        ///< emitter-to-extractor voltage sustaining this shape [V]
@@ -121,6 +137,18 @@ struct MeniscusSolution {
   Real peak_field{0};     ///< max |E_n| on the free surface [V/m]
   Real delta_p{0};
   SolveStatus status{SolveStatus::NotAttempted};
+  /// How many times the traced branch crosses the requested voltage.  0 means
+  /// unreachable, 1 unique on the traced range, >= 2 ambiguous.  Set only by
+  /// solve_at_voltage().
+  int branch_crossings{0};
+  /// True when the branch is still above the target at the largest traced apex
+  /// height, i.e. at least one further solution exists beyond h_max and the
+  /// traced range is too short to decide uniqueness.
+  bool crossing_beyond_range{false};
+  /// Which side was delivered.  When branch_crossings == 1 the choice was
+  /// vacuous -- there was only one solution, and it is returned whichever
+  /// side was asked for.  Read branch_crossings to tell the two cases apart.
+  BranchSide side{BranchSide::Unspecified};
   int iterations{0};
   Real residual{0};       ///< final max node motion / r_contact
 
@@ -146,11 +174,28 @@ class MeniscusSolver {
   /// voltage sustains.  Runs a coarse continuation to locate the static fold,
   /// then bisects on apex height below it.
   ///
-  /// Returns SolveStatus::Converged ONLY if the voltage of the returned shape
-  /// agrees with U to within params().voltage_tol (relative).  If U lies above
-  /// the fold voltage or below the lowest voltage on the traced branch, the
-  /// status is VoltageNotBracketed and the shape must not be used.
-  MeniscusSolution solve_at_voltage(Real U, Real h_max, int scout_steps = 14);
+  /// U(h) rises to the turning point and falls again, so a target voltage below
+  /// the fold generally has TWO solutions of very different shape -- measured on
+  /// the reference geometry at 1154 V: apex heights 0.30 and 0.63 r_c, apex
+  /// radii differing by a factor 3.3 and apex fields by a factor 1.8.  Picking
+  /// one of them silently is not admissible.
+  ///
+  /// Contract:
+  ///  * exactly one crossing on the traced branch -> that solution is returned;
+  ///  * more than one crossing, or one crossing plus a further one beyond
+  ///    h_max, and `side` is Unspecified -> SolveStatus::AmbiguousBranch and no
+  ///    usable shape;
+  ///  * `side` given -> the requested crossing is returned, or
+  ///    VoltageNotBracketed if that side lies outside the traced range;
+  ///  * Converged is returned ONLY if the delivered voltage agrees with U to
+  ///    within params().voltage_tol (relative).
+  ///
+  /// "Crossings" are counted on the DISCRETE scout branch.  A pair of solutions
+  /// closer together than the scout spacing can be missed; raise `scout_steps`
+  /// if that matters.
+  MeniscusSolution solve_at_voltage(Real U, Real h_max,
+                                    BranchSide side = BranchSide::Unspecified,
+                                    int scout_steps = 14);
 
   /// Put the solver's BEM into the state described by `sol`, so that any
   /// surface or mesh dump provably belongs to that state rather than to
@@ -161,13 +206,27 @@ class MeniscusSolver {
   /// `voltage` over the returned branch; everything beyond it is unstable.
   std::vector<MeniscusSolution> continuation(Real h_min, Real h_max, int n_steps);
 
-  /// Turning point of the traced branch: the maximum of U(h).
+  /// CANDIDATE turning point of the traced branch: the maximum of U(h) as seen
+  /// on a finite set of sampled branch points.
   ///
-  /// This is a STATIC FOLD, not an emission onset -- see the terminology note
-  /// at the top of this header.  It is only reported when it is a genuine
-  /// INTERIOR maximum: at least three converged points, strictly rising before
-  /// and strictly falling after.  A branch with a single point, or one that is
-  /// monotone throughout, has no turning point and says so.
+  /// What it is: a discrete maximum, refined parabolically through its two
+  /// neighbours, reported only when it is a genuine INTERIOR maximum -- at
+  /// least three converged points, strictly rising before and strictly falling
+  /// after.  A single point, or a monotone branch, has no turning point.
+  ///
+  /// What it is NOT, and what may NOT be derived from it:
+  ///  * dynamic stability, or the loss of it.  No eigenvalue analysis is
+  ///    performed.  Whether the fold coincides with the stability limit depends
+  ///    on the control parameter held fixed and on the perturbation mode
+  ///    considered; neither is examined here.
+  ///  * an emission onset.  In the pure ionic regime the evaporation rate is a
+  ///    smooth exponential of the field with no threshold; what experiments
+  ///    call onset is a detection limit.
+  ///  * the transition to the cone-jet regime, which involves the flow and is
+  ///    not determined by a static model.
+  ///
+  /// Being a discrete maximum, its position and value depend on the sampling of
+  /// the continuation.  Refine the continuation before quoting the number.
   struct StaticFold {
     FoldStatus status{FoldStatus::NotAttempted};
     Real voltage{0};      ///< fold voltage [V], parabolically refined

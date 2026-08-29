@@ -284,6 +284,9 @@ void print_key_reference(std::FILE* out) {
 
 [meniscus]
   r_contact delta_p n_nodes apex_clustering max_outer relax tol gravity verbose
+  branch            lower | upper | none -- which meniscus is meant when a
+                    voltage admits more than one.  Refers to APEX HEIGHT only,
+                    not to stability.  "none" makes an ambiguous request fail.
 
 [solve]
   voltage           emitter-to-extractor voltage, e.g. 1.5kV

@@ -10,6 +10,7 @@ const char* to_string(SolveStatus s) {
     case SolveStatus::VoltageMismatch: return "voltage_mismatch";
     case SolveStatus::ShapeIntegrationFailed: return "shape_integration_failed";
     case SolveStatus::NoStaticFoldFound: return "no_static_fold_found";
+    case SolveStatus::AmbiguousBranch: return "ambiguous_branch";
     default: return "not_attempted";
   }
 }
@@ -32,6 +33,12 @@ const char* explain(SolveStatus s) {
              "(Oberflaeche wird senkrecht, r nicht mehr monoton).";
     case SolveStatus::NoStaticFoldFound:
       return "Der Ast besitzt keinen inneren Umkehrpunkt, unter dem gesucht werden koennte.";
+    case SolveStatus::AmbiguousBranch:
+      return "Zu dieser Spannung gehoert mehr als eine Meniskusform. Der Ast schneidet die "
+             "Zielspannung mehrfach: einmal bei kleiner und einmal bei grosser Apexhoehe. "
+             "Welche gemeint ist, muss der Aufrufer ueber BranchSide angeben; der Loeser "
+             "waehlt nicht aus. Hinweis: 'unten' und 'oben' bezeichnen ausschliesslich die "
+             "Apexhoehe, nicht Stabilitaet -- eine Stabilitaetsanalyse gibt es nicht.";
     default:
       return "Es wurde nichts geloest.";
   }

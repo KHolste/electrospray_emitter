@@ -22,6 +22,7 @@ enum class SolveStatus {
   VoltageMismatch,        ///< search terminated away from the requested voltage
   ShapeIntegrationFailed, ///< the Young-Laplace march did not reach the contact line
   NoStaticFoldFound,      ///< branch has no interior turning point to search below
+  AmbiguousBranch,        ///< several solutions exist; none may be chosen silently
   NotAttempted,           ///< default-constructed; nothing was solved
 };
 
