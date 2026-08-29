@@ -1,0 +1,13 @@
+app=es_trajectories (P7)
+phase=P7
+status=validated_subset
+commit=cc8f52f0d6c269c31807fabb32ce1b60cad7be11
+box_radius_m=2.000000000e-05
+box_length_m=1.000000000e-04
+voltage_V=-1.000000000e+03
+aperture_radius_m=7.000000000e-06
+dt_s=2.000000000e-13
+max_steps=200000
+prescribed_space_charge_C=3.000000000e-14
+source=prescribed launch distribution; P5 is blocked, no physical particle source; the launched current is an INPUT
+exit_code=0

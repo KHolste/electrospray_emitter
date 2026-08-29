@@ -1,0 +1,32 @@
+P7 -- elektrostatischer Teilchentransport
+
+TRANSPORTANTWORT AUF EINE VORGESCHRIEBENE STARTVERTEILUNG.  P5 ist
+blockiert; es gibt keine physikalische Teilchenquelle.  Der gestartete
+Strom ist eine EINGABE, und keine Zahl dieses Laufs ist eine
+Stromvorhersage.  Kein Tropfenstrahl, keine selbstkonsistente
+Raumladungsschleife.
+
+  vorgeschriebene Raumladung: 3.0000e-14 C, Erhaltungsfehler 3.366e-15; Potentialverschiebung 39.5419 V
+  Strombilanz [A]:
+    gestartet     1.000000000e-07  (41 Teilchen)
+    extrahiert    7.073170732e-08  (29)
+    abgefangen    2.926829268e-08  (12)   davon Emitter 0.000e+00, Polymer 0.000e+00, Extraktor 2.927e-08
+    noch fliegend 0.000000000e+00  (0)
+    Schliessfehler 0.000e+00, groesster Energiefehler 8.453e-13
+  kation_ohne_raumladung   Transmission 0.7073, Schliessfehler 0.00e+00, groesster Energiefehler 8.45e-13
+  Strombilanz [A]:
+    gestartet     1.000000000e-07  (41 Teilchen)
+    extrahiert    3.170731707e-08  (13)
+    abgefangen    6.829268293e-08  (28)   davon Emitter 0.000e+00, Polymer 0.000e+00, Extraktor 6.829e-08
+    noch fliegend 0.000000000e+00  (0)
+    Schliessfehler 1.323e-16, groesster Energiefehler 1.339e-02
+  kation_mit_raumladung    Transmission 0.3171, Schliessfehler 1.32e-16, groesster Energiefehler 1.34e-02
+  Strombilanz [A]:
+    gestartet     1.000000000e-07  (41 Teilchen)
+    extrahiert    7.073170732e-08  (29)
+    abgefangen    2.926829268e-08  (12)   davon Emitter 0.000e+00, Polymer 0.000e+00, Extraktor 2.927e-08
+    noch fliegend 0.000000000e+00  (0)
+    Schliessfehler 0.000e+00, groesster Energiefehler 7.812e-13
+  anion_ohne_raumladung    Transmission 0.7073, Schliessfehler 0.00e+00, groesster Energiefehler 7.81e-13
+
+Alle deklarierten Pruefungen dieses Laufs bestanden.

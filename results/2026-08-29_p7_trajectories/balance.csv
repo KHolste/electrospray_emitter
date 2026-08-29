@@ -1,0 +1,6 @@
+# Strom- und Teilchenbilanz.  extrahiert + abgefangen + noch fliegend
+# = gestartet, exakt: jedes Teilchen hat genau ein Schicksal.
+case,species,launched_A,extracted_A,intercepted_A,flying_A,emitter_A,polymer_A,extractor_A,n_launched,n_extracted,n_intercepted,n_flying,closure_error,max_energy_error,transmission
+kation_ohne_raumladung,EMI+ (Testspezies),1.000000000e-07,7.073170732e-08,2.926829268e-08,0.000000000e+00,0.000000000e+00,0.000000000e+00,2.926829268e-08,41,29,12,0,0.000000000e+00,8.452717917e-13,7.073170732e-01
+kation_mit_raumladung,EMI+ (Testspezies),1.000000000e-07,3.170731707e-08,6.829268293e-08,0.000000000e+00,0.000000000e+00,0.000000000e+00,6.829268293e-08,41,13,28,0,1.323488980e-16,1.339257426e-02,3.170731707e-01
+anion_ohne_raumladung,BF4- (Testspezies),1.000000000e-07,7.073170732e-08,2.926829268e-08,0.000000000e+00,0.000000000e+00,0.000000000e+00,2.926829268e-08,41,29,12,0,0.000000000e+00,7.811601767e-13,7.073170732e-01
