@@ -1,6 +1,6 @@
-stamp=5d8caba0ffb7
-head_commit=5d8caba0ffb7ace9a5d2bcf2392447228ded439a
-data_commit=5d8caba0ffb7ace9a5d2bcf2392447228ded439a
+stamp=42f4d732add3
+head_commit=42f4d732add3a2cabeeba916063d258666729505
+data_commit=42f4d732add3a2cabeeba916063d258666729505
 working_tree_dirty=no
 releasable=yes
 ignored_prefix=results/2026-08-29_p3_transport
