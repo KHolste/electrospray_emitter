@@ -1,0 +1,30 @@
+# Jeder Permittivitaetsmesspunkt bei dieser Temperatur.
+# frequency_Hz = 0 heisst 'von der Quelle als statisch berichtet' -- fuer
+# ionische Fluessigkeiten ist das kein Messwert bei null Hertz, sondern
+# ein aus Mikrowellenspektren extrapolierter Grenzwert.
+# admissible=no hiesse: unterhalb der Elektrodenpolarisationsschwelle und
+# damit eine Eigenschaft der Messzelle statt der Fluessigkeit.  Der
+# Datensatz enthaelt keinen solchen Punkt; die Spalte steht trotzdem da,
+# damit die Pruefung sichtbar ist und nicht nur behauptet.
+frequency_Hz,eps_r,uncertainty,concept,admissible,reference,method
+0.000000000e+00,1.290000000e+01,7.000000000e-01,intrinsic_static,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+1.000000000e+09,1.170000000e+01,6.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+2.000000000e+09,1.100000000e+01,6.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+3.000000000e+09,1.050000000e+01,6.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+4.000000000e+09,1.020000000e+01,6.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+5.000000000e+09,9.900000000e+00,5.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+6.000000000e+09,9.700000000e+00,5.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+7.000000000e+09,9.500000000e+00,5.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+8.000000000e+09,9.400000000e+00,5.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+9.000000000e+09,9.200000000e+00,5.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+1.000000000e+10,9.100000000e+00,5.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+1.100000000e+10,9.000000000e+00,5.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+1.200000000e+10,8.900000000e+00,5.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+1.300000000e+10,8.700000000e+00,5.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+1.400000000e+10,8.500000000e+00,5.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+1.500000000e+10,8.300000000e+00,5.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+1.600000000e+10,8.100000000e+00,5.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+1.700000000e+10,7.900000000e+00,4.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+1.800000000e+10,7.700000000e+00,4.000000000e-01,frequency_resolved_complex,yes,"Bennett, E. L.; Song, C.; Huang, Y.; Xiao, J. (2019) J. Mol. Liq. 294, 111571.","Coaxial cylinder capacitor"
+0.000000000e+00,1.360000000e+01,6.000000000e-01,intrinsic_static,yes,"Nakamura, K.; Shikata, T. (2010) ChemPhysChem 11(1), 285-294.","Parallel plate capacitor"
+0.000000000e+00,1.280000000e+01,1.000000000e+00,intrinsic_static,yes,"Wakai, Chihiro; Oleinikova, Alla; Ott, Magnus; Weingartner, Hermann (2005) J. Phys. Chem. B 109(36), 17028-17030.","Coaxial line"

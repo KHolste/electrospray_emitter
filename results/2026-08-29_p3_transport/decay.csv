@@ -1,6 +1,5 @@
-# Geschlossene Ladungsrelaxation rho(t) = rho0 exp(-t/tau) mit einem
-# ausdruecklich UNBELEGTEN eps_r.  Die Kurve zeigt die Form des
-# Zerfalls und die Lage von tau, nicht einen Stoffwert.
+# rho(t) = rho0 exp(-t/tau) mit dem SELBSTKONSISTENTEN tau.
+# Die Kurve zeigt die Form des Zerfalls und die Lage von tau.
 t_over_tau,rho_over_rho0
 0.000000000e+00,1.000000000e+00
 3.000000000e-02,9.704455335e-01

@@ -1,8 +1,9 @@
 # Zeitskalen nebeneinander.  Der Perfect-Conductor-Grenzfall ist ein
-# VERHAELTNIS und keine Eigenschaft von sigma allein: welche Prozesszeit
-# gilt, ist eine Modellentscheidung.
-scale,value_s,status,note
-tau_charge_relaxation,nan,MissingMaterialData,eps0 eps_r / sigma -- eps_r fehlt
-tau_charge_relaxation_unsourced,7.272633525e-11,unsourced,mit eps_r = 12.8 (NICHT belegt)
-t_capillary_inertial,1.721776335e-06,sourced,sqrt(rho a^3 / gamma)
-t_visco_capillary,3.366987744e-06,sourced,mu a / gamma
+# VERHAELTNIS und keine Eigenschaft von K allein: welche Prozesszeit
+# gilt, ist eine Modellentscheidung.  tau steht als BAND, weil kein
+# einzelner eps_r-Wert belegt ist; lo/hi sind die Ecken des
+# begruendeten Bandes, value_s ist der selbstkonsistente Wert.
+scale,value_s,lo_s,hi_s,status,note
+tau_charge_relaxation,6.058912582e-11,4.182653139e-11,1.323263234e-10,self_consistent_band,"eps0 eps_r(f*)/K mit f* = 2.627e+09 Hz; Band ueber eps_r 7.7..13.6 und K 0.91..1.63 S/m"
+t_capillary_inertial,1.721776335e-06,nan,nan,sourced,"sqrt(rho a^3 / gamma)"
+t_visco_capillary,3.366987744e-06,nan,nan,sourced,"mu a / gamma"

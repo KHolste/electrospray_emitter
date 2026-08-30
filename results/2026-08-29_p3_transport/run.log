@@ -13,6 +13,35 @@ Emission, keine Zeitintegration einer Form.
 
   Rohrstroemung: Volumenstrom trifft Hagen-Poiseuille auf 0.000026 relativ; der daraus gewonnene hydraulische
   Widerstand trifft die geschlossene Form von P1 auf 0.000026 relativ.
+  eps_r bei 298.15 K: begruendetes Band 7.7 .. 13.6 ueber 4 Quellen
+    3 als statisch berichtete Punkte, 18 frequenzaufgeloeste (1e+09 .. 1.8e+10 Hz)
+    Punkte unterhalb der Elektrodenpolarisationsschwelle (1e+06 Hz): keine im Datensatz
+    Band ueber alle als dielektrisch zulaessigen Punkte: die als statisch berichteten Werte (aus Mikrowellenspektren extrapoliert) und die frequenzaufgeloesten Messpunkte.  Es wird nicht gemittelt und keine Dispersionsfunktion angepasst.
+    KEIN Einzelwert ist ausgewaehlt: keine Quelle nennt Reinheit und Wassergehalt.
+  tau = eps0 eps_r(f*) / K, implizit mit f* = 1/(2 pi tau):
+    tau   = 6.058913e-11 s
+    f*    = 2.626791e+09 Hz  (innerhalb des Messbereichs 1e+09 .. 1.8e+10 Hz)
+    eps_r = 10.6638 bei f*
+    K     = 1.55836 S/m (ausgewaehlte Quelle)
+    18 Iterationen; Selbstkonsistenz-Residuum |eps_r(f*) - eps_r| / eps_r = 0.000e+00
+    zum Vergleich mit dem intrinsisch STATISCHEN eps_s = 13.6000: tau = 7.727173e-11 s (+27.5 %)
+  permittivity_concepts.csv geschrieben
+  permittivity_points.csv geschrieben (21 Punkte)
+  self_consistency.csv geschrieben
+  Perfect-Conductor-Urteil ueber das ganze begruendete Band:
+    eps_r 7.7 .. 13.6,  K 0.91 .. 1.63 S/m
+    tau   4.1827e-11 .. 1.3233e-10 s  (Ecken des Bandes)
+    selbstkonsistent: tau = 6.0589e-11 s
+    t_process = 1.7218e-06 s -> Verhaeltnis 1.301e+04 .. 4.116e+04, Schranke 100
+    PerfectConductorJustified: auch an der fuer die Naeherung UNGUENSTIGSTEN Ecke des Bandes ist tau um mehr als den geforderten Faktor kuerzer als die Prozesszeit.  Die Aequipotentialbehandlung ist damit belegt und nicht mehr nur angenommen -- und zwar ohne dass ein einzelner unbelegter eps_r-Wert benutzt wird.
+  Perfect-Conductor-Urteil ueber das ganze begruendete Band:
+    eps_r 7.7 .. 13.6,  K 0.91 .. 1.63 S/m
+    tau   4.1827e-11 .. 1.3233e-10 s  (Ecken des Bandes)
+    selbstkonsistent: tau = 6.0589e-11 s
+    t_process = 3.3670e-06 s -> Verhaeltnis 2.544e+04 .. 8.05e+04, Schranke 100
+    PerfectConductorJustified: auch an der fuer die Naeherung UNGUENSTIGSTEN Ecke des Bandes ist tau um mehr als den geforderten Faktor kuerzer als die Prozesszeit.  Die Aequipotentialbehandlung ist damit belegt und nicht mehr nur angenommen -- und zwar ohne dass ein einzelner unbelegter eps_r-Wert benutzt wird.
+  relaxation.csv geschrieben
+  time_scales.csv geschrieben
   Ladungsrelaxation: MissingMaterialData
     eps_r = 0 [MissingMaterialData], sigma = 1.55836 S/m [measured]
     tau ist nicht berechenbar.

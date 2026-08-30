@@ -1,0 +1,12 @@
+# Fuenf verschiedene Groessen heissen bei einer leitfaehigen ionischen
+# Fluessigkeit 'die Permittivitaet'.  Sie sind keine Varianten einer
+# Zahl.  Welche in tau_q = eps0 eps_r / K gehoert, folgt aus der
+# Herleitung und nicht aus einer Konvention: die freie Ladung zerfaellt
+# auf der Zeitskala tau selbst, ihr Spektrum liegt also bei
+# f* = 1/(2 pi tau), und dort ist eps_r abzulesen.
+concept,enters_tau_q,explanation
+static_apparent_low_frequency,no,"Was eine Kapazitaetsmessbruecke bei kHz anzeigt.  Bei K in der Groessenordnung 1 S/m wird das vom Leitungsbeitrag und von der Elektrodenpolarisation beherrscht und erreicht Werte von 10^4 und mehr.  Eine Eigenschaft der MESSZELLE, nicht der Fluessigkeit; kein Modell darf sie benutzen."
+intrinsic_static,no,"eps_s: der Grenzwert der DIELEKTRISCHEN Dispersion fuer f -> 0, nachdem der Leitungsbeitrag abgetrennt wurde.  Bei ionischen Fluessigkeiten wird er nicht bei null Hertz gemessen, sondern durch Anpassung eines Relaxationsmodells an Mikrowellenspektren gewonnen und extrapoliert."
+frequency_resolved_complex,yes_at_f_star,"eps*(f) = eps'(f) - i eps''(f), an einzelnen Frequenzen gemessen.  Traegt keinen Gleichstromwert, ist aber genau dann die richtige Groesse, wenn der Vorgang selbst bei dieser Frequenz stattfindet."
+electrode_polarisation,no,"Messartefakt: Ionen sammeln sich an den Elektroden und schirmen das angelegte Feld ab, was die scheinbare Kapazitaet aufblaeht.  Der Grund, warum fuer diese Fluessigkeiten ueberhaupt Mikrowellenspektroskopie benutzt wird."
+dc_conductivity,no,"K, eine eigene Groesse mit eigener Quelle.  Sie als imaginaere Permittivitaet K/(eps0 omega) zu schreiben ist Buchhaltung, keine zweite Dielektrizitaetszahl."

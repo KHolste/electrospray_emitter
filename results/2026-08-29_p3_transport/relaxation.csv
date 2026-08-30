@@ -1,9 +1,17 @@
-# Ladungsrelaxation.  tau = eps0 eps_r / sigma ist NUR berechenbar, wenn
-# BEIDE Zahlen belegt sind.  Fuer EMI-BF4 fehlt eps_r (siehe
-# docs/13_material_data.md), also steht der belegte Fall als nan.
-# Der Fall 'unbelegt' benutzt einen ausdruecklich NICHT belegten Wert
-# und ist ein Rechenbeispiel, keine Aussage ueber den Stoff.
-case,eps_r,eps_r_status,sigma_S_per_m,sigma_status,tau_s,process_time_s,ratio,verdict
-belegt_kapillar,nan,MissingMaterialData,1.558357143e+00,measured,nan,1.721776335e-06,nan,MissingMaterialData
-unbelegt_kapillar,1.280000000e+01,literature,1.558357143e+00,literature,7.272633525e-11,1.721776335e-06,2.367472979e+04,PerfectConductorJustified
-unbelegt_viskokapillar,1.280000000e+01,literature,1.558357143e+00,literature,7.272633525e-11,3.366987744e-06,4.629667827e+04,PerfectConductorJustified
+# Ladungsrelaxation.  KEIN Einzelwert von eps_r ist ausgewaehlt -- keine
+# Quelle nennt Reinheit und Wassergehalt -- und die Einzelwertabfrage
+# meldet weiterhin MissingMaterialData.  Statt eines Ersatzwertes stehen
+# hier die selbstkonsistente Loesung auf der GEMESSENEN Dispersionskurve
+# und die vier Ecken des begruendeten Bandes aus eps_r und K.  Das Urteil
+# wird an der fuer die Naeherung UNGUENSTIGSTEN Ecke gefaellt.
+case,eps_r,eps_r_basis,sigma_S_per_m,tau_s,process_time_s,process_name,ratio,verdict
+selbstkonsistent,1.066382360e+01,"eps_r(f*) auf der gemessenen Kurve, f* = 1/(2 pi tau)",1.558357143e+00,6.058912582e-11,1.721776335e-06,t_capillary_inertial,2.841724999e+04,PerfectConductorJustified
+Bandecke_eps_lo_K_lo,7.700000000e+00,"Ecke des begruendeten Bandes",9.100000000e-01,7.492005072e-11,1.721776335e-06,t_capillary_inertial,2.298151588e+04,PerfectConductorJustified
+Bandecke_eps_lo_K_hi,7.700000000e+00,"Ecke des begruendeten Bandes",1.630000000e+00,4.182653139e-11,1.721776335e-06,t_capillary_inertial,4.116469328e+04,PerfectConductorJustified
+Bandecke_eps_hi_K_lo,1.360000000e+01,"Ecke des begruendeten Bandes",9.100000000e-01,1.323263234e-10,1.721776335e-06,t_capillary_inertial,1.301159355e+04,PerfectConductorJustified
+Bandecke_eps_hi_K_hi,1.360000000e+01,"Ecke des begruendeten Bandes",1.630000000e+00,7.387543206e-11,1.721776335e-06,t_capillary_inertial,2.330648075e+04,PerfectConductorJustified
+selbstkonsistent,1.066382360e+01,"eps_r(f*) auf der gemessenen Kurve, f* = 1/(2 pi tau)",1.558357143e+00,6.058912582e-11,3.366987744e-06,t_visco_capillary,5.557082561e+04,PerfectConductorJustified
+Bandecke_eps_lo_K_lo,7.700000000e+00,"Ecke des begruendeten Bandes",9.100000000e-01,7.492005072e-11,3.366987744e-06,t_visco_capillary,4.494107668e+04,PerfectConductorJustified
+Bandecke_eps_lo_K_hi,7.700000000e+00,"Ecke des begruendeten Bandes",1.630000000e+00,4.182653139e-11,3.366987744e-06,t_visco_capillary,8.049885164e+04,PerfectConductorJustified
+Bandecke_eps_hi_K_lo,1.360000000e+01,"Ecke des begruendeten Bandes",9.100000000e-01,1.323263234e-10,3.366987744e-06,t_visco_capillary,2.544458018e+04,PerfectConductorJustified
+Bandecke_eps_hi_K_hi,1.360000000e+01,"Ecke des begruendeten Bandes",1.630000000e+00,7.387543206e-11,3.366987744e-06,t_visco_capillary,4.557655571e+04,PerfectConductorJustified
