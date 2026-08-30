@@ -1,0 +1,10 @@
+# Was ein ANDERES Teilchen bei FESTEM Abstand von einem deponierten
+# Teilchen spuert.  Anders als das Selbstfeld konvergiert das: abseits
+# der Ladung ist die diskrete Loesung eine Finite-Elemente-Naeherung
+# einer glatten Funktion.  Der Unterschied liegt nicht am Loeser, sondern
+# daran, wo man hinschaut.
+h_m,distance_m,phi_V,E_V_per_m,order_phi,order_E,relative_change_last,converges
+1.000000000e-06,5.000000000e-06,4.119738319e-01,8.589769319e+04,2.046106577e+00,1.908957888e+00,4.059112926e-05,yes
+5.000000000e-07,5.000000000e-06,4.116549628e-01,8.852658509e+04,2.046106577e+00,1.908957888e+00,4.059112926e-05,yes
+2.500000000e-07,5.000000000e-06,4.115859684e-01,8.931644826e+04,2.046106577e+00,1.908957888e+00,4.059112926e-05,yes
+1.250000000e-07,5.000000000e-06,4.115692624e-01,8.952677683e+04,2.046106577e+00,1.908957888e+00,4.059112926e-05,yes

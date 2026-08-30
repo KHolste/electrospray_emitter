@@ -13,5 +13,12 @@ bilinear und hat gar keine Singularitaet, die regularisiert werden muesste.
   Potentialverschiebung gegen rho = 0: 16.949945 V; Feldverschiebung 1706040.489164 V/m
   fields.csv geschrieben
   conservation.csv und approach.csv geschrieben
+  self_field_scaling.csv geschrieben
+    abseits der Achse: Wachstumsfaktor 1.585474, LOGARITHMISCH; auf der Achse: 16.181007, Potenz h^-1.003894.
+  foreign_field.csv geschrieben (Ordnung phi 2.046107, konvergiert: ja)
+  deposition_width.csv geschrieben
+  self_to_total.csv geschrieben (Anteil ~ N^-0.815986 asymptotisch)
+  self_field_exclusion.csv geschrieben
+  pic_options.csv geschrieben -- PIC-Schleife: BLOCKIERT
 
 Alle deklarierten Pruefungen dieses Laufs bestanden.

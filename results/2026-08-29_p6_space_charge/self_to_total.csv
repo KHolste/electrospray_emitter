@@ -1,0 +1,14 @@
+# Der Anteil des EIGENEN deponierten Feldes am Feld, das ein Teilchen
+# spuert, gegen die Zahl der Makropartikel, in die dieselbe Gesamtladung
+# aufgeteilt ist -- bei gleichem Netz und gleicher Ladungsverteilung.
+# Das ist die Groesse, die ein PIC-Konvergenzargument gegen null treiben
+# muesste.  Der Fit ueber ALLE Punkte faellt flacher aus als der
+# asymptotische, weil ein einzelnes Makropartikel sein eigenes Gesamtfeld
+# IST; beide Zahlen stehen deshalb da.
+n_particles,phi_self_V,phi_total_V,ratio,fit_all,fit_asymptotic
+1,2.505995836e+00,2.505995836e+00,1.000000000e+00,5.255482026e-01,8.159858705e-01
+2,1.252706971e+00,1.296008395e+00,9.665886240e-01,5.255482026e-01,8.159858705e-01
+4,6.263534856e-01,8.104336936e-01,7.728620991e-01,5.255482026e-01,8.159858705e-01
+8,3.131767428e-01,6.016261725e-01,5.205503968e-01,5.255482026e-01,8.159858705e-01
+16,1.565883714e-01,5.089666562e-01,3.076593908e-01,5.255482026e-01,8.159858705e-01
+32,7.829418571e-02,4.661644768e-01,1.679539939e-01,5.255482026e-01,8.159858705e-01

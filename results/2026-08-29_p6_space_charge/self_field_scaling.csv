@@ -1,0 +1,21 @@
+# Das Selbstpotential EINES Makropartikels unter Netzverfeinerung.
+# Es ist NICHT regularisiert: es waechst unbeschraenkt, und wie schnell,
+# haengt davon ab, wo das Teilchen sitzt.
+#   Abseits der Achse ist ein Makropartikel ein RING; dessen exaktes
+#   Potential ist auf dem Ring logarithmisch singulaer, also waechst das
+#   bei h abgeschnittene Selbstpotential wie ln(1/h).
+#   Auf der Achse entartet der Ring zur Punktladung mit 1/d-Singularitaet,
+#   also waechst es wie 1/h.
+# Beide Gesetze werden angepasst und beide Reste berichtet, damit die
+# Antwort aus den Daten kommt und nicht aus der Erwartung.
+position,h_m,phi_self_V,E_self_V_per_m,power_exponent,power_residual,log_slope,log_residual,prefers_logarithmic,growth_factor
+off_axis_r_0.35R,1.000000000e-06,1.938016022e+00,1.011778673e+05,1.657648182e-01,1.236325120e-02,4.091891902e-01,1.207760267e-04,yes,1.585473685e+00
+off_axis_r_0.35R,5.000000000e-07,2.222398144e+00,1.217244964e+05,1.657648182e-01,1.236325120e-02,4.091891902e-01,1.207760267e-04,yes,1.585473685e+00
+off_axis_r_0.35R,2.500000000e-07,2.505995836e+00,1.420666134e+05,1.657648182e-01,1.236325120e-02,4.091891902e-01,1.207760267e-04,yes,1.585473685e+00
+off_axis_r_0.35R,1.250000000e-07,2.789366718e+00,1.623351045e+05,1.657648182e-01,1.236325120e-02,4.091891902e-01,1.207760267e-04,yes,1.585473685e+00
+off_axis_r_0.35R,6.250000000e-08,3.072673402e+00,1.825798027e+05,1.657648182e-01,1.236325120e-02,4.091891902e-01,1.207760267e-04,yes,1.585473685e+00
+on_axis_r_0,1.000000000e-06,3.242318402e+01,1.017857041e+07,1.003893586e+00,3.026010146e-04,1.704284254e+02,3.166725662e-01,no,1.618100700e+01
+on_axis_r_0,5.000000000e-07,6.523750267e+01,4.071375069e+07,1.003893586e+00,3.026010146e-04,1.704284254e+02,3.166725662e-01,no,1.618100700e+01
+on_axis_r_0,2.500000000e-07,1.308663669e+02,1.628547352e+08,1.003893586e+00,3.026010146e-04,1.704284254e+02,3.166725662e-01,no,1.618100700e+01
+on_axis_r_0,1.250000000e-07,2.621241610e+02,6.514188067e+08,1.003893586e+00,3.026010146e-04,1.704284254e+02,3.166725662e-01,no,1.618100700e+01
+on_axis_r_0,6.250000000e-08,5.246397677e+02,2.605675160e+09,1.003893586e+00,3.026010146e-04,1.704284254e+02,3.166725662e-01,no,1.618100700e+01

@@ -1,6 +1,11 @@
-# Annaeherung an ein einzelnes Makropartikel.  Ein Ringmodell wuerde
-# hier logarithmisch divergieren; die FEM-Loesung eines Knotenlast-
-# vektors ist stueckweise bilinear und bleibt beschraenkt.
+# Annaeherung an ein einzelnes Makropartikel BEI FESTEM NETZ (81 x 161).
+# Die FEM-Loesung eines Knotenlastvektors ist stueckweise bilinear und
+# bleibt deshalb auf DIESEM Netz beschraenkt.
+#
+# Das ist eine Aussage ueber ein festes Netz und ueber sonst nichts.  Fuer
+# h -> 0 waechst das Selbstpotential unbeschraenkt; siehe
+# self_field_scaling.csv.  Eine fruehere Fassung dieser Datei nannte den
+# Befund 'keine Divergenz', was den Zusatz 'bei festem Netz' verschwieg.
 d_over_R,phi_V,E_magnitude_V_per_m
 3.000000000e-01,3.306830464e-01,7.304859178e+04
 1.500000000e-01,6.453874725e-01,1.536466316e+05

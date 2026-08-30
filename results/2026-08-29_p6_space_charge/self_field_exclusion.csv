@@ -1,0 +1,22 @@
+# Die scheinbare Selbstkraft auf ein EINZELNES Teilchen im sonst leeren,
+# geerdeten Kasten, gegen seine Lage im Zellinneren.  Ohne Abzug spuert
+# es ein Feld, obwohl nichts anderes da ist, und dessen Betrag haengt
+# allein davon ab, wo in der Zelle es sitzt.  Mit Abzug spuert es exakt
+# nichts.
+#
+# Der Abzug ist keine Glaettung und kein Filter: die diskrete Aufgabe ist
+# LINEAR, also wird das Selbstfeld aus einer zweiten Loesung mit nur
+# diesem Teilchen und homogenen Randwerten gewonnen und subtrahiert.  Die
+# Ueberlagerung wird dabei gegen die volle Loesung geprueft.
+# Preis: eine zusaetzliche Loesung je Teilchen.  Deshalb ist damit KEINE
+# Produktions-PIC-Schleife freigegeben -- siehe pic_options.csv.
+offset_m,offset_over_h,E_naive_V_per_m,E_excluded_V_per_m,phi_naive_V,phi_excluded_V,superposition_error,solves
+0.000000000e+00,0.000000000e+00,1.420666134e+05,0.000000000e+00,2.505995836e+00,0.000000000e+00,0.000000000e+00,4
+3.125000000e-08,1.250000000e-01,1.363095880e+05,0.000000000e+00,2.347640550e+00,0.000000000e+00,0.000000000e+00,4
+6.250000000e-08,2.500000000e-01,1.318955760e+05,0.000000000e+00,2.231406632e+00,0.000000000e+00,0.000000000e+00,4
+9.375000000e-08,3.750000000e-01,1.288245773e+05,0.000000000e+00,2.157294082e+00,0.000000000e+00,0.000000000e+00,4
+1.250000000e-07,5.000000000e-01,1.270965920e+05,0.000000000e+00,2.125302901e+00,0.000000000e+00,0.000000000e+00,4
+1.562500000e-07,6.250000000e-01,1.267116199e+05,0.000000000e+00,2.135433088e+00,0.000000000e+00,0.000000000e+00,4
+1.875000000e-07,7.500000000e-01,1.276696613e+05,0.000000000e+00,2.187684643e+00,0.000000000e+00,0.000000000e+00,4
+2.187500000e-07,8.750000000e-01,1.299707159e+05,0.000000000e+00,2.282057567e+00,0.000000000e+00,0.000000000e+00,4
+2.500000000e-07,1.000000000e+00,1.336147839e+05,0.000000000e+00,2.418551859e+00,0.000000000e+00,0.000000000e+00,4

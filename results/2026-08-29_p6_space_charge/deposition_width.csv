@@ -1,0 +1,11 @@
+# Die Breite der deponierten Ladungswolke eines Teilchens.  Sie ist durch
+# die Zelle beschraenkt und faellt mit ihr gegen null: in der Wolke steckt
+# KEINE andere Laenge als das Netz.  Genau deshalb waere eine feste
+# physikalische Formbreite ein FREI GEWAEHLTER Parameter und keine
+# Modellaussage -- es gibt nichts, woraus sie folgen wuerde.
+h_r_m,h_z_m,diagonal_m,rms_m,rms_over_h_r,max_over_diagonal,n_nodes_receiving,on_node
+1.000000000e-06,2.000000000e-06,2.236067977e-06,7.926840480e-07,7.926840480e-01,8.496648751e-01,4,no
+5.000000000e-07,1.000000000e-06,1.118033989e-06,4.973409293e-07,9.946818587e-01,7.052103232e-01,4,no
+2.500000000e-07,5.000000000e-07,5.590169944e-07,2.384281863e-07,9.537127450e-01,7.571567869e-01,4,no
+1.250000000e-07,2.500000000e-07,2.795084972e-07,1.363744844e-07,1.090995875e+00,5.854447882e-01,4,no
+6.250000000e-08,1.250000000e-07,1.397542486e-07,4.714870094e-08,7.543792150e-01,8.512240598e-01,4,no
