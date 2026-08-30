@@ -1,14 +1,7 @@
-stamp=bfa2c610a8f3
-head_commit=bfa2c610a8f300088c0c27d631382c37b6447741
-data_commit=bfa2c610a8f300088c0c27d631382c37b6447741
+stamp=5d8caba0ffb7
+head_commit=5d8caba0ffb7ace9a5d2bcf2392447228ded439a
+data_commit=5d8caba0ffb7ace9a5d2bcf2392447228ded439a
 working_tree_dirty=no
 releasable=yes
 ignored_prefix=results/2026-08-29_p3_transport
-ignored_file=results/2026-08-29_p3_transport/decay.csv
 ignored_file=results/2026-08-29_p3_transport/meta.txt
-ignored_file=results/2026-08-29_p3_transport/relaxation.csv
-ignored_file=results/2026-08-29_p3_transport/run.log
-ignored_file=results/2026-08-29_p3_transport/time_scales.csv
-ignored_file=results/2026-08-29_p3_transport/permittivity_concepts.csv
-ignored_file=results/2026-08-29_p3_transport/permittivity_points.csv
-ignored_file=results/2026-08-29_p3_transport/self_consistency.csv
