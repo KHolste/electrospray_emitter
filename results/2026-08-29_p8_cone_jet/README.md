@@ -48,7 +48,23 @@ geprueft auf 1e-12.
 | elektrische Bondzahl | 1,02 |
 | Reynolds (Zulauf) | 4,5e-04 |
 | Kapillarzahl (Zulauf) | 8,6e-04 |
-| tau_e, r* | **nicht berechenbar** -- eps_r fehlt |
+| tau_e | **6,06e-11 s** -- selbstkonsistent (P3), Band 4,18e-11 ... 1,32e-10 s |
+| r* | **5,37e-09 m** -- Band 4,19e-09 ... 9,04e-09 m |
+
+**Zu tau_e und r*.** Eine fruehere Fassung fuehrte beide als *nicht berechenbar,
+eps_r fehlt*. Das war vor der P3-Korrektur richtig. Beide haengen von eps_r
+jedoch **nur ueber tau** ab:
+
+```
+r* = (gamma eps0^2 eps_r^2 / (rho K^2))^(1/3) = (gamma tau^2 / rho)^(1/3)
+```
+
+und tau ist seit P3 selbstkonsistent auf der **gemessenen** Dispersionskurve
+geloest (eps_r = 10,664 bei f* = 2,627 GHz). Das ist **kein Ersatzwert**. Ein
+**einzelner** eps_r-Wert fehlt weiterhin, `eps_r_status` bleibt
+`MissingMaterialData`, und der Gesamtstatus der Diagnose ebenso. Die Identitaet
+zwischen beiden Rechenwegen wird im Test gerechnet, nicht behauptet: r* aus tau
+und r* aus eps_r(f*) stimmen auf 1e-12 ueberein.
 
 Ablesbar: Oh ~ 2, auf dieser Laengenskala dominiert die Viskositaet die
 Traegheit. Das ist eine DIAGNOSE, welche Physik ein Modell enthalten muesste --

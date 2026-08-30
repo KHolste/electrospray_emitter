@@ -13,9 +13,12 @@ Fluessigkeit und lassen sich nicht auseinander berechnen.
   requirements.csv: 5 Teilmodelle fehlen.
   Cone-Jet-Diagnose: MissingMaterialData
     Stoffwerte: gamma measured, rho measured, mu measured, K measured, eps_r MissingMaterialData
-    Zeitskalen [s]: tau_e nan, kapillar 1.7218e-06, viskos 3.3670e-06, Verweilzeit 5.2360e-03
-    Laengen [m]: a 5.0000e-06, r* nan
+    tau_e ist NICHT aus einem einzelnen eps_r gerechnet -- es gibt keinen. 
+      Es ist die selbstkonsistente Loesung aus P3: eps_r = 10.6638 bei f* = 2.6268e+09 Hz,
+      Band 4.1827e-11 .. 1.3233e-10 s.  eps_r bleibt MissingMaterialData.
+    Zeitskalen [s]: tau_e 6.0589e-11, kapillar 1.7218e-06, viskos 3.3670e-06, Verweilzeit 5.2360e-03
+    Laengen [m]: a 5.0000e-06, r* 5.3693e-09
     dimensionslos: Oh 1.9555e+00, Bo_E 1.0246e+00, Re 4.4842e-04, Ca 8.5740e-04
-    Eine Stoffgroesse, die die Diagnose braucht, ist MissingMaterialData.  Es wird kein Ersatzwert gesetzt; die betroffenen Kennzahlen bleiben nan.  Fehlend: eps_r  -- die davon abhaengigen Kennzahlen bleiben nan.
+    Eine Stoffgroesse, die die Diagnose braucht, ist MissingMaterialData.  Es wird kein Ersatzwert gesetzt; die betroffenen Kennzahlen bleiben nan.  Fehlend: eps_r  -- die davon abhaengigen Kennzahlen bleiben nan, soweit unten keine Ausnahme genannt ist.  AUSNAHME: tau_e und r* haengen von eps_r nur ueber tau ab und sind bestimmt -- tau_e = 6.0589e-11 s aus der selbstkonsistenten P3-Loesung (eps_r = 10.6638 bei f* = 2.6268e+09 Hz), Band 4.1827e-11 .. 1.3233e-10 s.  Das ist KEIN Ersatzwert; ein einzelner eps_r-Wert fehlt weiterhin.
 
 Die Verweigerung haelt; es wurde kein Strom und kein Tropfendurchmesser erzeugt.
