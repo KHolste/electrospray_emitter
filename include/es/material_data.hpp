@@ -50,9 +50,14 @@ enum class PropertyKind {
   SurfaceTension = 0,     ///< [N/m]  -- enters the P3a/P3b equilibrium
   Density,                ///< [kg/m^3]
   DynamicViscosity,       ///< [Pa s]
-  KinematicViscosity,     ///< [m^2/s] -- reported separately, never converted
-                          ///< silently: converting needs a density, and which
-                          ///< density the original author used is not recorded.
+  KinematicViscosity,     ///< [m^2/s] -- kept as its own record of DIRECT
+                          ///< measurements.  It is never silently converted
+                          ///< from a foreign mu and rho, because which density
+                          ///< the original author divided by is not recorded.
+                          ///< A value may however be DERIVED from this data
+                          ///< set's own selected mu and rho -- see
+                          ///< derive_kinematic_viscosity() below, which states
+                          ///< its compatibility conditions and fails closed.
   ElectricalConductivity, ///< [S/m]
   RelativePermittivity,   ///< [-]
 };
@@ -69,6 +74,12 @@ enum class MaterialDataStatus {
   ManufacturerSpec,
   /// A named source that has not been read at the value.
   Literature,
+  /// NOT measured.  Computed from other SELECTED properties of THIS data set by
+  /// a stated identity, from sources whose documented conditions were checked
+  /// for compatibility, with the uncertainty propagated.  It carries both
+  /// parent citations and both parent values and must never be presented as if
+  /// the quantity itself had been measured.
+  Derived,
   /// An example value with no primary source.  It may carry a dimensionless
   /// demonstration and nothing else.
   Illustrative,
@@ -78,6 +89,13 @@ enum class MaterialDataStatus {
 const char* to_string(MaterialDataStatus s);
 const char* explain(MaterialDataStatus s);
 inline bool carries_quantitative_claim(MaterialDataStatus s) {
+  return s == MaterialDataStatus::Measured || s == MaterialDataStatus::ManufacturerSpec ||
+         s == MaterialDataStatus::Derived;
+}
+/// True only where the quantity ITSELF was measured.  A derived value carries a
+/// quantitative claim but is not a measurement of its own quantity, and any
+/// output that distinguishes the two must ask this and not the above.
+inline bool is_direct_measurement(MaterialDataStatus s) {
   return s == MaterialDataStatus::Measured || s == MaterialDataStatus::ManufacturerSpec;
 }
 
@@ -137,6 +155,13 @@ struct PropertySource {
   /// outside [T_min, T_max]: extrapolating a fit through measurements that were
   /// not taken is exactly what a provenance record is supposed to prevent.
   Real value_at(Real T) const;
+  /// The reported uncertainty at T, interpolated between the two neighbouring
+  /// AMBIENT points exactly as value_at() interpolates the value.  Returns NaN
+  /// outside the measured range, and NaN if either neighbouring point reports
+  /// no uncertainty -- because uncertainty == 0 means "the source did not state
+  /// one", never "the source stated zero", and averaging a stated figure with a
+  /// missing one would invent an error bar.
+  Real uncertainty_at(Real T) const;
   /// True where at least one point carries a non-zero frequency, i.e. the
   /// source measured a frequency-resolved quantity.  Such a source must not
   /// back a DC number without saying so.
@@ -225,6 +250,145 @@ struct MaterialValue {
 /// if the selected source does not cover T, or if the dataset does not carry
 /// the property at all.
 MaterialValue material_value(const MaterialDataset& d, PropertyKind kind, Real T);
+
+// ---------------------------------------------------------------------------
+// Deriving nu = mu / rho -- allowed, but only under stated conditions
+// ---------------------------------------------------------------------------
+//
+// The kinematic viscosity is not a second, independent material property: it is
+// mu / rho by definition.  Refusing to form it at all would be over-strict.
+// Forming it from any mu and any rho would be worse: the two would then be a
+// viscosity of one sample at one temperature divided by a density of a
+// DIFFERENT sample, possibly at a different temperature, water content or
+// pressure, and the quotient would describe no liquid that exists.
+//
+// So the derivation is permitted exactly when the two parent values can be
+// shown to describe the same liquid in the same state.  The conditions are
+// checked mechanically and named individually when one of them fails:
+//
+//   (C1) mu and rho each have a SELECTED source (i.e. each satisfies the
+//        selection rule: method, purity and water content stated, ambient,
+//        not frequency resolved);
+//   (C2) both selected sources cover T without extrapolation;
+//   (C3) the values used are both ambient-pressure values -- guaranteed by
+//        value_at(), which never touches a non-ambient point;
+//   (C4) the documented sample conditions agree VERBATIM between the two
+//        sources: purity, water content and sample origin.  Two different
+//        strings are not proof of incompatibility, but they are the absence of
+//        proof of compatibility, and this contract fails closed on that.
+//
+// It is deliberately NOT required that the two sources be the same publication.
+// Whether they are is recorded (`same_publication`) and reported, because it
+// makes the claim stronger, not because the derivation would otherwise be void.
+//
+// The uncertainty is propagated through nu = mu/rho as independent relative
+// errors.  mu and rho from one and the same instrument run are not strictly
+// independent, and the quadratic sum is then the smaller of the two plausible
+// combinations; the linear sum is also reported so that a reader can take the
+// conservative one.  The propagated figure is dominated by mu either way.
+
+struct KinematicViscosityDerivation {
+  bool ok{false};              ///< false: nothing below except `blocker` is valid
+  const char* identity{"nu = mu / rho"};
+  Real T{0};                   ///< [K], the one temperature both values are at
+
+  Real mu{0};                  ///< [Pa s]   the value actually used
+  Real mu_uncertainty{0};      ///< [Pa s]   as reported at T; NaN = not reported
+  Real rho{0};                 ///< [kg/m^3]
+  Real rho_uncertainty{0};     ///< [kg/m^3]
+  const PropertySource* mu_source{nullptr};
+  const PropertySource* rho_source{nullptr};
+
+  Real value{0};               ///< [m^2/s]  = mu / rho
+  Real uncertainty{0};         ///< [m^2/s]  quadratic propagation; NaN if a
+                               ///< parent reported none
+  Real uncertainty_linear{0};  ///< [m^2/s]  linear propagation (conservative)
+  Real relative_uncertainty{0};
+
+  bool same_publication{false};
+  bool uncertainty_propagated{false};
+  std::string conditions;      ///< purity / water / pressure, verbatim
+  std::string blocker;         ///< empty iff ok; names the failing condition
+
+  void print(std::FILE* out) const;
+};
+
+/// nu at T, derived from the SELECTED dynamic viscosity and the SELECTED
+/// density of `d`.  Fails closed -- ok == false and `blocker` naming the one
+/// condition that prevents the derivation -- rather than returning a number.
+KinematicViscosityDerivation derive_kinematic_viscosity(const MaterialDataset& d, Real T);
+
+/// The same result in the common MaterialValue shape, with status Derived (or
+/// MissingMaterialData with the blocker as its message).  Callers that only
+/// want a number and a status use this; callers that must report HOW the number
+/// arose use derive_kinematic_viscosity() and get both parents.
+MaterialValue derived_kinematic_viscosity(const MaterialDataset& d, Real T);
+
+// ---------------------------------------------------------------------------
+// What a change of gamma does -- and what it demonstrably does NOT do
+// ---------------------------------------------------------------------------
+//
+// A corrected surface tension changes P3a/P3b numbers.  How it changes them is
+// a physical statement, and an earlier version of this table got one row of it
+// wrong, so the rows now live here, in the library, where a test can check them
+// instead of in an application's printf.
+//
+// THE DISTINCTION THIS TABLE EXISTS TO MAKE
+//
+//   (1) SCALING A DIMENSIONLESS EQUILIBRIUM.  The P3a/P3b solver computes a
+//       nondimensional shape in which gamma appears only through the capillary
+//       pressure scale gamma/a and the electric Bond number
+//       Gamma = eps0 E^2 a / (2 gamma).  Holding the DIMENSIONLESS solution
+//       fixed and changing gamma therefore moves the dimensional pressures and
+//       voltages by an exact power of gamma.  Nothing is re-solved.  This is a
+//       unit conversion of a result already computed, and it is exact.
+//
+//   (2) A RECOMPUTED COUPLED SOLUTION at fixed voltage and fixed geometry.  That
+//       is a different question and this table does not answer it.  No row here
+//       is a new simulation, and the `recomputed` field says so on every row.
+//
+// THE ROW THAT WAS WRONG, AND WHY
+//
+// A previous version listed "maxwell_force_for_fixed_shape" as "linear in
+// gamma".  That is false.  With the geometry, the applied voltage and the
+// permittivity distribution all held fixed, the field follows from Laplace's
+// (or Poisson's) equation, in which gamma does not appear at ALL -- not in the
+// operator, not in the boundary conditions, not in the coefficients.  The
+// Maxwell traction eps0 E^2 / 2 is then a functional of that field alone and is
+// INVARIANT under a change of gamma: exponent 0, factor exactly 1.
+//
+// gamma decides WHICH shape stands in equilibrium.  It does not decide the
+// force a given field exerts on a given shape.  Conflating the two turned a
+// statement about the equilibrium into a false statement about the electric
+// stress, and it is kept in the table -- as an invariant, with its exponent of
+// zero -- rather than deleted, so that the correction is visible.
+
+enum class GammaScalingCategory {
+  /// An exact scaling of the nondimensional P3a/P3b solution.  Not a new solve.
+  DimensionlessEquilibrium = 0,
+  /// A dimensionless group in which gamma appears explicitly, evaluated at a
+  /// fixed FIELD rather than at a fixed shape.
+  DimensionlessGroup,
+  /// Does not scale with gamma at all.  Listed so the invariance is stated
+  /// rather than left to be assumed.
+  InvariantAtFixedState,
+};
+const char* to_string(GammaScalingCategory c);
+
+struct GammaScalingRow {
+  const char* quantity{""};
+  GammaScalingCategory category{GammaScalingCategory::DimensionlessEquilibrium};
+  const char* law{""};        ///< "gamma^1", "sqrt(gamma)", "gamma^0", "1/gamma"
+  Real exponent{0};           ///< factor = (gamma_new / gamma_old)^exponent
+  /// false on every row: nothing in this table is a newly computed coupled
+  /// solution, and an output that presented one as such would be wrong.
+  bool recomputed{false};
+  const char* what_is_held_fixed{""};
+  const char* note{""};
+};
+
+/// The complete table.  `n` receives the row count.
+const GammaScalingRow* gamma_scaling_rows(std::size_t& n);
 
 // ---------------------------------------------------------------------------
 // The datasets

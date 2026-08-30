@@ -13,7 +13,12 @@ Produces
   <dir>/fig2_scatter.png           the literature scatter at 298,15 K, source by
                                    source, with the provenance each one states
   <dir>/fig3_impact.png            what the sourced gamma changes about the
-                                   numbers P3a/P3b reported
+                                   numbers P3a/P3b reported -- and, as its own
+                                   row, what it demonstrably does NOT change
+  <dir>/fig4_kinematic_viscosity.png
+                                   nu = mu/rho: a DERIVED value, with both
+                                   parents, the propagated uncertainty and the
+                                   directly measured band it is compared against
   <dir>/figures_provenance.txt
 """
 import csv
@@ -258,42 +263,190 @@ def figure_scatter(d, m, out):
 
 # ==========================================================================
 def figure_impact(d, m, out):
+    """What a change of gamma does to the P3a/P3b numbers.
+
+    Every row is a SCALING of an already computed dimensionless solution, never
+    a new coupled simulation -- impact.csv carries `recomputed` on every row and
+    this figure refuses to draw a row that claims otherwise.
+
+    The row that matters most is the one that does NOT move: at fixed geometry,
+    fixed applied voltage and fixed permittivity distribution the Maxwell
+    traction is a functional of the field alone, and gamma appears nowhere in
+    the field problem.  It is drawn as a marker at exactly 1, not as a bar.
+    """
     imp = rows(os.path.join(d, "impact.csv"))
     if not imp:
         return None
-    fig, ax = plt.subplots(figsize=(11.0, 6.2))
-    fig.suptitle(TITLE + "\nAbb. 3 – was der belegte γ-Wert an den P3a/P3b-Zahlen ändert",
-                 fontsize=12.5, y=0.97)
+    if any(r.get("recomputed", "no") != "no" for r in imp):
+        raise SystemExit("impact.csv behauptet eine neu gerechnete Loesung -- "
+                         "diese Abbildung stellt nur Skalierungen dar.")
+
+    fig, ax = plt.subplots(figsize=(12.4, 6.6))
+    fig.suptitle(TITLE + "\nAbb. 3 – wie eine Änderung von γ die P3a/P3b-Zahlen "
+                         "verschiebt – und was sie nicht verschiebt",
+                 fontsize=12.5, y=0.975)
     y = np.arange(len(imp))
     fsel = col(imp, "factor_selected")
     flo = col(imp, "factor_lo")
     fhi = col(imp, "factor_hi")
-    ax.barh(y, fsel - 1.0, left=1.0, color="#1f77b4", height=0.45)
+    expo = col(imp, "exponent")
+    invariant = np.array([r.get("category", "").startswith("invariant") for r in imp])
+
     for i in range(len(imp)):
-        ax.plot([flo[i], fhi[i]], [y[i], y[i]], color="#111111", lw=2.0, zorder=5)
-        ax.plot([flo[i], fhi[i]], [y[i], y[i]], "|", color="#111111", ms=10, zorder=5)
-        ax.text(fsel[i], y[i] + 0.28, f"×{fsel[i]:.3f}", fontsize=8.5, ha="center")
-    ax.axvline(1.0, color="#7a3b00", lw=1.6, ls="--")
+        if invariant[i]:
+            # No bar: a bar of length zero would still read as "a small effect".
+            ax.plot([1.0], [y[i]], marker="D", ms=11, color="#7a3b00", zorder=6)
+            ax.annotate("skaliert NICHT mit γ – Faktor exakt 1",
+                        xy=(1.0, y[i]), xytext=(1.012, y[i]), va="center",
+                        fontsize=9.0, color="#7a3b00", weight="bold")
+        else:
+            ax.barh(y[i], fsel[i] - 1.0, left=1.0, color="#1f77b4", height=0.42, zorder=3)
+            ax.plot([flo[i], fhi[i]], [y[i], y[i]], color="#111111", lw=2.0, zorder=5)
+            ax.plot([flo[i], fhi[i]], [y[i], y[i]], "|", color="#111111", ms=10, zorder=5)
+            ax.text(fsel[i], y[i] + 0.27, f"×{fsel[i]:.3f}", fontsize=8.5, ha="center")
+
+    ax.axvline(1.0, color="#7a3b00", lw=1.6, ls="--", zorder=2)
     ax.set_yticks(y)
-    ax.set_yticklabels([f"{r['quantity']}\n({r['scaling']})" for r in imp], fontsize=8.5)
+    ax.set_yticklabels([f"{r['quantity']}\nγ-Gesetz: {r['law']}  (Exponent {e:+.1f})"
+                        f"\nfestgehalten: {r.get('held_fixed', '')}"
+                        for r, e in zip(imp, expo)], fontsize=7.6)
     ax.set_xlabel("Faktor gegenüber der Rechnung mit dem bisherigen illustrativen γ")
     ax.grid(alpha=0.25, axis="x")
-    ax.set_title("Balken: gewählte Quelle.  Schwarzer Strich: das ganze belegte Band.",
-                 fontsize=9.5)
+    ax.set_title("Balken: gewählte Quelle.  Schwarzer Strich: das ganze belegte Band.  "
+                 "Raute: Größe, die von γ nicht abhängt.", fontsize=9.5)
+    allf = np.concatenate([fsel, flo, fhi])
+    ax.set_xlim(float(np.nanmin(allf)) - 0.07, float(np.nanmax(allf)) + 0.12)
 
-    caveat(fig, "γ geht LINEAR in das Gleichgewicht ein, die Spannung skaliert mit √γ. Das "
-                "sind Skalierungen der vorhandenen Rechnung, keine neuen Rechnungen. Der "
-                "Faktor 1,19 auf jede Druckskala ist größer als jeder Diskretisierungsfehler, "
-                "den P0 gemessen hat (4,6 bis 6,1 %). Die bisherigen P3a/P3b-Zahlen bleiben "
-                "gültig als das, was sie sind – Rechnungen mit einem ausdrücklich "
-                "illustrativen Stoffwert.", 0.055)
+    caveat(fig, "KEINE Zeile ist eine neu gerechnete gekoppelte Simulation. Alle Zeilen "
+                "skalieren eine bereits vorhandene dimensionslose Lösung, in der γ nur über "
+                "die Druckskala γ/a und die elektrische Bondzahl Γ = ε₀E²a/(2γ) auftritt. "
+                "Deshalb: Druckskala ~ γ, Spannung bei gleicher dimensionsloser Form ~ √γ, "
+                "Bondzahl bei festem Feld ~ 1/γ. Die Maxwell-Traktion ε₀E²/2 bei "
+                "festgehaltener Geometrie, Spannung und Permittivitätsverteilung hängt "
+                "dagegen gar nicht von γ ab – γ kommt im Feldproblem nicht vor. γ entscheidet, "
+                "WELCHE Form im Gleichgewicht steht, nicht welche Kraft ein gegebenes Feld auf "
+                "eine gegebene Form ausübt. Eine frühere Fassung führte genau diese Zeile "
+                "falsch als „linear in gamma“.", 0.058)
     provenance(fig, m, NOT_MODELLED)
-    fig.tight_layout(rect=[0, 0.155, 1, 0.930])
+    fig.tight_layout(rect=[0, 0.175, 1, 0.925])
     fig.savefig(out, dpi=145)
     plt.close(fig)
     return out
 
 
+# ==========================================================================
+def figure_kinematic(d, m, out):
+    """nu = mu/rho -- derived, and labelled as derived everywhere it appears."""
+    kv = rows(os.path.join(d, "kinematic_viscosity.csv"))
+    if not kv:
+        return None
+    r = kv[0]
+    derived = r.get("status") == "derived"
+
+    fig, axes = plt.subplots(1, 2, figsize=(13.0, 6.6),
+                             gridspec_kw={"width_ratios": [1.15, 1.0]})
+    fig.suptitle(TITLE + "\nAbb. 4 – kinematische Viskosität ν: abgeleitet, nicht gemessen",
+                 fontsize=12.5, y=0.975)
+
+    # ---------------------------------------------------------- left: the record
+    ax = axes[0]
+    ax.axis("off")
+    if not derived:
+        ax.text(0.0, 0.95, "ν ist NICHT ableitbar.", fontsize=12, va="top", weight="bold",
+                color="#8a1b1b", transform=ax.transAxes)
+        ax.text(0.0, 0.85, textwrap.fill(r.get("blocker", ""), 56), fontsize=9.5, va="top",
+                color="#8a1b1b", transform=ax.transAxes)
+    else:
+        mu, dmu = f(r["mu"]), f(r["mu_uncertainty"])
+        rho, drho = f(r["rho"]), f(r["rho_uncertainty"])
+        nu, dnu = f(r["nu"]), f(r["uncertainty_quadratic"])
+        rel = f(r["relative_uncertainty"])
+        lin = f(r["uncertainty_linear"])
+
+        y = 0.985
+        def line(txt, size=10.0, colr="#111111", bold=False, gap=0.062, mono=False):
+            nonlocal y
+            if txt:
+                ax.text(0.0, y, txt, fontsize=size, color=colr, va="top",
+                        family="monospace" if mono else None,
+                        weight="bold" if bold else "normal", transform=ax.transAxes)
+            y -= gap
+
+        line(r"$\nu \;=\; \mu \,/\, \rho$", 15, "#111111", True, 0.085)
+        line(f"µ  = (36.370 ± 0.760) mPa·s".replace("36.370", f"{mu*1e3:.3f}")
+                                          .replace("0.760", f"{dmu*1e3:.3f}"),
+             10.5, "#111111", False, 0.050, mono=True)
+        line(f"ρ  = ({rho:.1f} ± {drho:.1f}) kg/m³", 10.5, "#111111", False, 0.075, mono=True)
+        line(f"ν  = ({nu*1e6:.4f} ± {dnu*1e6:.4f}) mm²/s", 12.0, "#1f77b4", True, 0.050,
+             mono=True)
+        line(f"     relative Unsicherheit {100*rel:.2f} %, fortgepflanzt",
+             9.0, "#444444", False, 0.040, mono=True)
+        line(f"     konservativ linear addiert: ± {lin*1e6:.4f} mm²/s",
+             9.0, "#444444", False, 0.085, mono=True)
+        line("Status: DERIVED – die Größe selbst wurde NICHT gemessen.",
+             10.5, "#7a3b00", True, 0.075)
+
+        cond = ("Geprüfte Bedingungen (C1–C4): beide Elternwerte sind die vom Vertrag "
+                "AUSGEWÄHLTEN Quellen für µ und ρ, bei derselben Temperatur, bei "
+                "Umgebungsdruck, nicht frequenzaufgelöst, mit wörtlich gleicher Reinheit, "
+                "gleichem Wassergehalt und gleicher Probenherkunft"
+                + (" – hier sogar dieselbe Publikation."
+                   if r.get("same_publication") == "yes" else "."))
+        wrapped = textwrap.fill(cond, 58)
+        ax.text(0.0, y, wrapped, fontsize=8.6, va="top", color="#333333",
+                transform=ax.transAxes)
+        y -= 0.038 * (wrapped.count("\n") + 1) + 0.050
+
+        w2 = textwrap.fill("Bedingungen wörtlich: " + r.get("conditions", ""), 62)
+        ax.text(0.0, y, w2, fontsize=7.6, va="top", color="#666666", transform=ax.transAxes)
+
+    # ------------------------------------------------- right: against the direct band
+    ax = axes[1]
+    if derived:
+        nu, dnu = f(r["nu"]) * 1e6, f(r["uncertainty_quadratic"]) * 1e6
+        dlo, dhi = f(r["direct_band_lo"]) * 1e6, f(r["direct_band_hi"]) * 1e6
+        lo = min(dlo, nu - dnu)
+        hi = max(dhi, nu + dnu)
+        pad = 0.22 * (hi - lo)
+        ax.set_ylim(lo - 0.45 * pad, hi + 1.5 * pad)
+
+        ax.axhspan(dlo, dhi, color="#bbbbbb", alpha=0.55, zorder=1)
+        ax.text(1.42, 0.5 * (dlo + dhi),
+                "direkt gemessenes Band\n(erfüllt die Auswahlregel NICHT:\n"
+                "keine Reinheits- und Wasserangabe)\ngeht in keine Rechnung ein",
+                fontsize=8.2, ha="center", va="center", color="#333333")
+        ax.errorbar([0.62], [nu], yerr=[dnu], fmt="D", ms=10, color="#1f77b4",
+                    capsize=7, lw=2.0, zorder=5)
+        ax.text(0.62, nu + dnu + 0.06 * (hi - lo), f"abgeleitet\n{nu:.4f} mm²/s",
+                fontsize=9.5, ha="center", va="bottom", color="#1f77b4", weight="bold")
+        dev = f(r["deviation_from_direct_band_hi"])
+        ax.set_title(f"Der abgeleitete Wert liegt {100*dev:+.1f} % über der oberen Kante des\n"
+                     "direkt gemessenen Bandes – berichtet, nicht weggerechnet",
+                     fontsize=9.3, pad=10)
+        ax.set_xlim(0.0, 2.3)
+        ax.set_xticks([])
+        ax.set_ylabel("ν bei 298,15 K  [mm²/s]")
+        ax.grid(alpha=0.25, axis="y")
+    else:
+        ax.axis("off")
+
+    caveat(fig, "ν ist keine unabhängige Stoffgröße, sondern µ/ρ. Der Vertrag wählt keine "
+                "direkt gemessene ν aus – keine der drei Quellen nennt Reinheit und "
+                "Wassergehalt. Aus µ und ρ DARF abgeleitet werden, sobald gezeigt ist, dass "
+                "beide Werte dieselbe Flüssigkeit im selben Zustand beschreiben; die "
+                "Bedingungen C1–C4 stehen in include/es/material_data.hpp und schlagen "
+                "einzeln benannt fehl, wenn eine verletzt ist. Der Wert trägt den Status "
+                "„derived“ und darf nirgends als Messung von ν zitiert werden. Die Abweichung "
+                "vom direkt gemessenen Band ist kleiner als die Literaturstreuung von µ "
+                "(54 %) und damit durch Probenunterschiede erklärbar.", 0.088)
+    provenance(fig, m, NOT_MODELLED)
+    fig.tight_layout(rect=[0, 0.225, 1, 0.925])
+    fig.savefig(out, dpi=145)
+    plt.close(fig)
+    return out
+
+
+# ==========================================================================
 def main(d):
     global STAMP
     m = meta(d)
@@ -305,7 +458,8 @@ def main(d):
 
     made = [figure_vs_T(d, m, os.path.join(d, "fig1_properties_vs_T.png")),
             figure_scatter(d, m, os.path.join(d, "fig2_scatter.png")),
-            figure_impact(d, m, os.path.join(d, "fig3_impact.png"))]
+            figure_impact(d, m, os.path.join(d, "fig3_impact.png")),
+            figure_kinematic(d, m, os.path.join(d, "fig4_kinematic_viscosity.png"))]
     for x in made:
         if x:
             print(f"{x}  {os.path.getsize(x)} Byte")

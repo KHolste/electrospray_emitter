@@ -53,7 +53,8 @@ pubs.acs.org-Abstracts); aus keinem davon ist eine Zahl übernommen worden.
 | Dichte | 80 | 849 | 1277,6 … 1290,0 kg/m³ | 1,0 % |
 | dynamische Viskosität | 32 | 256 | 0,0252 … 0,0450 Pa·s | 54 % |
 | elektrische Leitfähigkeit | 24 | 326 | 0,91 … 1,63 S/m (bei 298,15 K; ein Ausreißer 5·10⁻⁴ liegt knapp ausserhalb des 2-K-Fensters) | 46 % |
-| kinematische Viskosität | 3 | 22 | — | — |
+| kinematische Viskosität (direkt gemessen) | 3 | 22 | 2,71 … 2,75 ·10⁻⁵ m²/s | — |
+| kinematische Viskosität (abgeleitet, ν = µ/ρ) | 2 Eltern | — | 2,8394 ·10⁻⁵ m²/s ± 2,09 % | s. 13.6a |
 | relative Permittivität | 4 | 21 | 12,8 … 13,6 (statisch) | — |
 
 Die genauen Zahlen stehen in `results/2026-08-29_p2_material_data/summary.csv`;
@@ -136,7 +137,127 @@ Rechnung, die ihn benutzt, sagt das in ihrem Ausgabekopf.
 | Größe | Status | Grund |
 |---|---|---|
 | relative Permittivität | `MissingMaterialData` | keine der vier Quellen nennt Reinheit und Wassergehalt; die mehrpunktige ist zudem frequenzaufgelöst (1–18 GHz) |
-| kinematische Viskosität | `MissingMaterialData` | keine Quelle nennt Methode, Reinheit und Wassergehalt zugleich. Sie wird **nicht** aus $\mu$ und $\rho$ zusammengerechnet: welche Dichte der jeweilige Autor benutzt hat, ist nicht festgehalten |
+| kinematische Viskosität, **direkt gemessen** | `MissingMaterialData` | keine der drei Quellen nennt Methode, Reinheit und Wassergehalt zugleich, also wählt die Regel keine aus |
+
+Für die kinematische Viskosität ist das aber **nicht das letzte Wort**, und eine
+frühere Fassung dieses Abschnitts hat hier zu viel behauptet. Siehe 13.6a.
+
+### 13.6a Kinematische Viskosität: abgeleitet, nicht gemessen
+
+$\nu$ ist keine unabhängige Stoffgröße, sondern per Definition
+
+$$
+\nu=\frac{\mu}{\rho}.
+$$
+
+Sie gar nicht zu bilden, wäre zu streng. Sie aus *irgendeinem* $\mu$ und
+*irgendeinem* $\rho$ zu bilden, wäre schlimmer: der Quotient wäre dann die
+Viskosität einer Probe geteilt durch die Dichte einer **anderen**, womöglich bei
+anderer Temperatur, anderem Wassergehalt oder anderem Druck — er beschriebe
+keine existierende Flüssigkeit. Die Ableitung ist deshalb genau dann erlaubt,
+wenn sich zeigen lässt, dass beide Elternwerte **dieselbe Flüssigkeit im selben
+Zustand** beschreiben. Die Bedingungen stehen in
+`include/es/material_data.hpp` und werden von
+`es::derive_kinematic_viscosity()` einzeln geprüft:
+
+| | Bedingung | bei 298,15 K |
+|---|---|---|
+| C1 | $\mu$ und $\rho$ haben je eine **ausgewählte** Quelle, erfüllen also selbst die Auswahlregel | erfüllt |
+| C2 | beide gewählten Quellen decken $T$ **ohne Extrapolation** ab | erfüllt (283,15 … 373,15 K, beide) |
+| C3 | beide Werte sind Umgebungsdruckwerte und keine Quelle ist frequenzaufgelöst | erfüllt |
+| C4 | Reinheit, Wassergehalt und Probenherkunft stimmen **wörtlich** überein | erfüllt |
+
+Zu C4: zwei verschiedene Zeichenketten sind kein Beweis der Unverträglichkeit,
+aber sie sind die Abwesenheit eines Beweises der Verträglichkeit, und der
+Vertrag schlägt darauf geschlossen fehl. Dass beide Quellen **dieselbe
+Publikation** sind, wird nicht verlangt — es wird als `same_publication`
+mitgeführt und berichtet, weil es die Aussage stärker macht.
+
+Hier ist es tatsächlich dieselbe Publikation und dieselbe Probe:
+
+| | Wert bei 298,15 K | Quelle |
+|---|---|---|
+| $\mu$ | $(36{,}370 \pm 0{,}760)\;\text{mPa·s}$, Concentric cylinders viscometry | Miranda, C. F. P.; Santos, L. M. N. B. F. (2025) *Fluid Phase Equilib.* **597**, 114458 |
+| $\rho$ | $(1280{,}9 \pm 1{,}1)\;\text{kg/m}^3$, Vibrating tube method | dieselbe |
+| Probe | 99 mass %, 0,0100 water mass % (dried by vacuum heating), commercial source | dieselbe |
+
+$$
+\nu=\frac{\mu}{\rho}=(28{,}3941\pm0{,}5938)\cdot10^{-6}\;\mathrm{m^2/s}
+$$
+
+Die Unsicherheit ist **fortgepflanzt**, nicht geschätzt:
+$\left(\frac{\sigma_\nu}{\nu}\right)^2=\left(\frac{\sigma_\mu}{\mu}\right)^2+\left(\frac{\sigma_\rho}{\rho}\right)^2$,
+also 2,09 %. Weil $\mu$ und $\rho$ aus demselben Messgang stammen und damit
+nicht streng unabhängig sind, wird die linear addierte Variante
+($\pm 0{,}6177\cdot10^{-6}\;\mathrm{m^2/s}$) als die konservativere
+mitgeliefert. Der Fehler wird in beiden Fällen von $\mu$ bestimmt: dessen
+relativer Beitrag ist 2,09 %, der von $\rho$ 0,086 %.
+
+**Der Status ist `derived`, nicht `measured`.** `MaterialDataStatus::Derived`
+ist ein eigener Zustand; `is_direct_measurement()` ist dafür `false`,
+`carries_quantitative_claim()` `true`. In `summary.csv` steht die Größe mit
+`value_kind=derived`, im Referenzfeld stehen **beide** Eltern, und
+`relative_spread` ist dort die fortgepflanzte Unsicherheit und keine
+Literaturstreuung. Der vollständige Nachweis liegt in
+`kinematic_viscosity.csv`.
+
+**Quervergleich, der nicht weggerechnet wird.** Die drei direkt gemessenen
+Quellen (Kapillarviskosimetrie, ohne Reinheits- und Wasserangabe) geben bei
+298,15 K das Band $27{,}1 \ldots 27{,}5\;\mathrm{mm^2/s}$. Der abgeleitete Wert
+liegt **3,3 % über** dessen oberer Kante. Das wird berichtet, nicht angepasst:
+die Abweichung ist klein gegen die Literaturstreuung von $\mu$ (54 %) und damit
+durch Probenunterschiede erklärbar. Die direkt gemessenen Werte gehen in keine
+Rechnung ein.
+
+**Fail-closed bleibt fail-closed.** Außerhalb des gemeinsamen Messbereichs
+liefert `derive_kinematic_viscosity()` keinen Wert, sondern nennt die verletzte
+Bedingung, z. B. bei 398,15 K: *„C2 verletzt: die gewaehlte mu-Quelle deckt
+398.15 K nicht ab (gemessen 283.15 .. 373.15 K). Es wird nicht extrapoliert.“*
+
+### 13.6b Was eine Änderung von $\gamma$ tut — und was sie nicht tut
+
+`impact.csv` beantwortet die Frage, was der korrigierte $\gamma$-Wert an den
+P3a/P3b-Zahlen verschiebt. **Jede** Zeile darin ist eine Umskalierung einer
+bereits gerechneten dimensionslosen Lösung und **keine** neue gekoppelte
+Simulation; die Spalte `recomputed` steht deshalb überall auf `no`, und
+`python/plot_material.py` verweigert die Abbildung, wenn das nicht so ist.
+
+Der P3a/P3b-Löser rechnet ein dimensionsloses Gleichgewicht, in dem $\gamma$ nur
+über die Kapillardruckskala $\gamma/a$ und die elektrische Bondzahl
+$\Gamma=\varepsilon_0E^2a/(2\gamma)$ auftritt. Daraus folgen die Exponenten:
+
+| Größe | festgehalten | Gesetz | Exponent |
+|---|---|---|---|
+| Kapillardruckskala $\gamma/a$ | dimensionslose Form, $a$ | $\gamma^1$ | $+1$ |
+| mechanische Last für **dieselbe** dimensionslose Form | dimensionslose Form | $\gamma^1$ | $+1$ |
+| Spannung für dieselbe dimensionslose Form | dimensionslose Form, Geometrie | $\sqrt{\gamma}$ | $+\tfrac12$ |
+| elektrische Bondzahl bei festem **Feld** | $E$, Geometrie | $1/\gamma$ | $-1$ |
+| **Maxwell-Traktion bei festgehaltener Geometrie, Spannung und Permittivitätsverteilung** | Geometrie, $U$, $\varepsilon$-Verteilung | $\gamma^0$ | **$0$** |
+
+**Die letzte Zeile ist eine Korrektur.** Eine frühere Fassung führte sie als
+*„maxwell_force_for_fixed_shape (linear in gamma)“*. Das ist physikalisch
+falsch. Bei festgehaltener Geometrie, festgehaltener angelegter Spannung und
+festgehaltener Permittivitätsverteilung folgt das Feld aus der Laplace- bzw.
+Poisson-Gleichung, in der $\gamma$ **nirgends** vorkommt — weder im Operator noch
+in den Randbedingungen noch in den Koeffizienten. Die Maxwell-Traktion
+$\varepsilon_0E^2/2$ ist dann ein Funktional allein dieses Feldes und
+**invariant** unter einer Änderung von $\gamma$: Exponent 0, Faktor exakt 1.
+
+$\gamma$ entscheidet, **welche** Form im Gleichgewicht steht. Es entscheidet
+nicht, welche Kraft ein gegebenes Feld auf eine gegebene Form ausübt. Die
+Verwechslung machte aus einer richtigen Aussage über das Gleichgewicht eine
+falsche über die elektrische Spannung im Feld. Die Zeile wird deshalb **nicht
+gelöscht**, sondern als Invariante mit Exponent 0 geführt, damit die Korrektur
+sichtbar bleibt.
+
+Die Tabelle liegt als `es::gamma_scaling_rows()` in `src/material_data.cpp` —
+also in der Bibliothek, wo ein Test sie prüfen kann, und nicht mehr in einem
+`printf` einer Anwendung. `tests/test_material_data.cpp`, Abschnitt 5b, prüft
+unter anderem, dass der Maxwell-Exponent 0 ist, dass der berichtete Faktor für
+*jedes* $\gamma$-Verhältnis exakt 1 ergibt, dass Spannungs- und
+Bondzahl-Exponent miteinander verträglich sind
+($e_U=-\tfrac12 e_\Gamma$) und dass die alte Beschriftung „linear in gamma“
+nirgends mehr vorkommt.
 
 Für P3b heißt das: die relative Permittivität der **Flüssigkeit** ist nicht
 belegt. Sie geht dort auch nicht ein — die Flüssigkeit ist ein idealer Leiter —

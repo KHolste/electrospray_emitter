@@ -65,9 +65,96 @@ int main() {
 
     const MaterialValue k = material_value(d, PropertyKind::KinematicViscosity, kT);
     check(k.status == MaterialDataStatus::MissingMaterialData,
-          "die kinematische Viskositaet ebenso -- sie wird NICHT aus mu und rho "
-          "zusammengerechnet, weil nicht festgehalten ist, welche Dichte der jeweilige "
-          "Autor benutzt hat");
+          "eine DIREKT gemessene kinematische Viskositaet ebenso: keine der drei "
+          "Quellen nennt Reinheit und Wassergehalt, also waehlt der Vertrag keine aus");
+  }
+
+  // =========================================================================
+  // The kinematic viscosity is not an independent property -- it is mu/rho by
+  // definition.  Refusing to form it at all would be over-strict; forming it
+  // from any mu and any rho would divide one sample by another.  This section
+  // checks that the derivation happens exactly under its stated conditions,
+  // that it is labelled as derived rather than measured, and that it fails
+  // closed -- naming the condition -- when a condition is broken.
+  std::printf("\n1b. nu = mu/rho: abgeleitet, nicht gemessen\n");
+  {
+    const KinematicViscosityDerivation r = derive_kinematic_viscosity(d, kT);
+    r.print(stdout);
+    check(r.ok, "die Ableitung ist bei 298,15 K zulaessig");
+    if (r.ok) {
+      check(r.mu_source != nullptr && r.rho_source != nullptr,
+            "beide Elternquellen sind im Ergebnis benannt");
+      check(std::abs(r.value - r.mu / r.rho) <= 1e-15 * std::abs(r.value),
+            "der Wert ist genau mu/rho aus den gespeicherten Einzelwerten");
+      check(std::abs(r.mu - d.find(PropertyKind::DynamicViscosity)->selection().value_at(kT)) <=
+                1e-15,
+            "das benutzte mu ist der Wert der GEWAEHLTEN mu-Quelle bei 298,15 K");
+      check(std::abs(r.rho - d.find(PropertyKind::Density)->selection().value_at(kT)) <= 1e-15,
+            "das benutzte rho ist der Wert der GEWAEHLTEN rho-Quelle bei 298,15 K");
+      check(r.T == kT, "die Temperatur beider Werte ist dieselbe und ist genannt");
+      check(!r.conditions.empty(), "die Bedingungen sind im Ergebnis genannt");
+
+      // C4 held here because both parents are literally the same publication --
+      // same sample, same purity, same water content.  That is stronger than
+      // the contract demands, and it is recorded rather than assumed.
+      check(r.same_publication,
+            "mu und rho stammen hier sogar aus derselben Publikation");
+      check(std::string(r.mu_source->purity) == std::string(r.rho_source->purity) &&
+                std::string(r.mu_source->water_content) ==
+                    std::string(r.rho_source->water_content),
+            "Reinheit und Wassergehalt sind bei beiden Quellen woertlich gleich (C4)");
+
+      // The uncertainty is PROPAGATED, not invented, and is dominated by mu.
+      check(r.uncertainty_propagated, "die Unsicherheit ist fortgepflanzt");
+      const Real em = r.mu_uncertainty / r.mu, er = r.rho_uncertainty / r.rho;
+      check(std::abs(r.relative_uncertainty - std::sqrt(em * em + er * er)) <=
+                1e-14 * r.relative_uncertainty,
+            "die relative Unsicherheit ist die quadratische Summe der beiden Einzelanteile");
+      check(r.uncertainty_linear >= r.uncertainty,
+            "die linear addierte Variante ist die konservativere und wird mitgeliefert");
+      check(em > 10.0 * er,
+            "der Fehler wird von mu bestimmt, nicht von rho");
+
+      // It must NOT be presented as a measurement of nu.
+      const MaterialValue v = derived_kinematic_viscosity(d, kT);
+      check(v.status == MaterialDataStatus::Derived,
+            "die Abfrage liefert den Status 'derived'");
+      check(!is_direct_measurement(v.status),
+            "und dieser Status ist ausdruecklich KEINE Direktmessung");
+      check(carries_quantitative_claim(v.status),
+            "er traegt aber einen quantitativen Anspruch, anders als MissingMaterialData");
+      check(std::string(to_string(v.status)) == std::string("derived"),
+            "in jeder Ausgabe steht 'derived' und nicht 'measured'");
+
+      // Cross-check against the DIRECT measurements, which exist but do not
+      // satisfy the provenance rule.  They are not used, and the deviation is
+      // reported rather than tuned away.
+      const MaterialProperty* kv = d.find(PropertyKind::KinematicViscosity);
+      const Real lo = kv->min_at(kT), hi = kv->max_at(kT);
+      const Real dev = (r.value - hi) / hi;
+      std::printf("    direkt gemessenes Band bei 298,15 K: %.6g .. %.6g m^2/s\n", lo, hi);
+      std::printf("    abgeleitet: %.6g m^2/s, also %+.1f %% ueber der oberen Bandkante\n",
+                  r.value, 100.0 * dev);
+      check(std::isfinite(lo) && std::isfinite(hi) && r.value > hi,
+            "der abgeleitete Wert liegt OBERHALB des direkt gemessenen Bandes -- das wird "
+            "berichtet und nicht weggerechnet");
+      const Real mu_spread = d.find(PropertyKind::DynamicViscosity)->relative_spread_at(kT);
+      check(std::abs(dev) < mu_spread,
+            "die Abweichung ist kleiner als die Literaturstreuung von mu und damit durch "
+            "die Probenunterschiede erklaerbar");
+    }
+
+    // Fail closed: outside the measured temperature range there is no value,
+    // and the message names the condition rather than the property.
+    const Real T_far = d.find(PropertyKind::DynamicViscosity)->selection().T_max() + 25.0;
+    const KinematicViscosityDerivation bad = derive_kinematic_viscosity(d, T_far);
+    std::printf("    bei %.2f K: %s\n", T_far, bad.blocker.c_str());
+    check(!bad.ok, "ausserhalb des Messbereichs ist die Ableitung nicht zulaessig");
+    check(bad.blocker.find("C2") != std::string::npos,
+          "und der Blocker benennt die verletzte Bedingung C2, nicht nur 'fehlt'");
+    check(derived_kinematic_viscosity(d, T_far).status ==
+              MaterialDataStatus::MissingMaterialData,
+          "die Abfrage meldet dort MissingMaterialData statt eines extrapolierten Wertes");
   }
 
   // =========================================================================
@@ -174,6 +261,79 @@ int main() {
     // The selected value must lie inside the band it is the middle of.
     check(v >= lo - 1e-12 && v <= hi + 1e-12,
           std::string(to_string(kind)) + ": der gewaehlte Wert liegt im Band");
+  }
+
+  // =========================================================================
+  // The gamma-scaling table makes PHYSICAL claims, and one of them was wrong
+  // before: the Maxwell traction at fixed geometry and voltage was listed as
+  // linear in gamma.  The claims therefore live in the library and are checked
+  // here rather than being printed by an application and never verified.
+  std::printf("\n5b. Was eine Aenderung von gamma tut -- und was nicht\n");
+  {
+    std::size_t n = 0;
+    const GammaScalingRow* rows = gamma_scaling_rows(n);
+    check(n >= 4, "die Skalierungstabelle hat Zeilen");
+
+    const GammaScalingRow* maxwell = nullptr;
+    const GammaScalingRow* voltage = nullptr;
+    const GammaScalingRow* bond = nullptr;
+    for (std::size_t i = 0; i < n; ++i) {
+      const std::string q = rows[i].quantity;
+      std::printf("    %-46s %-12s Exponent %+.1f  [%s]\n", rows[i].quantity, rows[i].law,
+                  rows[i].exponent, to_string(rows[i].category));
+      if (q.find("maxwell") != std::string::npos) maxwell = &rows[i];
+      if (q == "voltage_for_same_dimensionless_shape") voltage = &rows[i];
+      if (q == "electric_bond_number_at_fixed_field") bond = &rows[i];
+    }
+
+    // THE CORRECTION.  At fixed geometry, fixed applied voltage and fixed
+    // permittivity distribution, the field solves a problem in which gamma does
+    // not appear, so the Maxwell traction cannot depend on it.
+    check(maxwell != nullptr, "die Maxwell-Traktion steht in der Tabelle");
+    if (maxwell) {
+      check(maxwell->exponent == 0.0,
+            "sie hat den Exponenten 0 -- bei festgehaltener Geometrie, Spannung und "
+            "Permittivitaetsverteilung skaliert sie NICHT mit gamma");
+      check(maxwell->category == GammaScalingCategory::InvariantAtFixedState,
+            "und ist als Invariante eingeordnet, nicht als Skalierung");
+      check(std::string(maxwell->law) == "gamma^0",
+            "das Gesetz heisst gamma^0 und nicht mehr 'linear in gamma'");
+      // The factor a report would print must be exactly one for ANY gamma pair.
+      for (Real ratio : {0.5, 1.0, 1.9, 7.0})
+        check(std::pow(ratio, maxwell->exponent) == 1.0,
+              "der berichtete Faktor ist fuer jedes gamma-Verhaeltnis exakt 1");
+      check(std::string(maxwell->what_is_held_fixed).find("Spannung") != std::string::npos,
+            "und die Zeile nennt, was dabei festgehalten wird");
+    }
+
+    // The rows that DO scale, and the exponents that follow from
+    // Gamma = eps0 E^2 a / (2 gamma).
+    check(voltage != nullptr && voltage->exponent == 0.5,
+          "die Spannung fuer dieselbe dimensionslose Form skaliert mit sqrt(gamma)");
+    check(bond != nullptr && bond->exponent == -1.0,
+          "die elektrische Bondzahl bei festgehaltenem FELD skaliert mit 1/gamma");
+    if (voltage && bond) {
+      // Consistency of the two: holding Gamma fixed while gamma changes by r
+      // demands E^2 ~ r, i.e. the voltage exponent is exactly -1/2 times the
+      // Bond-number exponent.  These are not two independent claims.
+      check(std::abs(voltage->exponent + 0.5 * bond->exponent) < 1e-15,
+            "beide folgen aus derselben Bondzahl und sind miteinander vertraeglich");
+    }
+
+    // Nothing in this table is a newly computed coupled solution.
+    std::size_t recomputed = 0;
+    for (std::size_t i = 0; i < n; ++i)
+      if (rows[i].recomputed) ++recomputed;
+    check(recomputed == 0,
+          "keine Zeile behauptet, eine neu gerechnete gekoppelte Simulation zu sein");
+    for (std::size_t i = 0; i < n; ++i) {
+      check(rows[i].note[0] != '\0' && rows[i].what_is_held_fixed[0] != '\0',
+            std::string(rows[i].quantity) +
+                ": es ist genannt, was festgehalten wird und warum das Gesetz gilt");
+      check(std::string(rows[i].law).find("linear in gamma") == std::string::npos,
+            std::string(rows[i].quantity) +
+                ": die alte, mehrdeutige Beschriftung 'linear in gamma' kommt nicht mehr vor");
+    }
   }
 
   // =========================================================================
