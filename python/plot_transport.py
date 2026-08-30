@@ -167,8 +167,8 @@ def figure_charge(d, m, out):
         ax.text(1.05, 0.5, "t = τ", color="#2ca02c", fontsize=8)
     ax.set_xlabel("t / τ")
     ax.set_ylabel("ρ(t) / ρ₀")
-    ax.set_title("ρ(t) = ρ₀ e^(−t/τ),  τ = ε₀ε_r/σ\n"
-                 "mit einem AUSDRÜCKLICH UNBELEGTEN ε_r", fontsize=9.5)
+    ax.set_title("ρ(t) = ρ₀ e^(−t/τ),  τ = ε₀ε_r(f*)/K\n"
+                 "mit dem SELBSTKONSISTENTEN τ aus Abb. 3", fontsize=9.5)
     ax.grid(alpha=0.25, which="both")
 
     ax = axes[1]
