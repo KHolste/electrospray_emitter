@@ -1,12 +1,17 @@
 # Nachtlauf 2026-08-29/30 und die Nacharbeit vom 2026-08-30
 
 **Nichts gepusht.** `origin/main` steht unverändert auf `a932ff1`; HEAD ist
-**43 Commits voraus, 0 zurück**, Arbeitsbaum sauber.
+**46 Commits voraus, 0 zurück**, Arbeitsbaum sauber.
 
 Vollständiger Build aus leerem Verzeichnis: fehlerfrei. `ctest`: **26/26 grün**
-(117 s). Sanitizerlauf unter WSL (Ubuntu, GCC 13.3, ASan + UBSan,
-`detect_leaks=1`): **26/26 grün**, 608 s, **null** Sanitizer- oder
-UBSan-Meldungen.
+(119 s). Sanitizerlauf unter WSL (Ubuntu, GCC 13.3, ASan + UBSan,
+`detect_leaks=1`) über den **endgültigen** Code: **26/26 grün**, 605 s, **null**
+Sanitizer-, UBSan- oder Leak-Meldungen.
+
+Jeder Provenienzstempel liegt in dieser Historie (`git merge-base
+--is-ancestor`), und jedes der 15 Ergebnisverzeichnisse trägt
+`working_tree_dirty=no` und `releasable=yes`. 27 Abbildungen insgesamt, PNG-
+Signatur, Abmessungen und Dateigröße geprüft.
 
 Sicherung des Standes vor der Nacharbeit: Branch
 `backup/nachtlauf-p0-p9-20260830` und Tag `backup-nachtlauf-20260830-ede1508`,
