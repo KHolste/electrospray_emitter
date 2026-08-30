@@ -1,9 +1,29 @@
-# Was der belegte gamma-Wert an den P3a/P3b-Zahlen aendert.  gamma geht
-# LINEAR in die Gleichgewichtsgleichung ein, die Spannung skaliert mit
-# sqrt(gamma).  Das sind Skalierungen der vorhandenen Rechnung, keine
-# neuen Rechnungen.
-quantity,scaling,illustrative,selected,band_lo,band_hi,factor_selected,factor_lo,factor_hi
-pressure_scale_gamma_over_a,linear in gamma,4.520000000e-02,5.400970060e-02,4.430000000e-02,5.460000000e-02,1.194904881e+00,9.800884956e-01,1.207964602e+00
-delta_p_exit_for_fixed_Pi,linear in gamma,4.520000000e-02,5.400970060e-02,4.430000000e-02,5.460000000e-02,1.194904881e+00,9.800884956e-01,1.207964602e+00
-voltage_for_fixed_shape,sqrt(gamma),4.520000000e-02,5.400970060e-02,4.430000000e-02,5.460000000e-02,1.093117048e+00,9.899941897e-01,1.099074430e+00
-maxwell_force_for_fixed_shape,linear in gamma,4.520000000e-02,5.400970060e-02,4.430000000e-02,5.460000000e-02,1.194904881e+00,9.800884956e-01,1.207964602e+00
+# Was der belegte gamma-Wert an den P3a/P3b-Zahlen aendert.
+#
+# JEDE Zeile ist eine SKALIERUNG einer bereits gerechneten dimensionslosen
+# Loesung, KEINE neue gekoppelte Rechnung.  Die Spalte `recomputed` steht
+# deshalb auf jeder Zeile auf no.
+#
+# `category` unterscheidet, worueber eine Zeile ueberhaupt spricht:
+#   scaling_of_dimensionless_equilibrium
+#       exakte Umskalierung der nichtdimensionalen P3a/P3b-Loesung; gamma
+#       tritt dort nur ueber die Druckskala gamma/a auf.
+#   dimensionless_group_at_fixed_field
+#       eine dimensionslose Gruppe, in der gamma explizit steht, bei
+#       festgehaltenem FELD ausgewertet.
+#   invariant_at_fixed_geometry_voltage_permittivity
+#       skaliert GAR NICHT mit gamma.  Die Maxwell-Traktion eps0 E^2/2 ist
+#       bei festgehaltener Geometrie, Spannung und Permittivitaetsverteilung
+#       ein Funktional allein des Feldes, und in der Laplace-/Poisson-
+#       Gleichung kommt gamma nicht vor.  Exponent 0, Faktor exakt 1.
+#       Eine fruehere Fassung dieser Datei fuehrte genau diese Zeile
+#       faelschlich als 'linear in gamma'.
+#
+# Die Skalierungstabelle steht in src/material_data.cpp
+# (gamma_scaling_rows) und wird in tests/test_material_data.cpp geprueft.
+quantity,category,law,exponent,recomputed,held_fixed,illustrative,selected,band_lo,band_hi,factor_selected,factor_lo,factor_hi,note
+capillary_pressure_scale_gamma_over_a,scaling_of_dimensionless_equilibrium,gamma^1,1.0,no,"die dimensionslose Form und der Kruemmungsradius a",4.520000000e-02,5.400970060e-02,4.430000000e-02,5.460000000e-02,1.194904881e+00,9.800884956e-01,1.207964602e+00,"Die Druckskala des Gleichgewichts ist gamma/a.  Bei fester dimensionsloser Form wandert jeder Kapillardruck proportional zu gamma."
+mechanical_load_for_same_dimensionless_shape,scaling_of_dimensionless_equilibrium,gamma^1,1.0,no,"die dimensionslose Form",4.520000000e-02,5.400970060e-02,4.430000000e-02,5.460000000e-02,1.194904881e+00,9.800884956e-01,1.207964602e+00,"Der mechanische Druck beziehungsweise die Gleichgewichtslast, die DIESELBE dimensionslose Form traegt, skaliert mit derselben Druckskala gamma/a."
+voltage_for_same_dimensionless_shape,scaling_of_dimensionless_equilibrium,sqrt(gamma),0.5,no,"die dimensionslose Form und die Geometrie",4.520000000e-02,5.400970060e-02,4.430000000e-02,5.460000000e-02,1.093117048e+00,9.899941897e-01,1.099074430e+00,"Elektrokapillares Aehnlichkeitsargument: bei fester dimensionsloser Form ist die elektrische Bondzahl Gamma = eps0 E^2 a / (2 gamma) fest, also E ~ sqrt(gamma) und damit U ~ sqrt(gamma)."
+electric_bond_number_at_fixed_field,dimensionless_group_at_fixed_field,1/gamma,-1.0,no,"das Feld E und die Geometrie",4.520000000e-02,5.400970060e-02,4.430000000e-02,5.460000000e-02,8.368866981e-01,1.020316027e+00,8.278388278e-01,"Bei festgehaltenem FELD steht gamma im Nenner: Gamma = eps0 E^2 a / (2 gamma).  Ein groesseres gamma macht dieselbe Feldstaerke elektrisch weniger wirksam."
+maxwell_traction_at_fixed_geometry_and_voltage,invariant_at_fixed_geometry_voltage_permittivity,gamma^0,0.0,no,"Geometrie, angelegte Spannung und Permittivitaetsverteilung",4.520000000e-02,5.400970060e-02,4.430000000e-02,5.460000000e-02,1.000000000e+00,1.000000000e+00,1.000000000e+00,"KEINE Skalierung mit gamma.  Bei festgehaltener Geometrie, Spannung und Permittivitaetsverteilung folgt das Feld aus der Laplace- beziehungsweise Poisson-Gleichung, in der gamma nirgends vorkommt; die Maxwell-Traktion eps0 E^2 / 2 ist ein Funktional allein dieses Feldes und bleibt unveraendert.  gamma entscheidet, WELCHE Form im Gleichgewicht steht -- nicht, welche Kraft ein gegebenes Feld auf eine gegebene Form ausuebt.  Diese Zeile stand frueher faelschlich als 'linear in gamma' in impact.csv."

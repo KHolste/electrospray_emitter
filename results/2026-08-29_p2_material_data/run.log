@@ -23,7 +23,19 @@ Stoffdatensatz EMI-BF4 (1-Ethyl-3-methylimidazolium-tetrafluoroborat) (CAS 14331
   sources.csv geschrieben
   points.csv geschrieben
   summary.csv geschrieben
+  nu = 2.83940979e-05 m^2/s bei 298.15 K [abgeleitet, nu = mu / rho]
+    mu  = 0.03637 +- 0.00076 Pa s  -- Miranda, Carlos F.P.; Santos, Luis M.N.B.F. (2025) Fluid Phase Equilib. 597, 114458.
+    rho = 1280.9 +- 1.1 kg/m^3 -- Miranda, Carlos F.P.; Santos, Luis M.N.B.F. (2025) Fluid Phase Equilib. 597, 114458.
+    Bedingungen: T = 298.15 K, Umgebungsdruck, Reinheit '99 mass %', Wassergehalt '0.0100 water mass %(dried by vacuum heating)', Probe 'commercial source'; Methoden: mu Concentric cylinders viscometry, rho Vibrating tube method
+    fortgepflanzte Unsicherheit: 5.94e-07 m^2/s (2.09 %), linear 6.18e-07 m^2/s
+    dieselbe Publikation fuer mu und rho: ja
+    NICHT gemessen -- die Groesse selbst wurde nicht bestimmt.
+
+  nu = 2.83941e-05 m^2/s +- 5.94e-07 (2.09 %, fortgepflanzt), abgeleitet aus mu und rho derselben Publikation.  Status derived, NICHT measured.
+  Zum Vergleich das direkt gemessene Band (erfuellt die Auswahlregel nicht): 2.71e-05 .. 2.75e-05 m^2/s; der abgeleitete Wert liegt +3.3 % ueber dessen oberer Kante.
+  kinematic_viscosity.csv geschrieben
 
   gamma illustrativ 0.045200 N/m, belegt 0.054010 N/m: Faktor 1.194905 auf jede Druckskala und 1.093117 auf jede Spannung.
+  Die Maxwell-Traktion bei festgehaltener Geometrie, Spannung und Permittivitaetsverteilung skaliert dagegen NICHT mit gamma: Exponent 0, Faktor 1.  Keine Zeile dieser Tabelle ist eine neue gekoppelte Rechnung.
   Belegtes Band bei 298.150000 K: 0.044300 .. 0.054600 N/m ueber 11 Quellen; Streuung 19.070648 %.
   impact.csv geschrieben

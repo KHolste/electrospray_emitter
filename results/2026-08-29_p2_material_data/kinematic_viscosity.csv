@@ -1,0 +1,15 @@
+# nu = mu/rho -- ABGELEITET, nicht gemessen.
+#
+# Der Vertrag waehlt keine direkt gemessene kinematische Viskositaet aus:
+# keine der drei Quellen nennt Reinheit und Wassergehalt.  Aus mu und rho
+# darf ein Wert aber abgeleitet werden, sobald gezeigt ist, dass beide
+# Werte dieselbe Fluessigkeit im selben Zustand beschreiben.  Die
+# Bedingungen C1..C4 stehen in include/es/material_data.hpp; ist eine
+# verletzt, wird kein Wert geliefert, sondern die Bedingung genannt.
+#
+# status=derived.  Diese Zeile darf nicht als Messung der kinematischen
+# Viskositaet zitiert werden.  direct_band_lo/hi sind zum Vergleich die
+# direkt gemessenen Werte, die die Auswahlregel NICHT erfuellen; sie gehen
+# in keine Rechnung ein.
+status,T_K,identity,nu,uncertainty_quadratic,uncertainty_linear,relative_uncertainty,uncertainty_propagated,mu,mu_uncertainty,rho,rho_uncertainty,same_publication,conditions,mu_reference,rho_reference,mu_method,rho_method,direct_band_lo,direct_band_hi,deviation_from_direct_band_hi,blocker
+derived,2.981500000e+02,nu = mu / rho,2.839409790e-05,5.938336534e-07,6.177168457e-07,2.091398203e-02,yes,3.637000000e-02,7.600000000e-04,1.280900000e+03,1.100000000e+00,yes,"T = 298.15 K, Umgebungsdruck, Reinheit '99 mass %', Wassergehalt '0.0100 water mass %(dried by vacuum heating)', Probe 'commercial source'; Methoden: mu Concentric cylinders viscometry, rho Vibrating tube method","Miranda, Carlos F.P.; Santos, Luis M.N.B.F. (2025) Fluid Phase Equilib. 597, 114458.","Miranda, Carlos F.P.; Santos, Luis M.N.B.F. (2025) Fluid Phase Equilib. 597, 114458.","Concentric cylinders viscometry","Vibrating tube method",2.710000000e-05,2.750000000e-05,3.251265091e-02,

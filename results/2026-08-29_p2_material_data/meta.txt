@@ -1,6 +1,6 @@
 app=es_material (P2)
 phase=P2
-commit=4c4bbfe66a21584c11bb260cda5ff8bd34f1e803
+commit=2b95a941337a899a4f7d502e66f4392f188ff123
 substance=EMI-BF4 (1-Ethyl-3-methylimidazolium-tetrafluoroborat)
 cas=143314-16-3
 T_K=2.981500000e+02
@@ -25,4 +25,8 @@ electrical_conductivity_spread=4.620250264e-01
 electrical_conductivity_n_sources=24
 relative_permittivity_status=MissingMaterialData
 relative_permittivity_n_sources=4
+kinematic_viscosity_derived=yes
+kinematic_viscosity_derived_value=2.839409790e-05
+kinematic_viscosity_derived_rel_uncertainty=2.091398203e-02
+kinematic_viscosity_derived_status=derived
 exit_code=0

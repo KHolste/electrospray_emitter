@@ -1,12 +1,24 @@
 # Was eine Rechnung benutzen darf, und wie unsicher es ist.
 # illustrative_value ist der bisher benutzte Wert ohne Quelle aus
-# src/liquid.cpp; er bleibt illustrative.  relative_spread ist die
-# LITERATURSTREUUNG und damit die ehrliche Unsicherheit -- sie ist
-# groesser als jede einzelne Fehlerangabe.
-property,unit,T_K,status,selected_value,band_lo,band_hi,relative_spread,n_sources_total,n_sources_at_T,illustrative_value,illustrative_vs_selected,selected_reference
-surface_tension,N/m,2.981500000e+02,measured,5.400970060e-02,4.430000000e-02,5.460000000e-02,1.907064821e-01,14,11,4.520000000e-02,-1.631133019e-01,"Souckova, M.; Klomfar, J.; Patek, J. (2011) Fluid Phase Equilib. 303(2), 184-190."
-density,kg/m^3,2.981500000e+02,measured,1.280900000e+03,1.277600000e+03,1.290000000e+03,9.680693263e-03,80,60,1.279000000e+03,-1.483332032e-03,"Miranda, Carlos F.P.; Santos, Luis M.N.B.F. (2025) Fluid Phase Equilib. 597, 114458."
-dynamic_viscosity,Pa s,2.981500000e+02,measured,3.637000000e-02,2.520000000e-02,4.500000000e-02,5.444047292e-01,32,22,3.710000000e-02,2.007148749e-02,"Miranda, Carlos F.P.; Santos, Luis M.N.B.F. (2025) Fluid Phase Equilib. 597, 114458."
-kinematic_viscosity,m^2/s,2.981500000e+02,MissingMaterialData,nan,2.710000000e-05,2.750000000e-05,nan,3,2,nan,nan,
-electrical_conductivity,S/m,2.981500000e+02,measured,1.558357143e+00,9.100000000e-01,1.630000000e+00,4.620250264e-01,24,21,1.360000000e+00,-1.272860613e-01,"Vila, J.; Fernandez-Castro, B.; Rilo, E.; Carrete, J.; Dominguez-Perez, M.; Rodriguez, J. R.; Garcia, M.; Varela, L. M.; Cabeza, O. (2012) Fluid Phase Equilib. 320, 1-10."
-relative_permittivity,-,2.981500000e+02,MissingMaterialData,nan,1.280000000e+01,1.360000000e+01,nan,4,3,1.280000000e+01,nan,
+# src/liquid.cpp; er bleibt illustrative.
+#
+# value_kind unterscheidet, WIE der Wert zustande kommt:
+#   direct_measurement -- die Groesse selbst ist gemessen; relative_spread
+#                         ist dann die LITERATURSTREUUNG und damit die
+#                         ehrliche Unsicherheit, groesser als jede
+#                         einzelne Fehlerangabe.
+#   derived            -- die Groesse selbst ist NICHT gemessen, sondern
+#                         ueber eine genannte Identitaet aus anderen
+#                         ausgewaehlten Groessen dieses Datensatzes
+#                         berechnet; relative_spread ist dann die
+#                         FORTGEPFLANZTE Unsicherheit der Eltern und keine
+#                         Literaturstreuung.  Vollstaendiger Nachweis mit
+#                         beiden Eltern in kinematic_viscosity.csv.
+#   none               -- MissingMaterialData; es gibt keinen Wert.
+property,unit,T_K,status,value_kind,selected_value,band_lo,band_hi,relative_spread,n_sources_total,n_sources_at_T,illustrative_value,illustrative_vs_selected,selected_reference
+surface_tension,N/m,2.981500000e+02,measured,direct_measurement,5.400970060e-02,4.430000000e-02,5.460000000e-02,1.907064821e-01,14,11,4.520000000e-02,-1.631133019e-01,"Souckova, M.; Klomfar, J.; Patek, J. (2011) Fluid Phase Equilib. 303(2), 184-190."
+density,kg/m^3,2.981500000e+02,measured,direct_measurement,1.280900000e+03,1.277600000e+03,1.290000000e+03,9.680693263e-03,80,60,1.279000000e+03,-1.483332032e-03,"Miranda, Carlos F.P.; Santos, Luis M.N.B.F. (2025) Fluid Phase Equilib. 597, 114458."
+dynamic_viscosity,Pa s,2.981500000e+02,measured,direct_measurement,3.637000000e-02,2.520000000e-02,4.500000000e-02,5.444047292e-01,32,22,3.710000000e-02,2.007148749e-02,"Miranda, Carlos F.P.; Santos, Luis M.N.B.F. (2025) Fluid Phase Equilib. 597, 114458."
+kinematic_viscosity,m^2/s,2.981500000e+02,derived,derived,2.839409790e-05,2.710000000e-05,2.750000000e-05,2.091398203e-02,3,2,nan,nan,"ABGELEITET nu = mu/rho aus: Miranda, Carlos F.P.; Santos, Luis M.N.B.F. (2025) Fluid Phase Equilib. 597, 114458. (mu) und Miranda, Carlos F.P.; Santos, Luis M.N.B.F. (2025) Fluid Phase Equilib. 597, 114458. (rho)"
+electrical_conductivity,S/m,2.981500000e+02,measured,direct_measurement,1.558357143e+00,9.100000000e-01,1.630000000e+00,4.620250264e-01,24,21,1.360000000e+00,-1.272860613e-01,"Vila, J.; Fernandez-Castro, B.; Rilo, E.; Carrete, J.; Dominguez-Perez, M.; Rodriguez, J. R.; Garcia, M.; Varela, L. M.; Cabeza, O. (2012) Fluid Phase Equilib. 320, 1-10."
+relative_permittivity,-,2.981500000e+02,MissingMaterialData,none,nan,1.280000000e+01,1.360000000e+01,nan,4,3,1.280000000e+01,nan,
