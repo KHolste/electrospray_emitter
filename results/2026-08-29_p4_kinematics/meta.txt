@@ -1,7 +1,7 @@
 app=es_kinematics (P4)
 phase=P4
 status=infrastructure_only
-commit=c4ecbb7aa0199db97680e44558372ce3224d32f1
+commit=ee6b743d2ab1ebe909c7d8cb860f62fa9a723cf8
 radius_m=5.000000000e-06
 alpha_per_s=1.000000000e+06
 time_s=5.000000000e-07
