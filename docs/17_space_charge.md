@@ -38,13 +38,10 @@ Rotationsvolumenelement steckt bereits in dem Integral, aus dem die Ladung
 hervorging. Es ein zweites Mal anzuwenden hieße, jedes Makropartikel mit seinem
 eigenen Radius zu multiplizieren.
 
-**Der Preis, ausgesprochen statt versteckt.** Das Selbstfeld eines
-Makropartikels ist das Feld einer über die Nachbarzellen verschmierten Ladung
-und hängt damit vom Netz ab; sein Spitzenwert **wächst** unter Verfeinerung
-(gemessen: 1,94 → 2,22 → 2,51 V über drei Stufen). Eine PIC-Schleife darf ein
-Teilchen sein eigenes deponiertes Feld deshalb nicht ungefiltert fühlen lassen.
-Dieses Modul implementiert keine solche Korrektur; es macht den Effekt messbar
-und sagt das.
+**Der Preis, ausgesprochen statt versteckt — und diesmal richtig.** Die
+Finite-Elemente-Lösung ist **auf einem festen Netz** beschränkt. Sie ist damit
+**nicht regularisiert**: für $h\to0$ wächst das Selbstpotential eines
+Makropartikels unbeschränkt. Siehe 17.4a, wo das getrennt gemessen wird.
 
 ## 17.2 Was `axisym_fem` dazu bekommen hat
 
@@ -66,7 +63,7 @@ Aufrufer etwas.
 | 1 | $\rho=0$ reproduziert die Laplace-Lösung | **bitgleich** (0,000e+00), Feld ebenfalls |
 | 2 | hergestellte Poisson-Lösung | Potential 4,5·10⁻⁵ relativ bei 161×321, Ordnung **1,83** |
 | 3 | deponierte Gesamtladung = Summe der Makropartikelladungen | 2,4·10⁻¹⁶ relativ |
-| 4 | keine Divergenz beim Annähern | Potential und Feld bleiben beschränkt über acht Halbierungen des Abstands |
+| 4 | Annäherung **bei festem Netz** | Potential und Feld bleiben über acht Halbierungen des Abstands beschränkt — auf dem Netz 81×161 und über $h\to0$ sagt das nichts, siehe 17.4a |
 | 5 | Netzkonvergenz von Potential und Feld | siehe 17.4 |
 | 6 | Polaritätsvorzeichen | positive Ladung hebt das Potential, negative senkt es; die Lösung ist **exakt ungerade** in der Ladung (10⁻¹²) |
 
@@ -125,6 +122,97 @@ bevor man es benutzt.
 Gefunden wurde es, indem der Fehler **nach Radius getrennt** statt als eine Zahl
 für das ganze Gebiet berichtet wurde.
 
+## 17.4a Das Selbstfeld, in fünf getrennte Fragen zerlegt
+
+Eine frühere Fassung dieses Abschnitts berichtete *„keine Divergenz beim
+Annähern — beschränkt über acht Halbierungen des Abstands“*. Das ist wahr und
+es ist eine Aussage über **ein festes Netz**. Über $h\to0$ sagt es nichts, und
+dort ist die Antwort für jede der folgenden fünf Größen eine andere. Deshalb
+werden sie getrennt gemessen.
+
+| | Frage | Antwort bei festem Netz | Antwort bei $h\to0$ |
+|---|---|---|---|
+| (a) | Ladungserhaltung der Deposition | exakt bis auf Rundung ($2\cdot10^{-16}$) | bleibt exakt auf **jeder** Stufe |
+| (b) | Fremdfeld bei **festem** Abstand | endlich | **konvergiert**, Ordnung 2,05 (φ) bzw. 1,91 (E), letzte relative Änderung $4\cdot10^{-5}$ |
+| (c) | Selbstpotential am Teilchen | endlich | **divergiert** — siehe unten |
+| (d) | Breite der deponierten Wolke | eine Zelle breit | $\to0$ **wie das Netz**; keine andere Länge steckt darin |
+| (e) | Anteil des Selbstfeldes | — | fällt mit der Makropartikelzahl wie $N^{-0{,}82}$ (asymptotisch) |
+
+### (c) Das Selbstpotential divergiert — und das Gesetz hängt vom Ort ab
+
+| Lage | Wachstum über fünf Stufen (h: 1e-6 → 6,25e-8 m) | angepasstes Gesetz |
+|---|---|---|
+| abseits der Achse, $r=0{,}35R$ | 1,938 → 3,073 V, Faktor **1,59** | $0{,}409\cdot\ln(1/h)$, Rest $1{,}2\cdot10^{-4}$ |
+| auf der Achse, $r=0$ | 32,4 → 524,6 V, Faktor **16,18** | $h^{-1{,}004}$, Rest $3{,}0\cdot10^{-4}$ |
+
+Beide Gesetze werden angepasst und beide Reste berichtet, damit die Antwort aus
+den Daten kommt und nicht aus der Erwartung. Sie ist physikalisch genau die,
+die man erwarten muss:
+
+* **Abseits der Achse ist ein Makropartikel ein RING.** Das exakte Potential
+  eines geladenen Rings ist auf dem Ring logarithmisch singulär. Bei $h$
+  abgeschnitten wächst es wie $\ln(1/h)$ — langsam, aber ohne Grenze.
+* **Auf der Achse entartet der Ring zur Punktladung** mit $1/d$-Singularität.
+  Bei $h$ abgeschnitten wächst es wie $1/h$; der gemessene Exponent 1,004 ist
+  genau das.
+
+Eine frühere Fassung des Header-Kommentars behauptete, das Selbstpotential
+müsse „wie $1/h$“ wachsen. Das ist nur das **Achsen**gesetz; abseits der Achse
+zeigt die Messung den Logarithmus, und der Potenzfit liefert dort mit 0,166
+einen deutlich schlechteren Rest.
+
+**Damit ist die Deposition keine netzunabhängige Regularisierung**, und keine
+Formulierung in diesem Projekt darf mehr so klingen.
+
+### (d) Warum eine „feste physikalische Formbreite“ ausscheidet
+
+Die deponierte Wolke eines Teilchens erreicht höchstens die vier Knoten seiner
+Zelle; ihr größter Abstand bleibt unter der Zelldiagonale, und ihre
+ladungsgewichtete RMS-Breite fällt mit dem Netz gegen null. **In ihr steckt
+keine andere Länge als $h$.** Es gibt also nichts, woraus eine physikalische
+Breite folgen würde: sie wäre ein frei gewählter Glättungsparameter, der genau
+die Größe festlegte, die er verbergen soll. Beschränktheit, die man sich
+aussucht, ist keine Konvergenz.
+
+## 17.4b Die drei Kandidaten, mit Urteil und mit der Messung dahinter
+
+| Variante | Urteil | Begründung |
+|---|---|---|
+| **Selbstfeldabzug** | `implemented` | Physikalisch übt eine Ladung auf sich selbst keine Kraft aus; das deponierte Selbstfeld ist reines Diskretisierungsartefakt und trägt zudem eine Richtung, die allein von der Lage im Zellinneren abhängt. Die diskrete Aufgabe ist **linear**, also lässt sich das Artefakt **exakt abziehen** statt dämpfen — keine Glättungsbreite, kein Filter, kein freier Parameter. |
+| feste physikalische Formbreite | `rejected_free_parameter` | Es gibt keine physikalische Länge, die sie festlegte (siehe 17.4a (d)). Sie wäre ein frei gewählter Parameter. |
+| skalierte Makropartikelzahl | `measured_not_implemented` | Mathematisch tragfähig und der übliche PIC-Konvergenzweg, aber eine Eigenschaft einer **Schleife**, die es hier nicht gibt. Deshalb gemessen und nicht implementiert. |
+
+Die Tabelle liegt als `es::pic_options()` in der Bibliothek und wird in
+`tests/test_space_charge.cpp`, Abschnitt 9, geprüft — unter anderem darauf,
+dass **genau eine** Variante implementiert ist.
+
+### Was der Abzug leistet, gemessen
+
+Ein **einzelnes** Teilchen im sonst leeren, geerdeten Kasten spürt ohne Abzug
+ein Feld zwischen $1{,}13\cdot10^5$ und $1{,}42\cdot10^5$ V/m, obwohl nichts
+anderes darin ist — der Betrag hängt allein davon ab, wo in der Zelle es sitzt.
+Mit Abzug spürt es **exakt null** (nicht „klein“: der zurückgegebene Vektor ist
+die Differenz zweier Lösungen, die identisch sind). Die Linearität wird dabei
+gegen die volle Lösung geprüft; der Überlagerungsfehler beträgt
+$1{,}6\cdot10^{-15}$.
+
+**Der Preis wird genannt:** eine zusätzliche Lösung je Teilchen. Für eine
+Diagnose ist das richtig, für eine Produktionsschleife untragbar.
+
+## 17.4c Die PIC-Schleife bleibt blockiert — aus zwei unabhängigen Gründen
+
+`es::pic_loop_status()` führt beide, damit das Wegfallen eines einzelnen sie
+nicht stillschweigend freigibt:
+
+1. **Keine Quelle.** P5 ist blockiert: es gibt keine belegte Emissionsrate und
+   damit keine physikalische Teilchenquelle.
+2. **Keine tragfähige Kostenstruktur.** Die einzige Selbstfeldbehandlung, die
+   dieser Punkt rechtfertigen kann, kostet eine Lösung je Teilchen.
+
+P6 bleibt damit das, was es ist: ein **validierter Poisson- und
+Depositions-Teiltest** mit einer exakt begründeten Selbstfeldbehandlung für die
+Diagnose — und keine PIC-Schleife.
+
 ## 17.5 Was P6 ausdrücklich nicht enthält
 
 * **Keine Emission** und keine selbstkonsistente Emissions-PIC-Schleife. P5 ist
@@ -132,4 +220,9 @@ für das ganze Gebiet berichtet wurde.
   heißt in jeder Ausgabe Testquelle.
 * **Keine Teilchenbewegung** — das ist P7.
 * Keine Magnetfelder, keine Stöße, keine raumladungsbegrenzte Emission.
-* Keine Korrektur des Selbstfeldes eines Makropartikels.
+* **Keine netzunabhängige Regularisierung des Selbstfeldes.** Der exakte Abzug
+  (17.4b) entfernt die scheinbare Selbstkraft vollständig, macht aber das
+  Selbstpotential nicht netzunabhängig — es gibt es danach am Teilchen schlicht
+  nicht mehr. Für alles andere bleibt das deponierte Feld eine Netzgröße.
+* Keine skalierte Makropartikelzahl und damit keine PIC-Konvergenzstrategie —
+  gemessen, nicht implementiert.

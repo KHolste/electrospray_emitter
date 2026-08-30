@@ -38,6 +38,22 @@ void put(std::FILE* f, Real v) {
     std::fprintf(f, ",nan");
 }
 
+/// A quoted CSV field: the verdicts contain commas and would otherwise split
+/// the row.
+std::string csv_quote(const std::string& in) {
+  std::string out = "\"";
+  for (char c : in) {
+    if (c == '"')
+      out += "\"\"";
+    else if (c == '\n' || c == '\r')
+      out += ' ';
+    else
+      out += c;
+  }
+  out += '"';
+  return out;
+}
+
 struct Box {
   QuadMesh mesh;
   std::vector<Real> eps_r;
@@ -217,10 +233,10 @@ int main(int argc, char** argv) try {
   {
     std::FILE* f = std::fopen((outdir + "/conservation.csv").c_str(), "w");
     std::fprintf(f, "# Ladungserhaltung der Deposition ueber die Netzstufen, und das\n"
-                    "# Spitzenpotential eines EINZELNEN Makropartikels.  Letzteres waechst\n"
-                    "# unter Verfeinerung: das Selbstfeld ist eine NETZGROESSE.  Eine\n"
-                    "# PIC-Schleife darf ein Teilchen sein eigenes deponiertes Feld nicht\n"
-                    "# ungefiltert fuehlen lassen.\n");
+                    "# Spitzenpotential eines EINZELNEN Makropartikels.  Die Erhaltung ist auf\n"
+                    "# JEDER Stufe exakt bis auf Rundung; das Selbstpotential waechst dagegen\n"
+                    "# unter Verfeinerung und konvergiert NICHT.  Die beiden Spalten stehen\n"
+                    "# nebeneinander, damit die eine nicht fuer die andere gelesen wird.\n");
     std::fprintf(f, "nr,nz,n_nodes,deposited_C,particles_C,conservation_error,"
                     "partition_of_unity_error,single_particle_peak_phi_V\n");
     const std::vector<Macroparticle> one = {{{0.35 * R, 0.0}, 1.0e-15}};
@@ -246,9 +262,14 @@ int main(int argc, char** argv) try {
 
     // The approach study: potential and field along a line through a particle.
     std::FILE* g = std::fopen((outdir + "/approach.csv").c_str(), "w");
-    std::fprintf(g, "# Annaeherung an ein einzelnes Makropartikel.  Ein Ringmodell wuerde\n"
-                    "# hier logarithmisch divergieren; die FEM-Loesung eines Knotenlast-\n"
-                    "# vektors ist stueckweise bilinear und bleibt beschraenkt.\n");
+    std::fprintf(g, "# Annaeherung an ein einzelnes Makropartikel BEI FESTEM NETZ (81 x 161).\n"
+                    "# Die FEM-Loesung eines Knotenlastvektors ist stueckweise bilinear und\n"
+                    "# bleibt deshalb auf DIESEM Netz beschraenkt.\n"
+                    "#\n"
+                    "# Das ist eine Aussage ueber ein festes Netz und ueber sonst nichts.  Fuer\n"
+                    "# h -> 0 waechst das Selbstpotential unbeschraenkt; siehe\n"
+                    "# self_field_scaling.csv.  Eine fruehere Fassung dieser Datei nannte den\n"
+                    "# Befund 'keine Divergenz', was den Zusatz 'bei festem Netz' verschwieg.\n");
     std::fprintf(g, "d_over_R,phi_V,E_magnitude_V_per_m\n");
     Box c = grounded_box(R, L, 81, 161, 0.0);
     const DepositionResult d1 = deposit(c.mesh, one);
@@ -262,6 +283,182 @@ int main(int argc, char** argv) try {
     }
     std::fclose(g);
     say("  conservation.csv und approach.csv geschrieben");
+  }
+
+  // --- 4. the self-field, taken apart -------------------------------------
+  //
+  // Five questions that behave differently and must not be answered by one
+  // number.  What is bounded is bounded AT A FIXED MESH; what converges is
+  // named, and what does not converge is named too.
+  {
+    const std::vector<Index> levels = {21, 41, 81, 161, 321};
+
+    // (c) the self-potential does not converge, and the law depends on where
+    //     the particle sits.
+    const SelfPotentialScaling off =
+        self_potential_scaling(R, L, {0.35 * R, 0.0}, 1.0e-15, levels);
+    const SelfPotentialScaling on = self_potential_scaling(R, L, {0.0, 0.0}, 1.0e-15, levels);
+    {
+      std::FILE* f = std::fopen((outdir + "/self_field_scaling.csv").c_str(), "w");
+      std::fprintf(f,
+                   "# Das Selbstpotential EINES Makropartikels unter Netzverfeinerung.\n"
+                   "# Es ist NICHT regularisiert: es waechst unbeschraenkt, und wie schnell,\n"
+                   "# haengt davon ab, wo das Teilchen sitzt.\n"
+                   "#   Abseits der Achse ist ein Makropartikel ein RING; dessen exaktes\n"
+                   "#   Potential ist auf dem Ring logarithmisch singulaer, also waechst das\n"
+                   "#   bei h abgeschnittene Selbstpotential wie ln(1/h).\n"
+                   "#   Auf der Achse entartet der Ring zur Punktladung mit 1/d-Singularitaet,\n"
+                   "#   also waechst es wie 1/h.\n"
+                   "# Beide Gesetze werden angepasst und beide Reste berichtet, damit die\n"
+                   "# Antwort aus den Daten kommt und nicht aus der Erwartung.\n");
+      std::fprintf(f, "position,h_m,phi_self_V,E_self_V_per_m,power_exponent,power_residual,"
+                      "log_slope,log_residual,prefers_logarithmic,growth_factor\n");
+      auto rows_of = [&](const char* tag, const SelfPotentialScaling& q) {
+        for (std::size_t k = 0; k < q.h.size(); ++k)
+          std::fprintf(f, "%s,%.9e,%.9e,%.9e,%.9e,%.9e,%.9e,%.9e,%s,%.9e\n", tag, q.h[k],
+                       q.phi_self[k], q.field_self[k], q.power_exponent, q.power_residual,
+                       q.log_slope, q.log_residual, q.prefers_logarithmic ? "yes" : "no",
+                       q.growth_factor);
+      };
+      rows_of("off_axis_r_0.35R", off);
+      rows_of("on_axis_r_0", on);
+      std::fclose(f);
+      say("  self_field_scaling.csv geschrieben");
+      say("    abseits der Achse: Wachstumsfaktor " + std::to_string(off.growth_factor) +
+          ", " + (off.prefers_logarithmic ? "LOGARITHMISCH" : "Potenz") +
+          "; auf der Achse: " + std::to_string(on.growth_factor) + ", Potenz h^-" +
+          std::to_string(on.power_exponent) + ".");
+      if (!off.grows_under_refinement || !on.grows_under_refinement) exit_code = 2;
+    }
+
+    // (b) the foreign field DOES converge.
+    {
+      const ForeignFieldConvergence ff = foreign_field_convergence(
+          R, L, {0.35 * R, 0.0}, 1.0e-15, 0.25 * R, {21, 41, 81, 161});
+      std::FILE* f = std::fopen((outdir + "/foreign_field.csv").c_str(), "w");
+      std::fprintf(f,
+                   "# Was ein ANDERES Teilchen bei FESTEM Abstand von einem deponierten\n"
+                   "# Teilchen spuert.  Anders als das Selbstfeld konvergiert das: abseits\n"
+                   "# der Ladung ist die diskrete Loesung eine Finite-Elemente-Naeherung\n"
+                   "# einer glatten Funktion.  Der Unterschied liegt nicht am Loeser, sondern\n"
+                   "# daran, wo man hinschaut.\n");
+      std::fprintf(f, "h_m,distance_m,phi_V,E_V_per_m,order_phi,order_E,"
+                      "relative_change_last,converges\n");
+      for (std::size_t k = 0; k < ff.h.size(); ++k)
+        std::fprintf(f, "%.9e,%.9e,%.9e,%.9e,%.9e,%.9e,%.9e,%s\n", ff.h[k], ff.distance,
+                     ff.phi[k], ff.field[k], ff.order_phi, ff.order_field,
+                     ff.relative_change_last, ff.converges ? "yes" : "no");
+      std::fclose(f);
+      say("  foreign_field.csv geschrieben (Ordnung phi " + std::to_string(ff.order_phi) +
+          ", konvergiert: " + (ff.converges ? "ja" : "nein") + ")");
+      if (!ff.converges) exit_code = 2;
+    }
+
+    // (d) the width of the deposited cloud IS the cell.
+    {
+      std::FILE* f = std::fopen((outdir + "/deposition_width.csv").c_str(), "w");
+      std::fprintf(f,
+                   "# Die Breite der deponierten Ladungswolke eines Teilchens.  Sie ist durch\n"
+                   "# die Zelle beschraenkt und faellt mit ihr gegen null: in der Wolke steckt\n"
+                   "# KEINE andere Laenge als das Netz.  Genau deshalb waere eine feste\n"
+                   "# physikalische Formbreite ein FREI GEWAEHLTER Parameter und keine\n"
+                   "# Modellaussage -- es gibt nichts, woraus sie folgen wuerde.\n");
+      std::fprintf(f, "h_r_m,h_z_m,diagonal_m,rms_m,rms_over_h_r,max_over_diagonal,"
+                      "n_nodes_receiving,on_node\n");
+      for (Index n : {21, 41, 81, 161, 321}) {
+        Box b = grounded_box(R, L, n, 2 * n - 1, 0.0);
+        const DepositionWidth w =
+            deposition_width(b.mesh, {{0.3517 * R, 0.0091 * L}, 1.0e-15});
+        std::fprintf(f, "%.9e,%.9e,%.9e,%.9e,%.9e,%.9e,%lld,%s\n", w.h, w.h_z, w.diagonal,
+                     w.rms, w.rms_over_h, w.max_over_diagonal,
+                     static_cast<long long>(w.n_nodes_receiving), w.on_node ? "yes" : "no");
+      }
+      std::fclose(f);
+      say("  deposition_width.csv geschrieben");
+    }
+
+    // (e) the self share falls with the number of macroparticles.
+    {
+      const SelfToTotalRatio r = self_to_total_ratio(R, L, 1.0e-15, 81, {1, 2, 4, 8, 16, 32});
+      std::FILE* f = std::fopen((outdir + "/self_to_total.csv").c_str(), "w");
+      std::fprintf(f,
+                   "# Der Anteil des EIGENEN deponierten Feldes am Feld, das ein Teilchen\n"
+                   "# spuert, gegen die Zahl der Makropartikel, in die dieselbe Gesamtladung\n"
+                   "# aufgeteilt ist -- bei gleichem Netz und gleicher Ladungsverteilung.\n"
+                   "# Das ist die Groesse, die ein PIC-Konvergenzargument gegen null treiben\n"
+                   "# muesste.  Der Fit ueber ALLE Punkte faellt flacher aus als der\n"
+                   "# asymptotische, weil ein einzelnes Makropartikel sein eigenes Gesamtfeld\n"
+                   "# IST; beide Zahlen stehen deshalb da.\n");
+      std::fprintf(f, "n_particles,phi_self_V,phi_total_V,ratio,fit_all,fit_asymptotic\n");
+      for (std::size_t k = 0; k < r.n_particles.size(); ++k)
+        std::fprintf(f, "%lld,%.9e,%.9e,%.9e,%.9e,%.9e\n",
+                     static_cast<long long>(r.n_particles[k]), r.phi_self[k], r.phi_total[k],
+                     r.ratio[k], r.fitted_exponent, r.fitted_exponent_asymptotic);
+      std::fclose(f);
+      say("  self_to_total.csv geschrieben (Anteil ~ N^-" +
+          std::to_string(r.fitted_exponent_asymptotic) + " asymptotisch)");
+    }
+
+    // The treatment: exact subtraction, and the spurious self-force it removes.
+    {
+      std::FILE* f = std::fopen((outdir + "/self_field_exclusion.csv").c_str(), "w");
+      std::fprintf(f,
+                   "# Die scheinbare Selbstkraft auf ein EINZELNES Teilchen im sonst leeren,\n"
+                   "# geerdeten Kasten, gegen seine Lage im Zellinneren.  Ohne Abzug spuert\n"
+                   "# es ein Feld, obwohl nichts anderes da ist, und dessen Betrag haengt\n"
+                   "# allein davon ab, wo in der Zelle es sitzt.  Mit Abzug spuert es exakt\n"
+                   "# nichts.\n"
+                   "#\n"
+                   "# Der Abzug ist keine Glaettung und kein Filter: die diskrete Aufgabe ist\n"
+                   "# LINEAR, also wird das Selbstfeld aus einer zweiten Loesung mit nur\n"
+                   "# diesem Teilchen und homogenen Randwerten gewonnen und subtrahiert.  Die\n"
+                   "# Ueberlagerung wird dabei gegen die volle Loesung geprueft.\n"
+                   "# Preis: eine zusaetzliche Loesung je Teilchen.  Deshalb ist damit KEINE\n"
+                   "# Produktions-PIC-Schleife freigegeben -- siehe pic_options.csv.\n");
+      std::fprintf(f, "offset_m,offset_over_h,E_naive_V_per_m,E_excluded_V_per_m,"
+                      "phi_naive_V,phi_excluded_V,superposition_error,solves\n");
+      Box g = grounded_box(R, L, 81, 161, 0.0);
+      const Real h_r = R / 80.0;
+      for (int k = 0; k <= 8; ++k) {
+        const Real ofs = h_r * static_cast<Real>(k) / 8.0;
+        const std::vector<Macroparticle> one = {{{0.35 * R + ofs, 0.0}, 1.0e-15}};
+        const SelfFieldExclusion x =
+            exclude_self_field(g.mesh, g.eps_r, g.active, g.fixed, g.fixed_value, one, 0);
+        std::fprintf(f, "%.9e,%.9e,%.9e,%.9e,%.9e,%.9e,%.9e,%lld\n", ofs, ofs / h_r,
+                     norm(x.field_total), norm(x.field_external), x.phi_total,
+                     x.phi_external, x.superposition_error,
+                     static_cast<long long>(x.solves));
+        if (!(x.superposition_error < 1.0e-10)) exit_code = 2;
+        if (!(norm(x.field_external) <= 1.0e-12 * std::max(norm(x.field_total), 1.0)))
+          exit_code = 2;
+      }
+      std::fclose(f);
+      say("  self_field_exclusion.csv geschrieben");
+    }
+
+    // The three candidates, with the verdict and the measurement behind each.
+    {
+      std::FILE* f = std::fopen((outdir + "/pic_options.csv").c_str(), "w");
+      std::fprintf(f,
+                   "# Die drei Kandidaten fuer die Behandlung des Selbstfeldes, jeder mit\n"
+                   "# einem Urteil und mit der Messung, die das Urteil traegt.  Es ist genau\n"
+                   "# EINER implementiert -- nicht mehrere nach Bequemlichkeit.\n");
+      std::fprintf(f, "option,verdict,what_it_does,why,evidence\n");
+      std::size_t n_opt = 0;
+      const PicOptionAssessment* opts = pic_options(n_opt);
+      for (std::size_t k = 0; k < n_opt; ++k)
+        std::fprintf(f, "%s,%s,%s,%s,%s\n", to_string(opts[k].option),
+                     to_string(opts[k].verdict), csv_quote(opts[k].what_it_does).c_str(),
+                     csv_quote(opts[k].why).c_str(), csv_quote(opts[k].evidence).c_str());
+      const PicLoopStatus st = pic_loop_status();
+      std::fprintf(f, "pic_loop,%s,%s,%s,%s\n", st.blocked ? "BLOCKED" : "open",
+                   csv_quote("Die selbstkonsistente Emissions-PIC-Schleife.").c_str(),
+                   csv_quote(st.reason_source).c_str(), csv_quote(st.reason_cost).c_str());
+      std::fclose(f);
+      say("  pic_options.csv geschrieben -- PIC-Schleife: " +
+          std::string(st.blocked ? "BLOCKIERT" : "frei"));
+      if (!st.blocked) exit_code = 2;
+    }
   }
 
   {
