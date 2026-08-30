@@ -1,11 +1,7 @@
-stamp=2b95a941337a
-head_commit=2b95a941337a899a4f7d502e66f4392f188ff123
-data_commit=2b95a941337a899a4f7d502e66f4392f188ff123
+stamp=cc27a463c7e5
+head_commit=cc27a463c7e5e7771c5067d1375bcf689e7bf5af
+data_commit=cc27a463c7e5e7771c5067d1375bcf689e7bf5af
 working_tree_dirty=no
 releasable=yes
 ignored_prefix=results/2026-08-29_p2_material_data
-ignored_file=results/2026-08-29_p2_material_data/impact.csv
 ignored_file=results/2026-08-29_p2_material_data/meta.txt
-ignored_file=results/2026-08-29_p2_material_data/run.log
-ignored_file=results/2026-08-29_p2_material_data/summary.csv
-ignored_file=results/2026-08-29_p2_material_data/kinematic_viscosity.csv
