@@ -1,7 +1,7 @@
 # Nachtlauf 2026-08-29/30 und die Nacharbeit vom 2026-08-30
 
 **Nichts gepusht.** `origin/main` steht unverändert auf `a932ff1`; HEAD ist
-**34 Commits voraus, 0 zurück**, Arbeitsbaum sauber.
+**43 Commits voraus, 0 zurück**, Arbeitsbaum sauber.
 
 Vollständiger Build aus leerem Verzeichnis: fehlerfrei. `ctest`: **26/26 grün**
 (117 s). Sanitizerlauf unter WSL (Ubuntu, GCC 13.3, ASan + UBSan,
@@ -16,10 +16,11 @@ beide auf `ede1508`. Es wurde nichts verworfen.
 
 ## 1. Was die Nacharbeit geändert hat
 
-Vier fachliche Korrekturen, eine Reparatur der lokalen Historie, und zwei
-Artefaktsätze, deren Provenienz durch die Reparatur ungültig geworden war. Jede
-Korrektur ist ein eigener Code-Commit mit einem eigenen Artefakt-Commit
-dahinter, und jede ist testgeprüft.
+Vier fachliche Korrekturen, eine Reparatur der lokalen Historie, der Nachzug
+dieser Korrekturen in drei weitere Abbildungen, und fünf Artefaktsätze, deren
+Provenienz durch die Reparatur ungültig geworden war. Jede Korrektur ist ein
+eigener Code-Commit mit einem eigenen Artefakt-Commit dahinter, und jede ist
+testgeprüft.
 
 | Punkt | Befund | Code | Artefakte |
 |---|---|---|---|
@@ -30,7 +31,8 @@ dahinter, und jede ist testgeprüft.
 | **P9** | eine einachsige Statuskarte ließ „vergleichbar" wie „validiert" aussehen | `3bef623` | `16cdd09` |
 | **P9** | eine fehlende Unsicherheit war ein harter Importfehler und warf Messungen weg | `3bef623` | `16cdd09` |
 | **Historie** | `713ab86` ließ sich nicht eigenständig konfigurieren | — | — |
-| **P0/P1** | Abbildungen stempelten Commits außerhalb der eigenen Historie | — | `8040125`, `e46c941` |
+| **P0/P1/P4/P5/P7** | Abbildungen stempelten Commits außerhalb der eigenen Historie | — | `8040125`, `e46c941`, `91f254c`, `bed39d7`, `9d1b92c` |
+| **P2/P3/P8** | drei Bildunterschriften trugen Aussagen weiter, die die Korrekturen überholt haben | `cc27a46` | `5d8caba`, `7b683d4`, `ee6b743` |
 
 ---
 
@@ -279,15 +281,17 @@ geprüft.
 
 `0677e3b` und `6dc833b` sind unverändert; die Reparatur beginnt erst danach.
 
-**Ein Rest bleibt und wird nicht verschwiegen:** die Provenienzstempel *innerhalb*
-der Artefakte von P3b, P2 … P8 tragen weiterhin die Vorher-Hashes. Sie wurden
-nicht nachträglich umgeschrieben — der Baum, aus dem sie entstanden, ist
-identisch, und die Zuordnung steht in der Tabelle oben sowie in jeder
-betroffenen Commit-Nachricht. Für **P0 und P1** war das nicht hinnehmbar, weil
-Punkt 6 diese Abbildungen ausdrücklich verlangt: sie sind aus sauberem
-Arbeitsbaum neu erzeugt (`8040125`, `e46c941`) und stempeln jetzt einen Commit
-dieser Historie. Ihre Zahlen sind unverändert — bei P1 ist **jede CSV byteweise
-identisch**.
+**Kein Rest.** Ein Provenienzstempel, der auf einen Commit außerhalb der eigenen
+Historie zeigt, ist keine Provenienz. Nach der Reparatur traf das auf P0, P1,
+P4, P5 und P7 zu; alle fünf sind aus sauberem Arbeitsbaum neu erzeugt. Geprüft
+wird das mechanisch: für **jedes** Ergebnisverzeichnis liegt `head_commit` mit
+`git merge-base --is-ancestor` in der Historie, und jedes trägt
+`working_tree_dirty=no` und `releasable=yes`.
+
+Die **Zahlen** sind dabei unverändert — der Code dieser Punkte ist von den
+Korrekturen unberührt. Bei P1 ist **jede CSV byteweise identisch**; bei P0
+reproduziert der einstündige Lauf die Befunde (1000 V `NotInAsymptoticRange`,
+`total_force` 6,07 %; 1400 V 4,59 … 5,67 %, alles `DiscretizationNotConverged`).
 
 ---
 
