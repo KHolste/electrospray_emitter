@@ -141,6 +141,32 @@ struct ConeJetDiagnosis {
   Real tau_e{0}, t_capillary{0}, t_viscous{0}, t_residence{0};
   Real r_star{0}, Oh{0}, Bo_E{0}, Re{0}, Ca{0};
 
+  // --- what depends on eps_r, and how it is obtained ----------------------
+  //
+  // tau_e and r_star both need eps_r, and an earlier version of this file left
+  // both as NaN with the note "eps_r ist MissingMaterialData".  That is no
+  // longer the whole truth: P3 settled WHICH permittivity belongs in the charge
+  // relaxation time and solves for it self-consistently on the measured
+  // dispersion curve, and it establishes a justified BAND.  A single eps_r
+  // value is still missing -- no source states purity and water content -- and
+  // eps_r_status therefore stays MissingMaterialData.  But the two quantities
+  // that only need eps_r THROUGH tau are available, and reporting them as "not
+  // computable" would now be carrying an old statement forward.
+  //
+  // r_star needs no separate treatment: substituting eps0 eps_r / K = tau into
+  //     r_star = ( gamma eps0^2 eps_r^2 / (rho K^2) )^(1/3)
+  // gives exactly
+  //     r_star = ( gamma tau^2 / rho )^(1/3) ,
+  // so it depends on eps_r ONLY through tau.  That identity is checked in the
+  // test rather than asserted here.
+  /// True when tau_e came from the P3 self-consistent solution rather than
+  /// from a single selected eps_r (which does not exist).
+  bool tau_e_self_consistent{false};
+  Real tau_e_lo{0}, tau_e_hi{0};   ///< [s] the justified band, NaN if unknown
+  Real r_star_lo{0}, r_star_hi{0}; ///< [m] the band that follows from it
+  Real eps_r_at_f_star{0};         ///< [-] the value tau_e was taken at
+  Real f_star{0};                  ///< [Hz]
+
   void print(std::FILE* out) const;
 };
 

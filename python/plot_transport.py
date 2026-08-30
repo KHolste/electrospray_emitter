@@ -204,10 +204,12 @@ def figure_charge(d, m, out):
                 "OHNE EMISSION darf kein stationärer Normalstrom durch die freie Oberfläche "
                 "fließen, weil die Ladung dort nirgendwohin könnte. Die richtige Bedingung "
                 "ist j·n = 0 – die natürliche Bedingung desselben Operators – und dass der "
-                "Löser sie einhält, wird gemessen. Links: ε_r ist für EMI-BF4 "
-                "MissingMaterialData (docs/13), also ist τ mit den belegten Daten dieses "
-                "Projekts NICHT berechenbar. Die Kurve zeigt die Form des Zerfalls mit einem "
-                "ausdrücklich unbelegten Wert und ist keine Stoffaussage.", 0.058)
+                "Löser sie einhält, wird gemessen. Links: die Kurve benutzt das "
+                "SELBSTKONSISTENTE τ aus Abb. 3, also ε_r an der Frequenz f* = 1/(2πτ), an "
+                "der die freie Ladung tatsächlich zerfällt – kein unbelegter Ersatzwert. Ein "
+                "EINZELNER ε_r-Wert bleibt gleichwohl MissingMaterialData (keine Quelle nennt "
+                "Reinheit und Wassergehalt); belegt ist ein Band, und die Kurve zeigt die "
+                "FORM des Zerfalls, nicht eine auf drei Stellen belastbare Stoffzahl.", 0.058)
     provenance(fig, m, NOT_MODELLED)
     fig.tight_layout(rect=[0, 0.155, 1, 0.930])
     fig.savefig(out, dpi=145)

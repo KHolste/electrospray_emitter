@@ -132,8 +132,14 @@ int main() {
     c.print(stdout);
     check(c.status == ConeJetStatus::MissingMaterialData,
           "mit den belegten Daten fehlt eps_r, also MissingMaterialData");
-    check(!std::isfinite(c.tau_e) && !std::isfinite(c.r_star),
-          "tau_e und r* bleiben nan -- kein Ersatzwert");
+    // Seit der P3-Korrektur sind tau_e und r* NICHT mehr nan: sie haengen von
+    // eps_r nur ueber tau ab, und tau ist selbstkonsistent auf der gemessenen
+    // Dispersionskurve geloest.  Das ist kein Ersatzwert -- der Test haelt
+    // beides auseinander.
+    check(std::isfinite(c.tau_e) && std::isfinite(c.r_star) && c.tau_e_self_consistent,
+          "tau_e und r* sind bestimmt, und zwar aus der selbstkonsistenten P3-Loesung");
+    check(c.eps_r_status == MaterialDataStatus::MissingMaterialData && !(c.eps_r > 0.0),
+          "ein einzelner eps_r-Wert bleibt trotzdem fehlend und wird NICHT gesetzt");
     check(std::isfinite(c.Oh) && std::isfinite(c.Bo_E) && std::isfinite(c.Re),
           "die Kennzahlen, die eps_r NICHT brauchen, sind trotzdem auswertbar");
     check(c.K_status != MaterialDataStatus::MissingMaterialData,
@@ -143,6 +149,61 @@ int main() {
     check(c.Oh > 1.0,
           "Oh > 1: die Viskositaet dominiert die Traegheit auf dieser Laengenskala -- eine "
           "DIAGNOSE, keine Regimevorhersage");
+  }
+
+  // =========================================================================
+  // WAS VON eps_r ABHAENGT -- und was die P3-Korrektur daran geaendert hat.
+  //
+  // Eine fruehere Fassung liess tau_e und r_star als nan stehen mit der Notiz
+  // "eps_r ist MissingMaterialData".  Das ist nicht mehr die ganze Wahrheit:
+  // P3 hat geklaert, WELCHE Permittivitaet in die Ladungsrelaxationszeit
+  // gehoert, und loest sie selbstkonsistent auf der gemessenen
+  // Dispersionskurve.  Ein EINZELNER eps_r-Wert fehlt weiterhin.
+  std::printf("\n6. Was eps_r braucht: tau_e und r* aus der P3-Loesung\n");
+  {
+    const ConeJetDiagnosis c =
+        diagnose_cone_jet(emibf4_sourced(), 298.15, 5.0e-6, 1.0e-13, 5.0e-6, 3.0e7);
+    c.print(stdout);
+
+    check(c.eps_r_status == MaterialDataStatus::MissingMaterialData,
+          "ein EINZELNER eps_r-Wert bleibt MissingMaterialData -- daran aendert sich nichts");
+    check(c.tau_e_self_consistent,
+          "tau_e kommt aus der selbstkonsistenten P3-Loesung und nicht aus einem "
+          "Ersatzwert");
+    check(std::isfinite(c.tau_e) && c.tau_e > 0.0,
+          "es ist damit NICHT mehr richtig, tau_e als nicht berechenbar zu fuehren");
+    check(std::isfinite(c.tau_e_lo) && std::isfinite(c.tau_e_hi) &&
+              c.tau_e_lo < c.tau_e && c.tau_e < c.tau_e_hi,
+          "und das begruendete Band schliesst den selbstkonsistenten Wert ein");
+
+    // Dieselbe Zahl auf zwei Wegen: aus eps_r(f*) und aus tau.  Die Identitaet
+    // r* = (gamma tau^2 / rho)^(1/3) wird gerechnet, nicht behauptet.
+    const Real direct =
+        electrohydrodynamic_length(c.gamma, c.eps_r_at_f_star, c.rho, c.K);
+    std::printf("    r* aus tau      : %.6e m\n", c.r_star);
+    std::printf("    r* aus eps_r(f*): %.6e m\n", direct);
+    check(std::isfinite(c.r_star) && std::isfinite(direct) &&
+              std::abs(c.r_star - direct) <= 1e-12 * direct,
+          "r* haengt von eps_r NUR ueber tau ab: beide Wege geben dieselbe Zahl");
+    check(std::isfinite(c.r_star_lo) && std::isfinite(c.r_star_hi) &&
+              c.r_star_lo < c.r_star && c.r_star < c.r_star_hi,
+          "und r* traegt das Band, das aus dem tau-Band folgt");
+
+    // Die Selbstkonsistenz selbst: tau_e = eps0 eps_r(f*) / K, exakt.
+    check(std::abs(c.tau_e - charge_relaxation_time_cj(c.eps_r_at_f_star, c.K)) <=
+              1e-15 * c.tau_e,
+          "tau_e erfuellt eps0 eps_r/K mit genau dem eps_r bei f*");
+    check(c.f_star > 1.0e9 && c.f_star < 1.8e10,
+          "f* liegt im gemessenen Bereich 1 bis 18 GHz");
+
+    // Und der Status von P8 bleibt, was er ist: blockiert, aus anderen
+    // Gruenden.  Eine berechenbare Zeitskala macht daraus kein Modell.
+    check(c.status == ConeJetStatus::MissingMaterialData,
+          "der Gesamtstatus bleibt MissingMaterialData -- ein einzelner eps_r-Wert "
+          "fehlt weiterhin, und eine bestimmbare Zeitskala ersetzt ihn nicht");
+    check(c.message.find("AUSNAHME") != std::string::npos,
+          "und die Meldung benennt die Ausnahme, statt weiter zu behaupten, ALLE "
+          "abhaengigen Kennzahlen blieben nan");
   }
 
   std::printf("\n%s: %d Fehler\n", failures == 0 ? "BESTANDEN" : "FEHLGESCHLAGEN", failures);

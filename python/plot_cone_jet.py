@@ -119,6 +119,13 @@ def figure(d, m, out):
             if np.all(~np.isfinite(v)):
                 ax.plot([], [], "--", color="#8a1b1b",
                         label=lab + "  – nicht berechenbar (ε_r fehlt)")
+            elif key == "tau_e_s" and dg[0].get("tau_e_self_consistent") == "yes":
+                # NOT from a substitute value: the self-consistent P3 solution,
+                # drawn with the justified band it carries.
+                lo, hi = col(dg, "tau_e_lo_s"), col(dg, "tau_e_hi_s")
+                ax.fill_between(Q, lo, hi, color="#1f77b4", alpha=0.18, zorder=1)
+                ax.loglog(Q, v, color="#1f77b4", lw=2.0,
+                          label=lab + "  – selbstkonsistent (P3), mit Band")
             else:
                 ax.loglog(Q, v, label=lab)
     ax.set_xlabel("Volumenstrom Q [pL/s]  – EINGABE")
@@ -149,11 +156,15 @@ def figure(d, m, out):
 
     caveat(fig, "Dies ist eine DIAGNOSE und keine Regimevorhersage. Jede gezeichnete Kennzahl "
                 "ist eine Definition und braucht keine Literaturquelle; die Herleitungen "
-                "stehen im Header. Was ε_r braucht – die Ladungsrelaxationszeit und die "
-                "elektrohydrodynamische Länge – bleibt nicht berechenbar, weil ε_r "
-                "MissingMaterialData ist. Die elektrische Bondzahl ist genau das Verhältnis "
-                "der beiden Terme, die P3b bilanziert, und damit die einzige Stelle, an der "
-                "diese Diagnose etwas berührt, das dieses Projekt gerechnet hat.", 0.066)
+                "stehen im Header. Zu ε_r: ein EINZELWERT bleibt MissingMaterialData – keine "
+                "Quelle nennt Reinheit und Wassergehalt. Die Ladungsrelaxationszeit und die "
+                "elektrohydrodynamische Länge hängen von ε_r aber NUR über τ ab, und τ ist "
+                "seit der P3-Korrektur selbstkonsistent auf der gemessenen Dispersionskurve "
+                "gelöst; beide tragen deshalb einen Wert und das begründete Band, und keines "
+                "davon ist ein Ersatzwert. Eine frühere Fassung führte beide als „nicht "
+                "berechenbar“. Die elektrische Bondzahl ist genau das Verhältnis der beiden "
+                "Terme, die P3b bilanziert, und damit die einzige Stelle, an der diese "
+                "Diagnose etwas berührt, das dieses Projekt gerechnet hat.", 0.058)
     provenance(fig, m, NOT_MODELLED, y=0.008)
     fig.tight_layout(rect=[0, 0.175, 1, 0.930])
     fig.savefig(out, dpi=145)

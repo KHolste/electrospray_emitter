@@ -1,6 +1,9 @@
 #include "es/cone_jet_contract.hpp"
 
+#include "es/transport.hpp"
+
 #include <cmath>
+#include <cstdio>
 #include <limits>
 
 #include "es/constants.hpp"
@@ -132,6 +135,13 @@ void ConeJetDiagnosis::print(std::FILE* out) const {
   std::fprintf(out, "    Stoffwerte: gamma %s, rho %s, mu %s, K %s, eps_r %s\n",
                to_string(gamma_status), to_string(rho_status), to_string(mu_status),
                to_string(K_status), to_string(eps_r_status));
+  if (tau_e_self_consistent)
+    std::fprintf(out,
+                 "    tau_e ist NICHT aus einem einzelnen eps_r gerechnet -- es gibt keinen. "
+                 "\n      Es ist die selbstkonsistente Loesung aus P3: eps_r = %.4f bei "
+                 "f* = %.4e Hz,\n      Band %.4e .. %.4e s.  eps_r bleibt "
+                 "MissingMaterialData.\n",
+                 eps_r_at_f_star, f_star, tau_e_lo, tau_e_hi);
   std::fprintf(out, "    Zeitskalen [s]: tau_e %.4e, kapillar %.4e, viskos %.4e, "
                     "Verweilzeit %.4e\n",
                tau_e, t_capillary, t_viscous, t_residence);
@@ -166,10 +176,42 @@ ConeJetDiagnosis diagnose_cone_jet(const MaterialDataset& d, Real T, Real a, Rea
   c.eps_r = e.usable() ? e.value : 0.0;
 
   c.tau_e = charge_relaxation_time_cj(c.eps_r, c.K);
+  c.tau_e_lo = c.tau_e_hi = c.r_star_lo = c.r_star_hi = kNaN;
   c.t_capillary = capillary_inertial_time(c.rho, c.gamma, a);
   c.t_viscous = visco_capillary_time(c.mu, c.gamma, a);
   c.t_residence = (Q != 0.0 && a > 0.0) ? (4.0 / 3.0 * pi * a * a * a) / std::abs(Q) : kNaN;
   c.r_star = electrohydrodynamic_length(c.gamma, c.eps_r, c.rho, c.K);
+
+  // If no SINGLE eps_r is selected -- and none is -- fall back on the P3
+  // result, which is not a substitute value but a solved one: tau from the
+  // implicit equation tau = eps0 eps_r(1/(2 pi tau)) / K on the MEASURED
+  // dispersion curve, plus the justified band over eps_r and K.  eps_r_status
+  // stays MissingMaterialData: there is still no single sourced eps_r.
+  if (!std::isfinite(c.tau_e)) {
+    const SelfConsistentRelaxation sc = self_consistent_relaxation(d, T);
+    if (sc.ok) {
+      c.tau_e = sc.tau;
+      c.tau_e_self_consistent = true;
+      c.eps_r_at_f_star = sc.eps_r;
+      c.f_star = sc.f_star;
+      const BandedRelaxationVerdict bv =
+          judge_conductor_limit_over_band(d, T, c.t_capillary);
+      if (std::isfinite(bv.tau_min) && std::isfinite(bv.tau_max)) {
+        c.tau_e_lo = bv.tau_min;
+        c.tau_e_hi = bv.tau_max;
+      }
+      // r_star = (gamma tau^2 / rho)^(1/3) -- the same formula, with eps_r
+      // eliminated in favour of tau.  No new physics and no new input.
+      if (c.gamma > 0.0 && c.rho > 0.0) {
+        auto rstar_of = [&](Real tau) {
+          return std::isfinite(tau) ? std::cbrt(c.gamma * tau * tau / c.rho) : kNaN;
+        };
+        c.r_star = rstar_of(c.tau_e);
+        c.r_star_lo = rstar_of(c.tau_e_lo);
+        c.r_star_hi = rstar_of(c.tau_e_hi);
+      }
+    }
+  }
   c.Oh = ohnesorge(c.mu, c.rho, c.gamma, a);
   c.Bo_E = electric_bond(E_surface, a, c.gamma);
   c.Re = feed_reynolds(c.rho, Q, R_channel, c.mu);
@@ -183,7 +225,23 @@ ConeJetDiagnosis diagnose_cone_jet(const MaterialDataset& d, Real T, Real a, Rea
     if (!m.usable()) c.message += "mu ";
     if (!k.usable()) c.message += "K ";
     if (!e.usable()) c.message += "eps_r ";
-    c.message += " -- die davon abhaengigen Kennzahlen bleiben nan.";
+    c.message += " -- die davon abhaengigen Kennzahlen bleiben nan, soweit unten keine "
+                 "Ausnahme genannt ist.";
+    // ... mit EINER Ausnahme, und die wird benannt statt verschwiegen: was von
+    // eps_r nur ueber die Ladungsrelaxationszeit abhaengt, ist seit der
+    // P3-Korrektur bestimmt -- selbstkonsistent auf der GEMESSENEN
+    // Dispersionskurve, nicht aus einem Ersatzwert.  Ein einzelner eps_r-Wert
+    // fehlt trotzdem, und der Status bleibt deshalb MissingMaterialData.
+    if (c.tau_e_self_consistent) {
+      char buf[512];
+      std::snprintf(buf, sizeof buf,
+                    "  AUSNAHME: tau_e und r* haengen von eps_r nur ueber tau ab und sind "
+                    "bestimmt -- tau_e = %.4e s aus der selbstkonsistenten P3-Loesung "
+                    "(eps_r = %.4f bei f* = %.4e Hz), Band %.4e .. %.4e s.  Das ist KEIN "
+                    "Ersatzwert; ein einzelner eps_r-Wert fehlt weiterhin.",
+                    c.tau_e, c.eps_r_at_f_star, c.f_star, c.tau_e_lo, c.tau_e_hi);
+      c.message += buf;
+    }
     return c;
   }
   if (!(Q != 0.0) || !(R_channel > 0.0)) {

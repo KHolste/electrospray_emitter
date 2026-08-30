@@ -114,9 +114,21 @@ int main(int argc, char** argv) try {
                     "# eine DEFINITION und braucht keine Literaturquelle; die Herleitung\n"
                     "# steht in include/es/cone_jet_contract.hpp.  Es ist eine Diagnose,\n"
                     "# welche Physik dominieren wuerde, und KEINE Regimevorhersage.\n"
-                    "# Was eps_r braucht, bleibt nan: eps_r ist MissingMaterialData.\n");
+                    "#\n"
+                    "# eps_r ist als EINZELWERT weiterhin MissingMaterialData -- keine Quelle\n"
+                    "# nennt Reinheit und Wassergehalt.  Was von eps_r NUR UEBER die\n"
+                    "# Ladungsrelaxationszeit abhaengt, ist seit der P3-Korrektur trotzdem\n"
+                    "# bestimmt: tau_e loest die implizite Gleichung\n"
+                    "#     tau = eps0 eps_r(1/(2 pi tau)) / K\n"
+                    "# auf der GEMESSENEN Dispersionskurve, und\n"
+                    "#     r* = (gamma eps0^2 eps_r^2/(rho K^2))^(1/3) = (gamma tau^2/rho)^(1/3)\n"
+                    "# haengt von eps_r ausschliesslich ueber tau ab.  Beide tragen deshalb\n"
+                    "# einen Wert UND ein Band, und beides ist kein Ersatzwert.\n"
+                    "# tau_e_self_consistent=yes markiert genau diese Herkunft.  Eine fruehere\n"
+                    "# Fassung fuehrte beide Spalten als nan mit der Notiz 'eps_r fehlt'.\n");
     std::fprintf(f, "Q_m3_per_s,status,tau_e_s,t_capillary_s,t_viscous_s,t_residence_s,"
-                    "r_star_m,Oh,Bo_E,Re,Ca\n");
+                    "r_star_m,Oh,Bo_E,Re,Ca,tau_e_lo_s,tau_e_hi_s,r_star_lo_m,r_star_hi_m,"
+                    "tau_e_self_consistent,eps_r_at_f_star,f_star_Hz\n");
     for (int k = 0; k <= 60; ++k) {
       const Real Q = 1.0e-16 * std::pow(10.0, 4.0 * static_cast<Real>(k) / 60.0);
       const ConeJetDiagnosis c = diagnose_cone_jet(emibf4_sourced(), T, a, Q, R, E);
@@ -130,6 +142,14 @@ int main(int argc, char** argv) try {
       put(f, c.Bo_E);
       put(f, c.Re);
       put(f, c.Ca);
+      put(f, c.tau_e_lo);
+      put(f, c.tau_e_hi);
+      put(f, c.r_star_lo);
+      put(f, c.r_star_hi);
+      std::fprintf(f, ",%s", c.tau_e_self_consistent ? "yes" : "no");
+      put(f, c.eps_r_at_f_star > 0.0 ? c.eps_r_at_f_star
+                                     : std::numeric_limits<Real>::quiet_NaN());
+      put(f, c.f_star > 0.0 ? c.f_star : std::numeric_limits<Real>::quiet_NaN());
       std::fprintf(f, "\n");
     }
     std::fclose(f);

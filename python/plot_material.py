@@ -176,15 +176,20 @@ def figure_vs_T(d, m, out):
         Line2D([], [], marker="v", ls="", ms=5, color="#9467bd",
                label="frequenzaufgelöst (1–18 GHz) – KEIN Gleichstromwert"),
         Line2D([], [], color="#2ca02c", ls="--", label="298,15 K")],
-        loc="lower center", ncol=3, fontsize=8, frameon=False, bbox_to_anchor=(0.5, 0.098))
+        loc="lower center", ncol=3, fontsize=8, frameon=False, bbox_to_anchor=(0.5, 0.140))
 
-    caveat(fig, "Zwei Größen haben KEINE gewählte Quelle und melden MissingMaterialData: die "
-                "relative Permittivität und die kinematische Viskosität. Keine ihrer Quellen "
-                "gibt Methode, Reinheit und Wassergehalt zugleich an; die mehrpunktige "
-                "Permittivitätsquelle misst zudem von 1 bis 18 GHz und ist damit keine "
-                "Gleichstromgröße. Es wird dort kein Ersatzwert gesetzt.", 0.046)
+    caveat(fig, "Zwei Größen haben KEINE gewählte Quelle – aber aus verschiedenen Gründen "
+                "und mit verschiedenem Ausgang. Für die KINEMATISCHE VISKOSITÄT nennt keine "
+                "der drei Quellen Methode, Reinheit und Wassergehalt zugleich, also wählt die "
+                "Regel keine direkt gemessene aus; ein Wert wird aber aus µ und ρ ABGELEITET "
+                "(Status derived, Abb. 4), weil beide Elternwerte nachweislich dieselbe Probe "
+                "beschreiben. Für die RELATIVE PERMITTIVITÄT bleibt es bei "
+                "MissingMaterialData: auch dort nennt keine Quelle Reinheit und Wassergehalt. "
+                "Dass die mehrpunktige Quelle von 1 bis 18 GHz misst, ist dabei KEIN "
+                "Ablehnungsgrund – für die Ladungsrelaxationszeit ist genau diese Frequenz die "
+                "richtige (P3, docs/14). Es wird nirgends ein Ersatzwert gesetzt.", 0.040)
     provenance(fig, m, NOT_MODELLED, y=0.006)
-    fig.tight_layout(rect=[0, 0.165, 1, 0.955])
+    fig.tight_layout(rect=[0, 0.205, 1, 0.955])
     fig.savefig(out, dpi=145)
     plt.close(fig)
     return out
