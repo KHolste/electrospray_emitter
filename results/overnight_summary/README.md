@@ -1,17 +1,66 @@
 # Nachtlauf 2026-08-29/30 und die Nacharbeit vom 2026-08-30
 
-**Nichts gepusht.** `origin/main` steht unverändert auf `a932ff1`; HEAD ist
-**46 Commits voraus, 0 zurück**, Arbeitsbaum sauber.
+Vor diesem Bereinigungscommit stand `origin/main` auf `a932ff1` und HEAD
+**46 Commits voraus, 0 zurück**, Arbeitsbaum sauber. Dieser Commit ist der 47.
+und der Stand, der nach `origin/main` geht.
 
-Vollständiger Build aus leerem Verzeichnis: fehlerfrei. `ctest`: **26/26 grün**
-(119 s). Sanitizerlauf unter WSL (Ubuntu, GCC 13.3, ASan + UBSan,
-`detect_leaks=1`) über den **endgültigen** Code: **26/26 grün**, 605 s, **null**
-Sanitizer-, UBSan- oder Leak-Meldungen.
+### Abnahme auf dem endgültigen Code-HEAD
+
+Beide Läufe wurden **nach** allen fachlichen Korrekturen auf `ea2d5a1`
+wiederholt; die Logs liegen unter [`logs/`](logs/) mit Befehl, Toolchain,
+Commit und Exit-Code.
+
+| Lauf | Toolchain | Ergebnis | Log |
+|---|---|---|---|
+| Clean Configure + Build + `ctest` | Windows, MinGW-W64 GCC 16.1.0, CMake 4.3.3, Ninja 1.13.2 | configure/build/ctest je Exit-Code 0, **26/26 grün**, 119,46 s | [`logs/build_ctest_final.log`](logs/build_ctest_final.log) |
+| ASan + UBSan, `detect_leaks=1` | WSL2 Ubuntu 24.04.4, GCC 13.3.0, CMake 3.28.3 | configure/build/ctest je Exit-Code 0, **26/26 grün**, 606,44 s, **null** ASan-, UBSan- oder Leak-Meldungen | [`logs/sanitizer_final.log`](logs/sanitizer_final.log) |
+
+**Was der frühere Sanitizersatz zu weit ging.** Er las sich, als sei der Lauf
+über den endgültigen HEAD selbst gefahren. Tatsächlich geprüft wurde `cc27a46`.
+Der Unterschied ist mechanisch nachweisbar unerheblich, aber er gehört benannt:
+`git diff cc27a46 HEAD -- src include apps tests tools CMakeLists.txt` ist
+**leer**, der kompilierte Inhalt beider Stände ist also identisch; zwischen
+`cc27a46` und HEAD liegen nur ein Paneltitel in `python/plot_transport.py` und
+Artefakte. Der oben aufgeführte Lauf schließt die Lücke trotzdem, indem er
+tatsächlich auf `ea2d5a1` fährt. Beide Logs tragen dazu einen Nachtrag, der
+offenlegt, warum die Zeile `Arbeitsbaum` dort `DIRTY` zeigt (unversioniertes
+Logverzeichnis und die parallel laufende Textbereinigung) und dass der
+Vergleich der kompilierten Dateien gegen HEAD dabei leer war.
+
+### Abbildungen — die Zahlen einzeln
+
+Die frühere Angabe „27 Abbildungen insgesamt" gehört zu keiner nachprüfbaren
+Menge und ist ersetzt. Ausgezählt auf dem Dateisystem:
+
+| Menge | Ordner | PNGs |
+|---|---|---|
+| der **P0–P9-Lauf** (die zehn Ordner aus Abschnitt 6) | 10 | **25** |
+| Ordner mit `figures_provenance.txt` | **15** | 49 |
+| **alle** Ergebnisordner mit Abbildungen | **18** | **56** |
+
+Die drei Ordner ohne Provenienzstempel — `branch_ambiguity`,
+`p1_boundary_mesh`, `p1_device_geometry` — stammen aus der Zeit vor
+`provenance.py` und tragen die verbleibenden 7 Abbildungen. Sie sind der Grund,
+warum sich 56 **nicht** auf 15 Ordner verteilt; die beiden Zahlen gehören zu
+verschiedenen Mengen und dürfen nicht in einem Satz stehen.
+
+Geprüft wurde getrennt, und beides ist nötig:
+
+* **mechanisch**, alle 56: PNG-Signatur, `IEND`-Abschluss, Dateigröße > 0,
+  Abmessungen > 0 — 56 von 56 in Ordnung, kleinste Abbildung 1216×832,
+  kleinste Datei 90 452 Bytes;
+* **inhaltlich**, die neun Abbildungen aus P3, P4, P5, P7 und P8, die nach dem
+  P2-Nachzug neu erzeugt und noch nicht im Endzustand vorgelegt worden waren:
+  Kurven gegen die zugrunde liegenden CSV nachgerechnet, Achsen, Einheiten,
+  Legenden und Bildunterschriften gelesen, Statusaussagen gegen den aktuellen
+  Code gehalten. Einzelheiten in Abschnitt 7.
+
+Ein mechanisch gültiges PNG ist keine geprüfte Abbildung; die erste Prüfung
+sagt, dass eine Datei lesbar ist, die zweite, dass sie stimmt.
 
 Jeder Provenienzstempel liegt in dieser Historie (`git merge-base
---is-ancestor`), und jedes der 15 Ergebnisverzeichnisse trägt
-`working_tree_dirty=no` und `releasable=yes`. 27 Abbildungen insgesamt, PNG-
-Signatur, Abmessungen und Dateigröße geprüft.
+--is-ancestor`), und jedes der 15 gestempelten Ergebnisverzeichnisse trägt
+`working_tree_dirty=no` und `releasable=yes`.
 
 Sicherung des Standes vor der Nacharbeit: Branch
 `backup/nachtlauf-p0-p9-20260830` und Tag `backup-nachtlauf-20260830-ede1508`,
@@ -22,10 +71,11 @@ beide auf `ede1508`. Es wurde nichts verworfen.
 ## 1. Was die Nacharbeit geändert hat
 
 Vier fachliche Korrekturen, eine Reparatur der lokalen Historie, der Nachzug
-dieser Korrekturen in drei weitere Abbildungen, und fünf Artefaktsätze, deren
-Provenienz durch die Reparatur ungültig geworden war. Jede Korrektur ist ein
-eigener Code-Commit mit einem eigenen Artefakt-Commit dahinter, und jede ist
-testgeprüft.
+dieser Korrekturen in acht weitere Abbildungen — in **zwei** Runden, weil die
+erste nur die Bildunterschriften traf und ein Paneltitel in P3 die überholte
+Aussage noch weitertrug —, und fünf Artefaktsätze, deren Provenienz durch die
+Reparatur ungültig geworden war. Jede Korrektur ist ein eigener Code-Commit mit
+einem eigenen Artefakt-Commit dahinter, und jede ist testgeprüft.
 
 | Punkt | Befund | Code | Artefakte |
 |---|---|---|---|
@@ -38,6 +88,7 @@ testgeprüft.
 | **Historie** | `713ab86` ließ sich nicht eigenständig konfigurieren | — | — |
 | **P0/P1/P4/P5/P7** | Abbildungen stempelten Commits außerhalb der eigenen Historie | — | `8040125`, `e46c941`, `91f254c`, `bed39d7`, `9d1b92c` |
 | **P2/P3/P8** | drei Bildunterschriften trugen Aussagen weiter, die die Korrekturen überholt haben | `cc27a46` | `5d8caba`, `7b683d4`, `ee6b743` |
+| **P3** | der Paneltitel von Abb. 2 nannte weiterhin einen unbelegten ε_r — die Bildunterschrift allein zu korrigieren hatte nicht gereicht | `42f4d73` | `8f2d9e5` |
 
 ---
 
@@ -371,3 +422,89 @@ cmake --build build_asan -j2
 Die Stoffdatentabelle wird von `python tools/fetch_material_data.py` neu erzeugt;
 ein leerer `git diff` danach ist die Reproduzierbarkeitsprüfung. Dieser Lauf hat
 sie **nicht** ausgeführt — sie braucht die ILThermo-Abfrage.
+
+---
+
+## 7. Die inhaltliche Prüfung der neun Abbildungen
+
+Neun Abbildungen waren nach dem P2-Nachzug (`5d8caba`) neu erzeugt und noch
+nicht im Endzustand vorgelegt worden: P3 Abb. 1–3, P4 Abb. 1–2, P5 Abb. 1,
+P7 Abb. 1–2 und P8 Abb. 1. Sie sind einzeln nachgerechnet, nicht nur geöffnet.
+
+### Nachgerechnet gegen die CSV
+
+| Abbildung | geprüfte Größe | gerechnet | in der CSV |
+|---|---|---|---|
+| P3 Abb. 2/3 | τ = ε₀·ε_r(f\*)/K | 6,058912579·10⁻¹¹ s | 6,058912582·10⁻¹¹ s |
+| P3 Abb. 3 | f\* = 1/(2πτ) | 2,626790549·10⁹ Hz | 2,627·10⁹ Hz |
+| P3 Abb. 3 | Bandecke (ε_lo, K_hi) | 4,182653139·10⁻¹¹ s | 4,182653139·10⁻¹¹ s |
+| P3 Abb. 3 | schlechteste Ecke, t_kap/τ | 1,301159·10⁴ | 1,301159355·10⁴ |
+| P4 Abb. 2 | exakte Volumenänderung e^{3αT}−1 | 3,4816890703 | 3,481689070 |
+| P5 Abb. 1 | E\* = 4πε₀ΔG²/e³ bei 1,09 eV | 8,2521·10⁸ V/m | 8,250897578·10⁸ V/m |
+| P5 Abb. 1 | b = ΔG/kT bei 0,80 eV | 31,1374 | 3,113739560·10¹ |
+| P7 Abb. 2 | Transmission 29/41 | 0,7073170732 | 7,073170732·10⁻¹ |
+| P7 Abb. 2 | Energiegewinn 999 V · e | 1,600574457·10⁻¹⁶ J | 1,600574457·10⁻¹⁶ J |
+| P8 Abb. 1 | r\*_lo/r\* = (τ_lo/τ)^{2/3} | 0,7810966516 | 0,7810966516 |
+| P8 Abb. 1 | r\*_hi/r\* = (τ_hi/τ)^{2/3} | 1,6833239649 | 1,6833239646 |
+
+**Querschnitt über die Punkte:** P8 trägt exakt dasselbe τ, ε_r(f\*) und f\*
+wie P3 — die P3-Korrektur ist also tatsächlich durchgezogen und nicht nur in
+P3 vermerkt. Im Datenteil von `diagnosis.csv` steht **kein** `nan` mehr.
+
+### Achsen, Einheiten, Legenden, Bildunterschriften
+
+Gelesen, nicht überflogen. Jede Achse trägt Größe und Einheit oder ist
+ausdrücklich als dimensionslos beschriftet; die Legenden nennen die Kurven, die
+gezeichnet sind. Die beiden Stellen, an denen eine überholte Aussage saß, sind
+im Bild verschwunden: der Paneltitel von P3 Abb. 2 nennt jetzt
+`τ = ε₀ε_r(f*)/K` mit dem selbstkonsistenten τ statt eines unbelegten ε_r, und
+P8 Abb. 1 zeichnet die Ladungsrelaxation als Band statt als „nicht berechenbar".
+
+### Statusaussagen gegen den aktuellen Code
+
+| Punkt | im Bild und in `meta.txt` | im Code |
+|---|---|---|
+| P3 | `validated_subset` | `apps/es_transport.cpp:444` |
+| P4 | `infrastructure_only` | `apps/es_kinematics.cpp:175` |
+| P5 | `blocked` | `apps/es_emission_audit.cpp:147` |
+| P7 | `validated_subset` | `apps/es_trajectories.cpp:259` |
+| P8 | `blocked` | `apps/es_cone_jet.cpp:180` |
+
+P5 Abb. 1 zeigt außerdem jeden Pfad einzeln mit `Disabled` bzw.
+`MissingEmissionParameters` — genau die sechs Zeilen aus `contract.csv`.
+P8 Abb. 1 zeigt fünf von sieben Teilmodellen als fehlend, was der Zeile in
+Abschnitt 4 entspricht.
+
+### Mechanisch
+
+PNG-Signatur, `IEND`-Abschluss, Dateigröße und Abmessungen aller neun geprüft
+(2030×957 bis 2523×928, 191 861 bis 297 170 Bytes). Provenienz: `42f4d732add3`
+(P3), `ee6b743d2ab1` (P4), `91f254c5c768` (P5), `bed39d795ee3` (P7),
+`7b683d4fb444` (P8) — alle fünf per `git merge-base --is-ancestor` in dieser
+Historie, alle mit `working_tree_dirty=no` und `releasable=yes`.
+
+---
+
+## 8. Zum beweglichen Netz — was geplant und was nicht implementiert ist
+
+Neu: [`docs/21_moving_mesh_plan.md`](../../docs/21_moving_mesh_plan.md).
+Es trennt drei Dinge, die bisher nebeneinanderstanden, und legt fest, was vor
+einer Taylor-Cone-Aussage erfüllt sein muss:
+
+* Das P3b-Netz hat eine **feste Topologie** mit **beweglichen
+  Knotenkoordinaten** — keine Knoteneinfügung, keine Neuvernetzung.
+* Seine Bewegung sucht ein **statisches Gleichgewicht**; die Iterationsschritte
+  sind keine Zeitschritte und die Zwischenformen haben keine physikalische
+  Bedeutung.
+* P4 enthält **nur die Kinematik** für ein vorgeschriebenes Geschwindigkeitsfeld
+  und ist mit P3b nicht gekoppelt.
+* Stark zugespitzte beziehungsweise Taylor-Cone-nahe Formen brauchen **adaptive
+  Verfeinerung** und voraussichtlich **Neuvernetzung**.
+* Vor einer Taylor-Cone-Aussage müssen **Apexkrümmungsradius, Apexhöhe,
+  integrierte Maxwell-Kraft und Netzqualität** unter Verfeinerung *und* unter
+  Neuvernetzung konvergieren.
+* Ein Abbruch der Fortsetzung oder des Netzverfahrens ist **kein
+  Taylor-Cone-Onset**, sondern eine Eigenschaft dieses Lösers und dieses Netzes.
+
+**In diesem Lauf wurde keine adaptive Neuvernetzung implementiert**; der Code
+ist gegenüber `ea2d5a1` unverändert.

@@ -1,0 +1,289 @@
+=== ASan/UBSan-Lauf unter WSL auf dem endgueltigen Code-HEAD ===
+Datum (UTC):   2026-08-30T14:17:09Z
+Host:          WSL2 Ubuntu
+Distribution:  Ubuntu 24.04.4 LTS
+Kernel:        6.6.87.2-microsoft-standard-WSL2
+Commit (HEAD): ea2d5a10c1f71907d10167ba6b24b502b529790e
+Arbeitsbaum:   DIRTY
+Toolchain:
+g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0
+cmake version 3.28.3
+
+Befehl 1: cmake -S . -B build_asan_final -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_CXX_FLAGS='-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1'
+-- The CXX compiler identification is GNU 13.3.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found OpenMP_CXX: -fopenmp (found version "4.5") 
+-- Found OpenMP: TRUE (found version "4.5")  
+-- Found Python3: /usr/bin/python3 (found version "3.12.3") found components: Interpreter 
+-- Configuring done (3.2s)
+-- Generating done (3.3s)
+-- Build files have been written to: /mnt/c/Users/krist/Documents/GitHub/electrospray/build_asan_final
+CONFIGURE_EXIT=0
+
+Befehl 2: cmake --build build_asan_final -j2
+[  2%] Building CXX object CMakeFiles/es_core.dir/src/status.cpp.o
+[  2%] Building CXX object CMakeFiles/es_core.dir/src/elliptic.cpp.o
+[  3%] Building CXX object CMakeFiles/es_core.dir/src/linalg.cpp.o
+[  4%] Building CXX object CMakeFiles/es_core.dir/src/fluid.cpp.o
+[  4%] Building CXX object CMakeFiles/es_core.dir/src/liquid.cpp.o
+[  5%] Building CXX object CMakeFiles/es_core.dir/src/feed.cpp.o
+[  6%] Building CXX object CMakeFiles/es_core.dir/src/transport.cpp.o
+[  7%] Building CXX object CMakeFiles/es_core.dir/src/surface_kinematics.cpp.o
+[  7%] Building CXX object CMakeFiles/es_core.dir/src/emission_contract.cpp.o
+[  8%] Building CXX object CMakeFiles/es_core.dir/src/space_charge.cpp.o
+[  9%] Building CXX object CMakeFiles/es_core.dir/src/particle_transport.cpp.o
+[ 10%] Building CXX object CMakeFiles/es_core.dir/src/cone_jet_contract.cpp.o
+[ 11%] Building CXX object CMakeFiles/es_core.dir/src/validation.cpp.o
+[ 11%] Building CXX object CMakeFiles/es_core.dir/src/geometry.cpp.o
+[ 12%] Building CXX object CMakeFiles/es_core.dir/src/device_geometry.cpp.o
+[ 13%] Building CXX object CMakeFiles/es_core.dir/src/boundary_mesh.cpp.o
+[ 14%] Building CXX object CMakeFiles/es_core.dir/src/materials.cpp.o
+[ 15%] Building CXX object CMakeFiles/es_core.dir/src/material_data.cpp.o
+[ 15%] Building CXX object CMakeFiles/es_core.dir/src/material_data_emibf4.cpp.o
+[ 16%] Building CXX object CMakeFiles/es_core.dir/src/axisym_fem.cpp.o
+[ 17%] Building CXX object CMakeFiles/es_core.dir/src/volume_mesh.cpp.o
+[ 18%] Building CXX object CMakeFiles/es_core.dir/src/dielectric_device.cpp.o
+[ 18%] Building CXX object CMakeFiles/es_core.dir/src/bem.cpp.o
+[ 19%] Building CXX object CMakeFiles/es_core.dir/src/vacuum_bem.cpp.o
+[ 20%] Building CXX object CMakeFiles/es_core.dir/src/emission.cpp.o
+[ 21%] Building CXX object CMakeFiles/es_core.dir/src/meniscus.cpp.o
+[ 22%] Building CXX object CMakeFiles/es_core.dir/src/capillary.cpp.o
+[ 22%] Building CXX object CMakeFiles/es_core.dir/src/electrocapillary.cpp.o
+[ 23%] Building CXX object CMakeFiles/es_core.dir/src/load_projection.cpp.o
+[ 24%] Building CXX object CMakeFiles/es_core.dir/src/beam.cpp.o
+[ 25%] Building CXX object CMakeFiles/es_core.dir/src/config.cpp.o
+[ 26%] Building CXX object CMakeFiles/es_core.dir/src/io.cpp.o
+[ 26%] Linking CXX static library libes_core.a
+[ 26%] Built target es_core
+[ 27%] Building CXX object CMakeFiles/es_field.dir/apps/es_field.cpp.o
+[ 27%] Building CXX object CMakeFiles/es_meniscus.dir/apps/es_meniscus.cpp.o
+[ 28%] Linking CXX executable es_meniscus
+[ 29%] Linking CXX executable es_field
+[ 29%] Built target es_field
+[ 29%] Built target es_meniscus
+[ 30%] Building CXX object CMakeFiles/es_operate.dir/apps/es_operate.cpp.o
+[ 30%] Building CXX object CMakeFiles/es_beam.dir/apps/es_beam.cpp.o
+[ 31%] Linking CXX executable es_operate
+[ 32%] Linking CXX executable es_beam
+[ 32%] Built target es_operate
+[ 33%] Building CXX object CMakeFiles/es_vacuum.dir/apps/es_vacuum.cpp.o
+[ 33%] Built target es_beam
+[ 34%] Building CXX object CMakeFiles/es_dielectric.dir/apps/es_dielectric.cpp.o
+[ 35%] Linking CXX executable es_vacuum
+[ 36%] Linking CXX executable es_dielectric
+[ 36%] Built target es_vacuum
+[ 37%] Building CXX object CMakeFiles/es_reservoir.dir/apps/es_reservoir.cpp.o
+[ 37%] Built target es_dielectric
+[ 38%] Building CXX object CMakeFiles/es_capillary.dir/apps/es_capillary.cpp.o
+[ 39%] Linking CXX executable es_reservoir
+[ 40%] Linking CXX executable es_capillary
+[ 40%] Built target es_capillary
+[ 40%] Built target es_reservoir
+[ 41%] Building CXX object CMakeFiles/es_p3b_audit.dir/apps/es_p3b_audit.cpp.o
+[ 41%] Building CXX object CMakeFiles/es_electrocapillary.dir/apps/es_electrocapillary.cpp.o
+[ 42%] Linking CXX executable es_p3b_audit
+[ 43%] Linking CXX executable es_electrocapillary
+[ 43%] Built target es_p3b_audit
+[ 44%] Building CXX object CMakeFiles/es_feed.dir/apps/es_feed.cpp.o
+[ 44%] Built target es_electrocapillary
+[ 45%] Building CXX object CMakeFiles/es_material.dir/apps/es_material.cpp.o
+[ 46%] Linking CXX executable es_feed
+[ 46%] Linking CXX executable es_material
+[ 46%] Built target es_feed
+[ 47%] Building CXX object CMakeFiles/es_transport.dir/apps/es_transport.cpp.o
+[ 47%] Built target es_material
+[ 48%] Building CXX object CMakeFiles/es_kinematics.dir/apps/es_kinematics.cpp.o
+[ 49%] Linking CXX executable es_kinematics
+[ 49%] Linking CXX executable es_transport
+[ 49%] Built target es_kinematics
+[ 49%] Building CXX object CMakeFiles/es_emission_audit.dir/apps/es_emission_audit.cpp.o
+[ 49%] Built target es_transport
+[ 49%] Building CXX object CMakeFiles/es_space_charge.dir/apps/es_space_charge.cpp.o
+[ 50%] Linking CXX executable es_emission_audit
+[ 50%] Built target es_emission_audit
+[ 51%] Building CXX object CMakeFiles/es_trajectories.dir/apps/es_trajectories.cpp.o
+[ 52%] Linking CXX executable es_space_charge
+[ 53%] Linking CXX executable es_trajectories
+[ 53%] Built target es_space_charge
+[ 54%] Building CXX object CMakeFiles/es_cone_jet.dir/apps/es_cone_jet.cpp.o
+[ 54%] Built target es_trajectories
+[ 55%] Building CXX object CMakeFiles/es_validation.dir/apps/es_validation.cpp.o
+[ 55%] Linking CXX executable es_cone_jet
+[ 55%] Built target es_cone_jet
+[ 55%] Building CXX object CMakeFiles/branch_figure.dir/tools/branch_figure.cpp.o
+[ 56%] Linking CXX executable es_validation
+[ 57%] Linking CXX executable branch_figure
+[ 57%] Built target es_validation
+[ 58%] Building CXX object CMakeFiles/device_figure.dir/tools/device_figure.cpp.o
+[ 58%] Built target branch_figure
+[ 58%] Building CXX object CMakeFiles/mesh_figure.dir/tools/mesh_figure.cpp.o
+[ 59%] Linking CXX executable device_figure
+[ 59%] Built target device_figure
+[ 60%] Building CXX object CMakeFiles/test_elliptic.dir/tests/test_elliptic.cpp.o
+[ 60%] Linking CXX executable test_elliptic
+[ 61%] Linking CXX executable mesh_figure
+[ 61%] Built target test_elliptic
+[ 62%] Building CXX object CMakeFiles/test_bem.dir/tests/test_bem.cpp.o
+[ 62%] Built target mesh_figure
+[ 63%] Building CXX object CMakeFiles/test_meniscus.dir/tests/test_meniscus.cpp.o
+[ 64%] Linking CXX executable test_bem
+[ 64%] Built target test_bem
+[ 65%] Building CXX object CMakeFiles/test_emission.dir/tests/test_emission.cpp.o
+[ 66%] Linking CXX executable test_meniscus
+[ 67%] Linking CXX executable test_emission
+[ 67%] Built target test_meniscus
+[ 67%] Building CXX object CMakeFiles/test_beam.dir/tests/test_beam.cpp.o
+[ 67%] Built target test_emission
+[ 67%] Building CXX object CMakeFiles/test_config.dir/tests/test_config.cpp.o
+[ 68%] Linking CXX executable test_config
+[ 69%] Linking CXX executable test_beam
+[ 69%] Built target test_config
+[ 70%] Building CXX object CMakeFiles/test_regressions.dir/tests/test_regressions.cpp.o
+[ 70%] Built target test_beam
+[ 71%] Building CXX object CMakeFiles/test_device_geometry.dir/tests/test_device_geometry.cpp.o
+[ 72%] Linking CXX executable test_device_geometry
+[ 73%] Linking CXX executable test_regressions
+[ 73%] Built target test_device_geometry
+[ 74%] Building CXX object CMakeFiles/test_boundary_mesh.dir/tests/test_boundary_mesh.cpp.o
+[ 74%] Built target test_regressions
+[ 75%] Building CXX object CMakeFiles/test_vacuum_bem.dir/tests/test_vacuum_bem.cpp.o
+[ 75%] Linking CXX executable test_boundary_mesh
+[ 75%] Built target test_boundary_mesh
+[ 76%] Building CXX object CMakeFiles/test_axisym_fem.dir/tests/test_axisym_fem.cpp.o
+[ 77%] Linking CXX executable test_axisym_fem
+[ 78%] Built target test_axisym_fem
+[ 78%] Linking CXX executable test_vacuum_bem
+[ 79%] Building CXX object CMakeFiles/test_dielectric_device.dir/tests/test_dielectric_device.cpp.o
+[ 79%] Built target test_vacuum_bem
+[ 80%] Building CXX object CMakeFiles/test_reservoir.dir/tests/test_reservoir.cpp.o
+[ 81%] Linking CXX executable test_reservoir
+[ 81%] Linking CXX executable test_dielectric_device
+[ 81%] Built target test_reservoir
+[ 82%] Building CXX object CMakeFiles/test_capillary.dir/tests/test_capillary.cpp.o
+[ 82%] Built target test_dielectric_device
+[ 83%] Building CXX object CMakeFiles/test_electrocapillary.dir/tests/test_electrocapillary.cpp.o
+[ 84%] Linking CXX executable test_capillary
+[ 84%] Built target test_capillary
+[ 85%] Building CXX object CMakeFiles/test_load_projection.dir/tests/test_load_projection.cpp.o
+[ 86%] Linking CXX executable test_load_projection
+[ 87%] Linking CXX executable test_electrocapillary
+[ 87%] Built target test_load_projection
+[ 87%] Building CXX object CMakeFiles/test_feed.dir/tests/test_feed.cpp.o
+[ 88%] Linking CXX executable test_feed
+[ 88%] Built target test_electrocapillary
+[ 89%] Building CXX object CMakeFiles/test_material_data.dir/tests/test_material_data.cpp.o
+[ 89%] Built target test_feed
+[ 90%] Building CXX object CMakeFiles/test_transport.dir/tests/test_transport.cpp.o
+[ 90%] Linking CXX executable test_transport
+[ 90%] Linking CXX executable test_material_data
+[ 90%] Built target test_transport
+[ 91%] Building CXX object CMakeFiles/test_surface_kinematics.dir/tests/test_surface_kinematics.cpp.o
+[ 91%] Built target test_material_data
+[ 92%] Building CXX object CMakeFiles/test_emission_contract.dir/tests/test_emission_contract.cpp.o
+[ 93%] Linking CXX executable test_emission_contract
+[ 94%] Linking CXX executable test_surface_kinematics
+[ 94%] Built target test_emission_contract
+[ 94%] Building CXX object CMakeFiles/test_space_charge.dir/tests/test_space_charge.cpp.o
+[ 94%] Built target test_surface_kinematics
+[ 95%] Building CXX object CMakeFiles/test_particle_transport.dir/tests/test_particle_transport.cpp.o
+[ 95%] Linking CXX executable test_particle_transport
+[ 95%] Built target test_particle_transport
+[ 96%] Linking CXX executable test_space_charge
+[ 97%] Building CXX object CMakeFiles/test_cone_jet_contract.dir/tests/test_cone_jet_contract.cpp.o
+[ 97%] Built target test_space_charge
+[ 98%] Building CXX object CMakeFiles/test_validation.dir/tests/test_validation.cpp.o
+[ 99%] Linking CXX executable test_cone_jet_contract
+[ 99%] Built target test_cone_jet_contract
+[100%] Linking CXX executable test_validation
+[100%] Built target test_validation
+BUILD_EXIT=0
+
+Befehl 3: (cd build_asan_final && ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=print_stacktrace=1 ctest --output-on-failure)
+Start (UTC): 2026-08-30T14:19:48Z
+Test project /mnt/c/Users/krist/Documents/GitHub/electrospray/build_asan_final
+      Start  1: test_elliptic
+ 1/26 Test  #1: test_elliptic ....................   Passed    0.11 sec
+      Start  2: test_bem
+ 2/26 Test  #2: test_bem .........................   Passed    0.46 sec
+      Start  3: test_meniscus
+ 3/26 Test  #3: test_meniscus ....................   Passed   73.94 sec
+      Start  4: test_emission
+ 4/26 Test  #4: test_emission ....................   Passed    0.02 sec
+      Start  5: test_beam
+ 5/26 Test  #5: test_beam ........................   Passed   22.47 sec
+      Start  6: test_config
+ 6/26 Test  #6: test_config ......................   Passed    0.04 sec
+      Start  7: test_regressions
+ 7/26 Test  #7: test_regressions .................   Passed  168.55 sec
+      Start  8: test_device_geometry
+ 8/26 Test  #8: test_device_geometry .............   Passed    0.03 sec
+      Start  9: test_boundary_mesh
+ 9/26 Test  #9: test_boundary_mesh ...............   Passed    0.29 sec
+      Start 10: test_vacuum_bem
+10/26 Test #10: test_vacuum_bem ..................   Passed    1.44 sec
+      Start 11: test_axisym_fem
+11/26 Test #11: test_axisym_fem ..................   Passed    0.03 sec
+      Start 12: test_dielectric_device
+12/26 Test #12: test_dielectric_device ...........   Passed   30.83 sec
+      Start 13: test_reservoir
+13/26 Test #13: test_reservoir ...................   Passed    1.01 sec
+      Start 14: test_capillary
+14/26 Test #14: test_capillary ...................   Passed    0.59 sec
+      Start 15: test_electrocapillary
+15/26 Test #15: test_electrocapillary ............   Passed   87.24 sec
+      Start 16: test_load_projection
+16/26 Test #16: test_load_projection .............   Passed    0.06 sec
+      Start 17: test_feed
+17/26 Test #17: test_feed ........................   Passed    0.01 sec
+      Start 18: test_material_data
+18/26 Test #18: test_material_data ...............   Passed    0.01 sec
+      Start 19: test_transport
+19/26 Test #19: test_transport ...................   Passed    0.04 sec
+      Start 20: test_surface_kinematics
+20/26 Test #20: test_surface_kinematics ..........   Passed    0.48 sec
+      Start 21: test_emission_contract
+21/26 Test #21: test_emission_contract ...........   Passed    0.01 sec
+      Start 22: test_space_charge
+22/26 Test #22: test_space_charge ................   Passed  216.62 sec
+      Start 23: test_particle_transport
+23/26 Test #23: test_particle_transport ..........   Passed    1.67 sec
+      Start 24: test_cone_jet_contract
+24/26 Test #24: test_cone_jet_contract ...........   Passed    0.02 sec
+      Start 25: test_validation
+25/26 Test #25: test_validation ..................   Passed    0.09 sec
+      Start 26: test_provenance
+26/26 Test #26: test_provenance ..................   Passed    0.12 sec
+
+100% tests passed, 0 tests failed out of 26
+
+Total Test time (real) = 606.44 sec
+CTEST_EXIT=0
+Ende (UTC): 2026-08-30T14:29:54Z
+
+--- Nachtrag zur Provenienz dieses Laufs -----------------------------------
+
+Die Zeile "Arbeitsbaum: DIRTY" oben ist richtig und wird nicht geschoent.  Sie
+ist NICHT durch eine geaenderte Quelldatei entstanden.  Zum Zeitpunkt des Laufs
+war der Arbeitsbaum aus genau zwei Gruenden nicht sauber:
+
+  * results/overnight_summary/logs/  war unversioniert -- es ist das
+    Verzeichnis, in das dieses Log selbst geschrieben wurde;
+  * die Bereinigung der Berichtstexte lief parallel (docs/README.md,
+    docs/21_moving_mesh_plan.md, results/overnight_summary/README.md).
+
+Keine dieser Dateien wird kompiliert und keine wird von ctest ausgefuehrt.
+Mechanisch geprueft, nicht behauptet:
+
+  git diff HEAD -- src include apps tests tools CMakeLists.txt
+
+war zum Laufzeitpunkt LEER.  Gebaut und getestet wurde damit exakt der
+Quellstand von ea2d5a10c1f71907d10167ba6b24b502b529790e.
+
+Derselbe Vergleich gegen den nachfolgenden Bereinigungscommit ist ebenfalls
+leer: dieser Commit aendert ausschliesslich Dokumentation und Ergebnistexte.
+Der kompilierte Inhalt des endgueltigen HEAD ist daher mit dem hier geprueften
+identisch.
