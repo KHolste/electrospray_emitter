@@ -119,36 +119,111 @@ int main(int argc, char** argv) try {
   }
 
   // --- the validation matrix ------------------------------------------------
+  //
+  // SIX INDEPENDENT VERDICTS PER ROW.  The earlier one-dimensional version was
+  // coloured by comparability alone, which made the total current -- directly
+  // comparable, and not computable here at all -- look like a success.
   {
     std::FILE* f = std::fopen((outdir + "/validation_matrix.csv").c_str(), "w");
-    std::fprintf(f, "# Welche Groessen sich zwischen einer achsensymmetrischen Rechnung und\n"
-                    "# einem dreidimensionalen Geraet ueberhaupt vergleichen lassen, unter\n"
-                    "# welcher Bedingung, und was dieses Projekt davon rechnet.\n");
-    std::fprintf(f, "quantity,unit,comparability,condition,computed_by,status,measurable\n");
-    Index n_direct = 0, n_reduced = 0, n_none = 0;
-    for (const ValidationEntry& e : validation_matrix()) {
-      std::fprintf(f, "%s,%s,%s,%s,%s,%s,%s\n", q(e.quantity).c_str(), q(e.unit).c_str(),
-                   to_string(e.comparability), q(e.condition).c_str(),
-                   q(e.computed_by).c_str(), q(e.status).c_str(),
-                   e.measurable ? "yes" : "no");
-      switch (e.comparability) {
-        case Comparability::Direct: ++n_direct; break;
-        case Comparability::AfterStatedReduction: ++n_reduced; break;
-        case Comparability::NotComparable: ++n_none; break;
+    std::fprintf(f,
+                 "# Die Validierungsmatrix.  Sie beantwortet SECHS unabhaengige Fragen je\n"
+                 "# Groesse und gerade nicht eine einzige:\n"
+                 "#   comparable_geometry  -- laesst sich die Groesse zwischen einer\n"
+                 "#                           achsensymmetrischen Rechnung und einem\n"
+                 "#                           3D-Geraet ueberhaupt vergleichen?\n"
+                 "#   implemented          -- rechnet dieses Projekt sie?\n"
+                 "#   converged            -- ist das numerische Ergebnis nach einem VORAB\n"
+                 "#                           festgelegten Kriterium konvergiert?\n"
+                 "#   comparable_with_data -- liesse sie sich mit einer Messung vergleichen?\n"
+                 "#   validated            -- ist sie TATSAECHLICH mit Messdaten verglichen\n"
+                 "#                           worden und hat innerhalb der angegebenen\n"
+                 "#                           Unsicherheiten uebereingestimmt?\n"
+                 "#   blocked + reason     -- ist sie blockiert, und wodurch?\n"
+                 "#\n"
+                 "# INVARIANTE, im Code geprueft statt in Prosa versprochen: validated=yes\n"
+                 "# verlangt implemented=yes UND converged=yes (oder n/a) UND\n"
+                 "# comparable_with_data=yes UND nicht blockiert.  Eine Groesse kann NIE als\n"
+                 "# validiert erscheinen, nur weil sie vergleichbar ist.\n"
+                 "#\n"
+                 "# Werte je Achse: yes / partial / no / n-a.\n");
+    std::fprintf(f, "quantity,unit,comparability,comparable_geometry,implemented,converged,"
+                    "comparable_with_data,validated,blocked,blocked_reason,computed_by,"
+                    "phase_status,condition,convergence_note,validation_note,measurable\n");
+    const std::vector<ValidationEntry> vm = validation_matrix();
+    for (const ValidationEntry& e : vm) {
+      const std::string bad = inconsistency(e);
+      if (!bad.empty()) {
+        say(std::string("  FEHLER in der Matrixzeile '") + e.quantity + "': " + bad);
+        exit_code = 2;
       }
+      std::fprintf(f, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
+                   q(e.quantity).c_str(), q(e.unit).c_str(), to_string(e.comparability),
+                   to_string(as_assessment(e.comparability)), to_string(e.implemented),
+                   to_string(e.converged), to_string(e.comparable_with_data),
+                   to_string(e.validated), e.blocked ? "yes" : "no",
+                   q(e.blocked_reason).c_str(), q(e.computed_by).c_str(),
+                   q(e.phase_status).c_str(), q(e.condition).c_str(),
+                   q(e.convergence_note).c_str(), q(e.validation_note).c_str(),
+                   e.measurable ? "yes" : "no");
     }
     std::fclose(f);
-    say("  Validierungsmatrix: " + std::to_string(n_direct) + " direkt vergleichbar, " +
-        std::to_string(n_reduced) + " nach ausgesprochener Reduktion, " +
-        std::to_string(n_none) + " grundsaetzlich nicht.");
+
+    const ValidationTally t = tally(vm);
+    say("  Validierungsmatrix, " + std::to_string(t.n_rows) + " Zeilen:");
+    say("    vergleichbar (ganz oder nach Reduktion): " + std::to_string(t.n_comparable));
+    say("    implementiert:                          " + std::to_string(t.n_implemented));
+    say("    numerisch konvergiert:                  " + std::to_string(t.n_converged));
+    say("    mit Messdaten vergleichbar:             " +
+        std::to_string(t.n_comparable_with_data));
+    say("    TATSAECHLICH VALIDIERT:                 " + std::to_string(t.n_validated));
+    say("    blockiert:                              " + std::to_string(t.n_blocked));
+    say("  Der Abstand zwischen der ersten und der vorletzten Zahl ist der Punkt dieser "
+        "Tabelle.");
+    // Nothing here is validated, and that is a checked statement rather than a
+    // hope: no measured data have been imported at all.
+    if (t.n_validated != 0) {
+      say("  FEHLER: eine Zeile behauptet eine Validierung, obwohl keine Messdaten "
+          "importiert sind.");
+      exit_code = 2;
+    }
+    {
+      std::FILE* g = std::fopen((outdir + "/validation_tally.csv").c_str(), "w");
+      std::fprintf(g, "# Wie viele Zeilen jede Achse erreichen.  Die vorletzte Zahl ist\n"
+                      "# null, und das ist der Befund von P9.\n");
+      std::fprintf(g, "axis,n_rows,n_reached\n");
+      std::fprintf(g, "comparable_geometry,%lld,%lld\n", (long long)t.n_rows,
+                   (long long)t.n_comparable);
+      std::fprintf(g, "implemented,%lld,%lld\n", (long long)t.n_rows,
+                   (long long)t.n_implemented);
+      std::fprintf(g, "converged,%lld,%lld\n", (long long)t.n_rows,
+                   (long long)t.n_converged);
+      std::fprintf(g, "comparable_with_data,%lld,%lld\n", (long long)t.n_rows,
+                   (long long)t.n_comparable_with_data);
+      std::fprintf(g, "validated,%lld,%lld\n", (long long)t.n_rows,
+                   (long long)t.n_validated);
+      std::fprintf(g, "blocked,%lld,%lld\n", (long long)t.n_rows, (long long)t.n_blocked);
+      std::fclose(g);
+    }
   }
 
   // --- the import contract, exercised --------------------------------------
   {
     std::FILE* f = std::fopen((outdir + "/import_contract.csv").c_str(), "w");
-    std::fprintf(f, "# Der Importvertrag, an einem absichtlich unvollstaendigen Beispielsatz\n"
-                    "# vorgefuehrt.  KEINER dieser Punkte ist eine Messung: sie zeigen, was\n"
-                    "# ein Datensatz tragen muss und woran ein Import scheitert.\n");
+    std::fprintf(f,
+                 "# Der Importvertrag, an einem absichtlich unvollstaendigen Beispielsatz\n"
+                 "# vorgefuehrt.  KEINER dieser Punkte ist eine Messung: sie zeigen, was ein\n"
+                 "# Datensatz tragen muss und woran ein Import scheitert.\n"
+                 "#\n"
+                 "# HARTE FEHLER (der ganze Satz wird abgelehnt): fehlende Einheit, fehlende\n"
+                 "# Fundstelle, fehlende Geometrieart, widerspruechliche Einheiten.  Jeder\n"
+                 "# davon heisst, dass der Datensatz gar nicht zu deuten ist.\n"
+                 "#\n"
+                 "# KEIN harter Fehler: eine in der Publikation NICHT ANGEGEBENE\n"
+                 "# Unsicherheit.  Das ist eine Tatsache ueber die Quelle, kein Defekt des\n"
+                 "# Datensatzes.  Solche Punkte werden importiert, archiviert und duerfen mit\n"
+                 "# sichtbarem Status qualitativ dargestellt werden -- aber sie tragen keine\n"
+                 "# quantitative Validierung.  Eine fruehere Fassung dieses Vertrags lehnte\n"
+                 "# sie hart ab und warf damit echte Messungen weg.\n");
     std::fprintf(f, "case,quantity,value,unit,uncertainty,uncertainty_type,geometry,"
                     "status\n");
     auto base = []() {
@@ -169,9 +244,9 @@ int main(int argc, char** argv) try {
     const C cases[] = {
         {"vollstaendig", [](MeasuredPoint&) {}},
         {"ohne_Einheit", [](MeasuredPoint& p) { p.unit.clear(); }},
-        {"ohne_Unsicherheit", [](MeasuredPoint& p) { p.uncertainty = 0.0; }},
-        {"ohne_Unsicherheitstyp",
-         [](MeasuredPoint& p) { p.uncertainty_type = UncertaintyType::NotStated; }},
+        {"Unsicherheit_nicht_berichtet", [](MeasuredPoint& p) { p.uncertainty = 0.0; }},
+        {"Unsicherheitstyp_nicht_berichtet",
+         [](MeasuredPoint& p) { p.uncertainty_type = UncertaintyType::NotReported; }},
         {"ohne_Fundstelle", [](MeasuredPoint& p) { p.provenance.clear(); }},
         {"ohne_Geometrieart", [](MeasuredPoint& p) { p.geometry_stated = false; }},
     };
@@ -183,17 +258,63 @@ int main(int argc, char** argv) try {
                    q(p.unit).c_str(), p.uncertainty, to_string(p.uncertainty_type),
                    p.geometry_stated ? to_string(p.geometry) : "NICHT ANGEGEBEN",
                    to_string(r.status));
-      if (std::string(c.tag) == "vollstaendig") {
+      const std::string tag = c.tag;
+      const bool expected_quantitative = (tag == "vollstaendig");
+      const bool expected_qualitative = (tag == "Unsicherheit_nicht_berichtet" ||
+                                         tag == "Unsicherheitstyp_nicht_berichtet");
+      if (expected_quantitative) {
         p.print(stdout);
         p.print(log);
-        if (!is_usable(r.status)) exit_code = 2;
+        if (!usable_quantitatively(r.status)) {
+          say("  FEHLER: der vollstaendige Punkt ist nicht quantitativ verwendbar.");
+          exit_code = 2;
+        }
+      } else if (expected_qualitative) {
+        // NOT a hard error any more, and that is the correction: a publication
+        // that omits an error bar has produced an incomplete record, not a
+        // broken one.  It is archived, may be drawn, and carries no number.
+        p.print(stdout);
+        p.print(log);
+        if (!is_usable(r.status) || usable_quantitatively(r.status)) {
+          say(std::string("  FEHLER: '") + c.tag +
+              "' muss importierbar, aber nur qualitativ verwendbar sein.");
+          exit_code = 2;
+        }
       } else if (is_usable(r.status)) {
         say(std::string("  FEHLER: '") + c.tag + "' wurde importiert.");
         exit_code = 2;
       }
     }
+
+    // A mixed set: the hard requirements hold for every point, one point has no
+    // reported uncertainty.  The set is imported WHOLE, and the counts say how
+    // much of it may carry a number.
+    {
+      MeasuredPoint a = base();
+      MeasuredPoint b = base();
+      b.quantity = "Strahlstrom";
+      b.unit = "A";
+      b.value = 2.1e-7;
+      b.uncertainty = 0.0;
+      b.uncertainty_type = UncertaintyType::NotReported;
+      b.provenance = "BEISPIELEINTRAG -- keine Messung.  Eine Publikation ohne Fehlerbalken.";
+      const ImportResult r = import_measurements({a, b});
+      std::fprintf(f, "gemischter_Satz,%s,%.9e,%s,%.9e,%s,%s,%s\n",
+                   q("2 Punkte, 1 ohne berichtete Unsicherheit").c_str(), b.value,
+                   q(b.unit).c_str(), b.uncertainty, to_string(b.uncertainty_type),
+                   to_string(b.geometry), to_string(r.status));
+      say("  Gemischter Satz: " + std::to_string(r.n_quantitative) +
+          " quantitativ verwendbar, " + std::to_string(r.n_qualitative_only) +
+          " nur qualitativ -- und der Satz wird NICHT als Ganzes verworfen.");
+      if (r.points.size() != 2 || r.n_quantitative != 1 || r.n_qualitative_only != 1) {
+        say("  FEHLER: der gemischte Satz ist nicht wie erwartet importiert worden.");
+        exit_code = 2;
+      }
+    }
     std::fclose(f);
-    say("  import_contract.csv geschrieben: nur der vollstaendige Punkt wird importiert.");
+    say("  import_contract.csv geschrieben.  Fehlende Einheit, Fundstelle oder "
+        "Geometrieart sind harte Fehler; eine nicht berichtete Unsicherheit ist ein "
+        "eigener Zustand und kein Grund, die Messung wegzuwerfen.");
   }
 
   {

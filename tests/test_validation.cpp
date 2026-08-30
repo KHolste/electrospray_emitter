@@ -159,12 +159,10 @@ int main() {
       ImportStatus want;
       std::function<void(MeasuredPoint&)> break_it;
     };
+    // THE HARD REQUIREMENTS.  Each of them means the record cannot be
+    // interpreted at all, and each rejects the whole set.
     const Case cases[] = {
         {"Einheit", ImportStatus::MissingUnit, [](MeasuredPoint& p) { p.unit.clear(); }},
-        {"Unsicherheit", ImportStatus::MissingUncertainty,
-         [](MeasuredPoint& p) { p.uncertainty = 0.0; }},
-        {"Unsicherheitstyp", ImportStatus::MissingUncertainty,
-         [](MeasuredPoint& p) { p.uncertainty_type = UncertaintyType::NotStated; }},
         {"Fundstelle", ImportStatus::MissingProvenance,
          [](MeasuredPoint& p) { p.provenance.clear(); }},
         {"Geometrieart", ImportStatus::MissingGeometryKind,
@@ -176,10 +174,67 @@ int main() {
       const ImportResult r = import_measurements({p});
       std::printf("    ohne %-16s -> %s\n", c.what, to_string(r.status));
       check(r.status == c.want, std::string("fehlende ") + c.what + " wird abgefangen");
+      check(is_hard_error(r.status), "und zwar als HARTER Fehler");
       check(r.points.empty(), "und es wird NICHTS importiert");
     }
 
-    // The SET is rejected, not the point.
+    // THE UNCERTAINTY IS NOT ONE OF THEM.  An earlier version of this contract
+    // treated it the same way and threw real measurements away: a publication
+    // that reports a current without an error bar has produced an INCOMPLETE
+    // record, not a broken one.  It is imported, archived, may be drawn -- and
+    // carries no quantitative claim.
+    std::printf("    -- eine nicht berichtete Unsicherheit ist KEIN harter Fehler --\n");
+    {
+      const Case soft[] = {
+          {"Unsicherheitswert", ImportStatus::OkUncertaintyNotReported,
+           [](MeasuredPoint& p) { p.uncertainty = 0.0; }},
+          {"Unsicherheitstyp", ImportStatus::OkUncertaintyNotReported,
+           [](MeasuredPoint& p) { p.uncertainty_type = UncertaintyType::NotReported; }},
+      };
+      for (const Case& c : soft) {
+        MeasuredPoint p = good_point();
+        c.break_it(p);
+        const ImportResult r = import_measurements({p});
+        std::printf("    ohne %-16s -> %s\n", c.what, to_string(r.status));
+        check(r.status == c.want,
+              std::string("ohne ") + c.what + ": der Zustand heisst NotReported und nicht "
+              "'fehlt'");
+        check(is_usable(r.status),
+              std::string("ohne ") + c.what + ": der Punkt wird IMPORTIERT und archiviert");
+        check(!usable_quantitatively(r.status),
+              std::string("ohne ") + c.what +
+                  ": aber er darf keine quantitative Validierung tragen");
+        check(!is_hard_error(r.status), "und der Satz wird nicht als Ganzes verworfen");
+        check(r.points.size() == 1 && r.n_qualitative_only == 1 && r.n_quantitative == 0,
+              "die Zaehlung sagt, wie viel des Satzes eine Zahl tragen darf");
+      }
+    }
+
+    // A MIXED SET stays whole and stays honest about which half is which.
+    {
+      MeasuredPoint no_unc = good_point();
+      no_unc.quantity = "Strahlstrom";
+      no_unc.unit = "A";
+      no_unc.value = 2.1e-7;
+      no_unc.uncertainty = 0.0;
+      no_unc.uncertainty_type = UncertaintyType::NotReported;
+      const ImportResult r = import_measurements({good_point(), no_unc});
+      std::printf("    gemischter Satz -> %s, %lld quantitativ, %lld nur qualitativ\n",
+                  to_string(r.status), static_cast<long long>(r.n_quantitative),
+                  static_cast<long long>(r.n_qualitative_only));
+      check(r.points.size() == 2,
+            "ein Satz aus einem vollstaendigen und einem unsicherheitslosen Punkt wird "
+            "GANZ importiert");
+      check(r.n_quantitative == 1 && r.n_qualitative_only == 1,
+            "und beide Haelften werden getrennt gezaehlt");
+      check(r.status == ImportStatus::OkUncertaintyNotReported,
+            "der Satzstatus verschweigt nicht, dass ein Punkt keine Unsicherheit traegt");
+      check(usable_quantitatively(r.points[0].check()) &&
+                !usable_quantitatively(r.points[1].check()),
+            "jeder Punkt traegt seinen eigenen Status -- der Satz ist nicht homogen");
+    }
+
+    // The SET is rejected on a HARD error, not the point.
     MeasuredPoint bad = good_point();
     bad.provenance.clear();
     const ImportResult set = import_measurements({good_point(), bad, good_point()});
@@ -198,10 +253,18 @@ int main() {
   }
 
   // =========================================================================
-  std::printf("\n4. Die Validierungsmatrix\n");
+  // THE VALIDATION MATRIX -- six independent verdicts per row.
+  //
+  // The earlier version carried ONE comparability per row and the figure
+  // coloured the row by it, so a quantity that is comparable in principle but
+  // blocked appeared green.  The total current is the clearest case: directly
+  // comparable, and not computable by this project at all.
+  std::printf("\n4. Die Validierungsmatrix: sechs Fragen, nicht eine\n");
   {
     const std::vector<ValidationEntry> m = validation_matrix();
     Index direct = 0, reduced = 0, none = 0, computed = 0;
+    std::printf("    %-40s %-4s %-4s %-4s %-4s %-4s %s\n", "Groesse", "geo", "impl", "konv",
+                "vgl", "VAL", "blockiert");
     for (const ValidationEntry& e : m) {
       switch (e.comparability) {
         case Comparability::Direct: ++direct; break;
@@ -209,18 +272,79 @@ int main() {
         case Comparability::NotComparable: ++none; break;
       }
       if (std::string(e.computed_by) != "-") ++computed;
-      std::printf("    %-38s %-22s %s\n", e.quantity, to_string(e.comparability), e.status);
+      std::printf("    %-40s %-4s %-4s %-4s %-4s %-4s %s\n", e.quantity,
+                  symbol(as_assessment(e.comparability)), symbol(e.implemented),
+                  symbol(e.converged), symbol(e.comparable_with_data), symbol(e.validated),
+                  e.blocked ? "JA" : "-");
     }
-    std::printf("    %lld direkt, %lld nach Reduktion, %lld nicht vergleichbar; "
-                "%lld werden hier gerechnet\n",
-                static_cast<long long>(direct), static_cast<long long>(reduced),
-                static_cast<long long>(none), static_cast<long long>(computed));
     check(m.size() >= 10, "die Matrix ist nicht bloss eine Geste");
     check(none >= 3,
           "es gibt Groessen, die achsensymmetrisch grundsaetzlich nicht darstellbar sind -- "
           "und sie stehen benannt in der Matrix");
     check(computed < static_cast<Index>(m.size()),
           "und Groessen, die dieses Projekt gar nicht rechnet");
+
+    // --- every row is internally consistent -------------------------------
+    for (const ValidationEntry& e : m) {
+      const std::string bad = inconsistency(e);
+      check(bad.empty(), std::string("'") + e.quantity + "': die Zeile ist in sich stimmig" +
+                             (bad.empty() ? "" : " -- " + bad));
+      check(e.blocked == (e.blocked_reason[0] != '\0'),
+            std::string("'") + e.quantity +
+                "': blockiert genau dann, wenn ein Grund genannt ist");
+      check(e.convergence_note[0] != '\0' && e.validation_note[0] != '\0',
+            std::string("'") + e.quantity +
+                "': zu Konvergenz und Validierung steht je ein Satz da, statt einer Farbe");
+    }
+
+    // --- THE POINT: comparability is not validation -----------------------
+    const ValidationTally t = tally(m);
+    std::printf("    vergleichbar %lld, implementiert %lld, konvergiert %lld, "
+                "mit Daten vergleichbar %lld, VALIDIERT %lld, blockiert %lld (von %lld)\n",
+                static_cast<long long>(t.n_comparable),
+                static_cast<long long>(t.n_implemented),
+                static_cast<long long>(t.n_converged),
+                static_cast<long long>(t.n_comparable_with_data),
+                static_cast<long long>(t.n_validated), static_cast<long long>(t.n_blocked),
+                static_cast<long long>(t.n_rows));
+    check(t.n_validated == 0,
+          "NICHTS ist validiert: es sind ueberhaupt keine Messdaten importiert, und die "
+          "Matrix sagt das statt es durch eine Farbe zu verdecken");
+    check(t.n_comparable > t.n_validated,
+          "und es gibt Groessen, die vergleichbar und trotzdem nicht validiert sind -- "
+          "genau die Unterscheidung, die die alte einachsige Karte verwischt hat");
+    check(t.n_blocked > 0, "blockierte Groessen sind als solche gefuehrt");
+
+    // The row that made the old figure wrong: directly comparable AND blocked.
+    const ValidationEntry* current = nullptr;
+    for (const ValidationEntry& e : m)
+      if (std::string(e.quantity) == "Gesamtstrom") current = &e;
+    check(current != nullptr, "der Gesamtstrom steht in der Matrix");
+    if (current) {
+      check(current->comparability == Comparability::Direct && current->blocked,
+            "er ist DIREKT vergleichbar UND blockiert -- in der alten einachsigen Karte "
+            "erschien er deshalb gruen");
+      check(current->implemented == Assessment::No && current->validated == Assessment::No,
+            "auf den eigenen Achsen steht jetzt, dass er weder gerechnet noch validiert ist");
+      check(std::string(current->blocked_reason).find("P5") != std::string::npos,
+            "und der Blockergrund benennt P5");
+    }
+
+    // The invariant is not vacuous: a hand-built row that claims validation
+    // without the things it requires must be caught.
+    {
+      ValidationEntry fake = m.front();
+      fake.validated = Assessment::Yes;
+      fake.comparable_with_data = Assessment::No;
+      check(!inconsistency(fake).empty(),
+            "eine Zeile, die Validierung ohne Vergleichbarkeit mit Daten behauptet, wird "
+            "abgefangen -- die Invariante ist nicht leer");
+      ValidationEntry fake2 = m.front();
+      fake2.validated = Assessment::Yes;
+      fake2.implemented = Assessment::No;
+      check(!inconsistency(fake2).empty(),
+            "und ebenso eine, die Validierung ohne Implementierung behauptet");
+    }
   }
 
   std::printf("\n%s: %d Fehler\n", failures == 0 ? "BESTANDEN" : "FEHLGESCHLAGEN", failures);

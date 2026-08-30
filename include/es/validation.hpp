@@ -132,9 +132,19 @@ RevolutionCheck revolution_volume(const std::vector<Vec2>& meridian, Real z_base
 // The import contract for measured data
 // ---------------------------------------------------------------------------
 //
-// A measurement without a unit is a number; without an uncertainty it is an
-// anecdote; without a provenance it is a rumour; and without the geometry it
-// belongs to it cannot be compared with anything.  All four are required.
+// A measurement without a unit is a number; without a provenance it is a
+// rumour; and without the geometry it belongs to it cannot be compared with
+// anything.  Those three are HARD requirements and a set that breaks one of
+// them is rejected whole.
+//
+// THE UNCERTAINTY IS DIFFERENT, and an earlier version of this contract got it
+// wrong by treating it the same way.  A publication that reports a current of
+// 210 nA without an error bar has not produced a broken record; it has produced
+// an incomplete one.  Refusing to import it throws away a real measurement.
+// Importing it as if it had an uncertainty would be worse.  So it is imported
+// with the explicit state NotReported, it is archived, it may be DRAWN with its
+// state visible -- and usable_quantitatively() is false for it, so no deviation,
+// no chi-square and no pass/fail can be computed from it.
 
 enum class UncertaintyType {
   /// Evaluated by statistical analysis of repeated observations (GUM type A).
@@ -142,29 +152,50 @@ enum class UncertaintyType {
   /// Evaluated by other means -- instrument specification, calibration
   /// certificate, judgement (GUM type B).
   TypeB,
-  /// Not stated by the source.  A dataset with this fails the import.
-  NotStated,
+  /// THE PUBLICATION DOES NOT STATE ONE.  This is a fact about the source, not
+  /// a defect of the import, and the two must not be confused: a missing unit
+  /// is a broken record, a missing uncertainty is an incomplete publication.
+  /// Such a point may be archived and shown QUALITATIVELY; it may never carry a
+  /// quantitative validation.  An earlier version of this file called this
+  /// NotStated and made it a hard import failure, which threw away real data.
+  NotReported,
 };
 const char* to_string(UncertaintyType u);
+const char* explain(UncertaintyType u);
 
 enum class ImportStatus {
+  /// Complete: unit, uncertainty, provenance and geometry all present.  Only
+  /// this status may back a quantitative comparison.
   Ok = 0,
+  /// Everything present EXCEPT the uncertainty, which the publication does not
+  /// state.  The point is imported, archived and may be drawn -- with its
+  /// status visible -- but no quantitative claim may rest on it.
+  OkUncertaintyNotReported,
+  /// The hard errors.  Each of them means the record cannot be interpreted at
+  /// all, and each rejects the whole set.
   MissingUnit,
-  MissingUncertainty,
   MissingProvenance,
   MissingGeometryKind,
   UnitMismatch,
 };
 const char* to_string(ImportStatus s);
 const char* explain(ImportStatus s);
-inline bool is_usable(ImportStatus s) { return s == ImportStatus::Ok; }
+/// True if the point may be kept and displayed at all.
+inline bool is_usable(ImportStatus s) {
+  return s == ImportStatus::Ok || s == ImportStatus::OkUncertaintyNotReported;
+}
+/// True ONLY where a quantitative comparison is permitted.  Every place that
+/// computes a deviation, a chi-square or a pass/fail must ask this one.
+inline bool usable_quantitatively(ImportStatus s) { return s == ImportStatus::Ok; }
+/// True for the failures that reject the whole set.
+inline bool is_hard_error(ImportStatus s) { return !is_usable(s); }
 
 struct MeasuredPoint {
   std::string quantity;
   Real value{0};
   std::string unit;              ///< SI, spelled out; empty = missing
-  Real uncertainty{0};           ///< in the same unit; <= 0 = missing
-  UncertaintyType uncertainty_type{UncertaintyType::NotStated};
+  Real uncertainty{0};           ///< in the same unit; <= 0 = not reported
+  UncertaintyType uncertainty_type{UncertaintyType::NotReported};
   Real coverage_factor{0};       ///< k; 0 = not stated
   std::string provenance;        ///< where the number can be found again
   GeometryKind geometry{GeometryKind::Axisymmetric};
@@ -180,16 +211,63 @@ struct MeasuredPoint {
 /// with one bad point is rejected whole, because a comparison that silently
 /// dropped a point would be a comparison with a different data set.
 struct ImportResult {
+  /// The worst status in the set: a hard error if any point has one, otherwise
+  /// OkUncertaintyNotReported if any point lacks an uncertainty, otherwise Ok.
   ImportStatus status{ImportStatus::Ok};
-  Index first_bad{-1};
+  Index first_bad{-1};                 ///< index of the first HARD failure
   std::string message;
-  std::vector<MeasuredPoint> points;   ///< empty unless status is Ok
+  /// Empty on a hard error.  Otherwise every point, each carrying its own
+  /// status -- the set is not homogeneous and pretending it is would be the
+  /// same mistake in a new place.
+  std::vector<MeasuredPoint> points;
+  Index n_quantitative{0};             ///< points that may back a number
+  Index n_qualitative_only{0};         ///< points archived without uncertainty
 };
 ImportResult import_measurements(const std::vector<MeasuredPoint>& raw);
 
 // ---------------------------------------------------------------------------
 // The validation matrix
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// SIX QUESTIONS, NOT ONE
+// ---------------------------------------------------------------------------
+//
+// An earlier version of this matrix carried a single Comparability per row and
+// the figure coloured the row by it.  A quantity that is comparable IN
+// PRINCIPLE but blocked, or comparable and not converged, therefore appeared
+// GREEN -- and green reads as success.  The total current is the clearest case:
+// it is directly comparable between an axisymmetric model and a real device,
+// and this project cannot compute it at all.
+//
+// Comparability and validation are different questions and are now answered
+// separately.  A row is a set of independent verdicts:
+//
+//   1. comparable_geometry  -- can the quantity be compared between an
+//                              axisymmetric computation and a 3D device at all?
+//   2. implemented          -- does something in this project compute it?
+//   3. converged            -- is the numerical result converged, by a stated
+//                              criterion that was fixed BEFORE the measurement?
+//   4. comparable_with_data -- could it be compared with a measurement, given
+//                              an import that satisfies the contract?
+//   5. validated            -- has it ACTUALLY been compared with measured data
+//                              and agreed within the stated uncertainties?
+//   6. blocked + reason     -- is it blocked, and by what?
+//
+// AND THE INVARIANT, checked in code rather than promised in prose:
+// validated == Yes requires implemented == Yes AND converged == Yes AND
+// comparable_with_data == Yes AND not blocked.  A quantity can never be shown
+// as validated because it is merely comparable.
+
+/// A per-axis answer.  There is no single overall verdict, on purpose.
+enum class Assessment {
+  No = 0,          ///< the axis is not satisfied
+  Partial,         ///< satisfied only under a restriction that is stated
+  Yes,             ///< satisfied
+  NotApplicable,   ///< the axis does not apply to this quantity
+};
+const char* to_string(Assessment a);
+const char* symbol(Assessment a);
 
 /// Whether a quantity can be compared between an axisymmetric computation and a
 /// three-dimensional device at all -- and if so, under what condition.
@@ -204,19 +282,55 @@ enum class Comparability {
   NotComparable,
 };
 const char* to_string(Comparability c);
+/// The comparability axis as an Assessment, so that the figure never has to
+/// map a Comparability onto a colour that could read as an overall verdict.
+Assessment as_assessment(Comparability c);
 
 struct ValidationEntry {
   const char* quantity{""};
   const char* unit{""};
+
+  // --- axis 1: geometric / physical comparability -------------------------
   Comparability comparability{Comparability::NotComparable};
   const char* condition{""};       ///< what has to hold, or why it does not
-  const char* computed_by{""};     ///< which phase computes it here, or "-"
-  const char* status{""};          ///< the phase status
-  bool measurable{false};          ///< can it be measured on a bench at all
+
+  // --- axes 2 to 5 --------------------------------------------------------
+  Assessment implemented{Assessment::No};
+  Assessment converged{Assessment::No};
+  Assessment comparable_with_data{Assessment::No};
+  Assessment validated{Assessment::No};
+
+  // --- axis 6 -------------------------------------------------------------
+  bool blocked{false};
+  const char* blocked_reason{""};   ///< non-empty exactly when blocked
+
+  // --- the evidence behind axes 2 to 5 ------------------------------------
+  const char* computed_by{""};      ///< which phase computes it here, or "-"
+  const char* phase_status{""};     ///< that phase's own status word
+  const char* convergence_note{""}; ///< what is known about convergence
+  const char* validation_note{""};  ///< why it is not validated
+  bool measurable{false};           ///< can it be measured on a bench at all
 };
+
+/// The invariant above, evaluated for one row.  Returns an empty string if the
+/// row is consistent, and otherwise names what is wrong with it.
+std::string inconsistency(const ValidationEntry& e);
 
 /// The matrix.  It is data, not code: a reader should be able to check it
 /// against the phase documents line by line.
 std::vector<ValidationEntry> validation_matrix();
+
+/// How many rows reach each verdict on the validation axis.  Used by the run
+/// and by the test so that "nothing is validated" is a measured statement.
+struct ValidationTally {
+  Index n_rows{0};
+  Index n_comparable{0};       ///< Yes or Partial on axis 1
+  Index n_implemented{0};
+  Index n_converged{0};
+  Index n_comparable_with_data{0};
+  Index n_validated{0};
+  Index n_blocked{0};
+};
+ValidationTally tally(const std::vector<ValidationEntry>& m);
 
 }  // namespace es

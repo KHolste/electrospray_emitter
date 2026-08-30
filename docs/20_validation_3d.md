@@ -69,47 +69,132 @@ geprüft.
 
 ## 20.3 Der Importvertrag für Messdaten
 
-Ein Messwert ohne Einheit ist eine Zahl; ohne Unsicherheit eine Anekdote; ohne
-Fundstelle ein Gerücht; und ohne die Geometrie, zu der er gehört, mit nichts
-vergleichbar. Alle vier sind Pflicht:
+Ein Messwert ohne Einheit ist eine Zahl; ohne Fundstelle ein Gerücht; und ohne
+die Geometrie, zu der er gehört, mit nichts vergleichbar. **Diese drei sind
+harte Bedingungen**, und ein Satz, der eine davon bricht, wird als GANZES
+abgelehnt — einen Punkt stillschweigend wegzulassen wäre ein Vergleich mit einem
+anderen Datensatz.
 
-| Feld | fehlt → |
-|---|---|
-| `unit` | `MissingUnit` |
-| `uncertainty` **und** `uncertainty_type` (GUM Typ A oder B) | `MissingUncertainty` |
-| `provenance` | `MissingProvenance` |
-| `geometry_stated` | `MissingGeometryKind` |
-| zwei Einheiten für dieselbe Größe | `UnitMismatch` |
+| Feld | fehlt → | Härte |
+|---|---|---|
+| `unit` | `MissingUnit` | **hart**, Satz abgelehnt |
+| `provenance` | `MissingProvenance` | **hart**, Satz abgelehnt |
+| `geometry_stated` | `MissingGeometryKind` | **hart**, Satz abgelehnt |
+| zwei Einheiten für dieselbe Größe | `UnitMismatch` | **hart**, Satz abgelehnt |
+| `uncertainty` bzw. `uncertainty_type` | `OkUncertaintyNotReported` | **nicht hart** — siehe 20.3a |
 
-**Ein Satz mit einem unvollständigen Punkt wird als GANZES abgelehnt.** Einen
-Punkt stillschweigend wegzulassen wäre ein Vergleich mit einem anderen
-Datensatz.
+### 20.3a Eine nicht angegebene Unsicherheit ist kein Defekt des Datensatzes
+
+Eine frühere Fassung dieses Vertrags behandelte die fehlende Unsicherheit wie
+eine fehlende Einheit und lehnte den Punkt hart ab. **Das war falsch und es warf
+echte Messungen weg.**
+
+Eine Publikation, die einen Strom von 210 nA ohne Fehlerbalken berichtet, hat
+keinen *kaputten* Datensatz erzeugt, sondern einen *unvollständigen*. Die beiden
+Fälle sind nicht dasselbe:
+
+* eine fehlende **Einheit** macht die Zahl unlesbar — man weiß nicht, was da
+  steht;
+* eine fehlende **Unsicherheit** macht die Zahl unbrauchbar für einen
+  *quantitativen* Vergleich — aber die Messung selbst existiert, ist zitierbar
+  und trägt eine Aussage.
+
+Der Vertrag führt deshalb den ausdrücklichen Zustand
+`UncertaintyType::NotReported` und den Importstatus
+`ImportStatus::OkUncertaintyNotReported`:
+
+* der Punkt wird **importiert und archiviert**;
+* er darf **qualitativ dargestellt** werden — mit seinem Status sichtbar;
+* `usable_quantitatively()` ist für ihn **falsch**. Jede Abweichung, jedes
+  Chi-Quadrat und jedes Bestanden/Durchgefallen muss genau diese Funktion
+  abfragen, nicht `is_usable()`.
+
+Ein **gemischter Satz** bleibt ganz: `ImportResult` führt `n_quantitative` und
+`n_qualitative_only` getrennt, der Satzstatus verschweigt nicht, dass ein Punkt
+keine Unsicherheit trägt, und **jeder Punkt trägt seinen eigenen Status** — der
+Satz ist nicht homogen, und so zu tun wäre derselbe Fehler an einer neuen
+Stelle.
 
 Zusätzlich aufgenommen: `coverage_factor` $k$ und `conditions` (Temperatur,
 Polarität, Volumenstrom) — ohne die Bedingungen ist auch ein vollständiger
 Messwert nicht zuordenbar.
 
-## 20.4 Die Validierungsmatrix
+## 20.4 Die Validierungsmatrix: sechs Fragen, nicht eine
 
-13 Größen, jede mit ihrer Vergleichbarkeit, der Bedingung dafür, der Phase, die
-sie hier rechnet, und deren Status. Die Zusammenfassung:
+**Was daran falsch war.** Die frühere Matrix trug *eine* Vergleichbarkeit je
+Zeile, und die Abbildung färbte die Zeile danach. Eine Größe, die im Prinzip
+vergleichbar, aber blockiert oder nicht konvergiert ist, erschien damit **grün**
+— und grün liest sich als Erfolg. Der klarste Fall ist der **Gesamtstrom**: er
+ist zwischen einer achsensymmetrischen Rechnung und einem realen Gerät *direkt*
+vergleichbar, und dieses Projekt kann ihn **überhaupt nicht rechnen**, weil P5
+blockiert ist.
 
-* **6 direkt vergleichbar** — Spannung, Gesamtstrom, integrierte Maxwell-Kraft,
-  Apexhöhe, Apexfeld, Ladungsrelaxationszeit;
-* **3 erst nach ausgesprochener Reduktion** — Transmission, Divergenz,
-  Auftreffverteilung: achsensymmetrisch sind sie Funktionen von $r$ allein, in
-  3D Verteilungen über den Azimut;
-* **4 grundsätzlich nicht vergleichbar** — azimutale Asymmetrie des Strahls,
-  Versatz von Emitter und Blende, Neigung des Emitters,
-  Emitter-zu-Emitter-Übersprechen im Array.
+Vergleichbarkeit und Validierung sind verschiedene Fragen. Jede Zeile trägt
+jetzt **sechs unabhängige Urteile**:
 
-Die letzten vier sind **genau das, was ein achsensymmetrisches Modell nicht
-hat**. Sie stehen benannt in der Matrix, statt zu fehlen, und sie sind die
-Antwort auf die Frage, wofür ein 3D-Löser gebraucht würde.
+| Achse | Frage |
+|---|---|
+| `comparable_geometry` | Lässt sich die Größe zwischen achsensymmetrisch und 3D überhaupt vergleichen? |
+| `implemented` | Rechnet dieses Projekt sie? |
+| `converged` | Ist das numerische Ergebnis nach einem **vorab** festgelegten Kriterium konvergiert? |
+| `comparable_with_data` | Ließe sie sich mit einer Messung vergleichen? |
+| `validated` | Ist sie **tatsächlich** mit Messdaten verglichen worden und hat innerhalb der angegebenen Unsicherheiten übereingestimmt? |
+| `blocked` + Grund | Ist sie blockiert, und wodurch? |
 
-Von den 13 rechnet dieses Projekt 8 — und von diesen 8 trägt keine einzige den
-Status „validiert": sie sind `geprueft`, `validated_subset`, `qualitativ`,
-`DiscretizationNotConverged`, `MissingMaterialData` oder `blocked`.
+Die Werte je Achse sind `yes` / `partial` / `no` / `n/a`. **Grün heißt in der
+Abbildung nur, dass genau diese eine Achse erfüllt ist** — nie, dass die Größe
+validiert wäre.
+
+### Die Invariante steht im Code, nicht in der Bildunterschrift
+
+`es::inconsistency()` prüft je Zeile:
+
+$$
+\texttt{validated}=\text{yes}\;\Longrightarrow\;
+\texttt{implemented}=\text{yes}\;\wedge\;
+\texttt{converged}\in\{\text{yes},\text{n/a}\}\;\wedge\;
+\texttt{comparable\_with\_data}=\text{yes}\;\wedge\;
+\neg\,\texttt{blocked}
+$$
+
+sowie: blockiert genau dann, wenn ein Grund genannt ist. Der Test baut
+zusätzlich von Hand Zeilen, die die Invariante verletzen, und prüft, dass sie
+abgefangen werden — die Invariante ist also nicht leer.
+
+### Was dabei herauskommt
+
+Bei 13 Größen:
+
+| Achse | erreicht |
+|---|---|
+| vergleichbar (ganz oder nach Reduktion) | **9** |
+| implementiert | **8** |
+| numerisch konvergiert | **0** |
+| mit Messdaten vergleichbar | **6** |
+| **tatsächlich validiert** | **0** |
+| blockiert | **5** |
+
+**Der Abstand zwischen der ersten und der vorletzten Zahl ist der ganze Punkt
+dieser Tabelle.** Dass nichts validiert ist, ist keine Bescheidenheit, sondern
+eine geprüfte Aussage: es sind überhaupt keine Messdaten importiert, und der
+Test schlägt fehl, sobald eine Zeile etwas anderes behauptet.
+
+Die **vier grundsätzlich nicht vergleichbaren** Größen — azimutale Asymmetrie
+des Strahls, Versatz von Emitter und Blende, Neigung des Emitters,
+Emitter-zu-Emitter-Übersprechen im Array — sind genau das, was ein
+achsensymmetrisches Modell nicht hat. Sie stehen benannt in der Matrix, statt zu
+fehlen, und sie sind die Antwort auf die Frage, wofür ein 3D-Löser gebraucht
+würde.
+
+Jede Zeile trägt außerdem **einen Satz zur Konvergenz und einen zur
+Validierung**, statt einer Farbe: warum eine Größe nicht konvergiert ist (bei
+der integrierten Maxwell-Kraft etwa das von P0 gemessene und verfehlte
+1-%-Ziel, 4,6 bis 6,1 %) und warum sie nicht validiert ist.
+
+**Eine Zeile hat sich durch die P3-Korrektur geändert:** die
+Ladungsrelaxationszeit stand als `MissingMaterialData` und steht jetzt als
+„Band belegt, Einzelwert fehlt" — implementiert, geschlossen lösbar, mit
+Messdaten vergleichbar, und weiterhin **nicht validiert**.
 
 ## 20.5 Kunze-Geometrien und Messdaten
 

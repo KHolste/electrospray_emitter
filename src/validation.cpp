@@ -176,7 +176,23 @@ const char* to_string(UncertaintyType u) {
   switch (u) {
     case UncertaintyType::TypeA: return "TypeA";
     case UncertaintyType::TypeB: return "TypeB";
-    case UncertaintyType::NotStated: return "NotStated";
+    case UncertaintyType::NotReported: return "NotReported";
+  }
+  return "?";
+}
+
+const char* explain(UncertaintyType u) {
+  switch (u) {
+    case UncertaintyType::TypeA:
+      return "Aus der statistischen Auswertung wiederholter Beobachtungen gewonnen "
+             "(GUM Typ A).";
+    case UncertaintyType::TypeB:
+      return "Auf andere Weise gewonnen: Geraetespezifikation, Kalibrierschein, "
+             "Sachurteil (GUM Typ B).";
+    case UncertaintyType::NotReported:
+      return "Die Publikation gibt keine an.  Das ist eine Tatsache ueber die QUELLE und "
+             "kein Fehler des Imports: der Punkt wird archiviert und darf qualitativ "
+             "dargestellt werden, aber keine quantitative Validierung darf auf ihm ruhen.";
   }
   return "?";
 }
@@ -184,8 +200,8 @@ const char* to_string(UncertaintyType u) {
 const char* to_string(ImportStatus s) {
   switch (s) {
     case ImportStatus::Ok: return "Ok";
+    case ImportStatus::OkUncertaintyNotReported: return "OkUncertaintyNotReported";
     case ImportStatus::MissingUnit: return "MissingUnit";
-    case ImportStatus::MissingUncertainty: return "MissingUncertainty";
     case ImportStatus::MissingProvenance: return "MissingProvenance";
     case ImportStatus::MissingGeometryKind: return "MissingGeometryKind";
     case ImportStatus::UnitMismatch: return "UnitMismatch";
@@ -197,12 +213,17 @@ const char* explain(ImportStatus s) {
   switch (s) {
     case ImportStatus::Ok:
       return "Der Datensatz traegt Einheit, Unsicherheit mit Typ, Fundstelle und "
-             "Geometrieart.";
+             "Geometrieart.  Nur mit diesem Status darf ein QUANTITATIVER Vergleich "
+             "gerechnet werden.";
+    case ImportStatus::OkUncertaintyNotReported:
+      return "Einheit, Fundstelle und Geometrieart sind da; die Publikation gibt aber KEINE "
+             "Unsicherheit an.  Der Punkt wird importiert und archiviert und darf mit "
+             "sichtbarem Status qualitativ dargestellt werden.  Er traegt keine "
+             "quantitative Validierung: usable_quantitatively() ist fuer ihn falsch, und "
+             "jede Abweichung, jedes Chi-Quadrat und jedes Bestanden/Durchgefallen muss "
+             "genau das abfragen.";
     case ImportStatus::MissingUnit:
       return "Ohne Einheit ist der Wert eine Zahl.  Der Import schlaegt geschlossen fehl.";
-    case ImportStatus::MissingUncertainty:
-      return "Ohne Unsicherheit mit Typ (A oder B nach GUM) ist der Wert eine Anekdote.  "
-             "Ein Vergleich mit einer Rechnung braucht beide Fehlerbalken.";
     case ImportStatus::MissingProvenance:
       return "Ohne Fundstelle ist der Wert ein Geruecht: er laesst sich nicht wiederfinden.";
     case ImportStatus::MissingGeometryKind:
@@ -216,11 +237,16 @@ const char* explain(ImportStatus s) {
 }
 
 ImportStatus MeasuredPoint::check() const {
+  // The HARD requirements first.  Each of them means the record cannot be
+  // interpreted at all, and each rejects the whole set.
   if (unit.empty()) return ImportStatus::MissingUnit;
-  if (!(uncertainty > 0.0) || uncertainty_type == UncertaintyType::NotStated)
-    return ImportStatus::MissingUncertainty;
   if (provenance.empty()) return ImportStatus::MissingProvenance;
   if (!geometry_stated) return ImportStatus::MissingGeometryKind;
+  // The uncertainty is NOT one of them.  A publication that omits it has
+  // produced an incomplete record, not a broken one, and throwing the
+  // measurement away would lose real data.  It gets its own state instead.
+  if (!(uncertainty > 0.0) || uncertainty_type == UncertaintyType::NotReported)
+    return ImportStatus::OkUncertaintyNotReported;
   return ImportStatus::Ok;
 }
 
@@ -228,9 +254,11 @@ void MeasuredPoint::print(std::FILE* out) const {
   std::fprintf(out, "  %-28s %.6g +- %.3g %s (%s", quantity.c_str(), value, uncertainty,
                unit.c_str(), to_string(uncertainty_type));
   if (coverage_factor > 0.0) std::fprintf(out, ", k = %.3g", coverage_factor);
-  std::fprintf(out, ")  [%s]  %s\n", to_string(geometry), check() == ImportStatus::Ok
-                                                              ? "importierbar"
-                                                              : to_string(check()));
+  std::fprintf(out, ")  [%s]  %s\n", to_string(geometry),
+               usable_quantitatively(check())
+                   ? "quantitativ verwendbar"
+                   : (is_usable(check()) ? "nur qualitativ (Unsicherheit NICHT berichtet)"
+                                         : to_string(check())));
   if (!provenance.empty()) std::fprintf(out, "      %s\n", provenance.c_str());
   if (!conditions.empty()) std::fprintf(out, "      Bedingungen: %s\n", conditions.c_str());
 }
@@ -239,7 +267,7 @@ ImportResult import_measurements(const std::vector<MeasuredPoint>& raw) {
   ImportResult r;
   for (std::size_t k = 0; k < raw.size(); ++k) {
     const ImportStatus s = raw[k].check();
-    if (s != ImportStatus::Ok) {
+    if (is_hard_error(s)) {
       r.status = s;
       r.first_bad = static_cast<Index>(k);
       r.message = "Punkt " + std::to_string(k) + " ('" + raw[k].quantity +
@@ -260,7 +288,23 @@ ImportResult import_measurements(const std::vector<MeasuredPoint>& raw) {
         return r;
       }
   r.points = raw;
-  r.message = explain(ImportStatus::Ok);
+  for (const MeasuredPoint& q : raw) {
+    if (usable_quantitatively(q.check()))
+      ++r.n_quantitative;
+    else
+      ++r.n_qualitative_only;
+  }
+  // The set's status is the worst one in it -- and it is NOT allowed to hide
+  // the fact that some points carry no uncertainty.
+  r.status = (r.n_qualitative_only > 0) ? ImportStatus::OkUncertaintyNotReported
+                                        : ImportStatus::Ok;
+  r.message = explain(r.status);
+  if (r.n_qualitative_only > 0)
+    r.message += "  " + std::to_string(r.n_qualitative_only) + " von " +
+                 std::to_string(raw.size()) +
+                 " Punkten tragen keine berichtete Unsicherheit und stehen deshalb nur "
+                 "qualitativ zur Verfuegung; " + std::to_string(r.n_quantitative) +
+                 " sind quantitativ verwendbar.";
   return r;
 }
 
@@ -275,50 +319,218 @@ const char* to_string(Comparability c) {
   return "?";
 }
 
+const char* to_string(Assessment a) {
+  switch (a) {
+    case Assessment::No: return "no";
+    case Assessment::Partial: return "partial";
+    case Assessment::Yes: return "yes";
+    case Assessment::NotApplicable: return "n/a";
+  }
+  return "?";
+}
+
+const char* symbol(Assessment a) {
+  switch (a) {
+    case Assessment::No: return "-";
+    case Assessment::Partial: return "~";
+    case Assessment::Yes: return "+";
+    case Assessment::NotApplicable: return ".";
+  }
+  return "?";
+}
+
+Assessment as_assessment(Comparability c) {
+  switch (c) {
+    case Comparability::Direct: return Assessment::Yes;
+    case Comparability::AfterStatedReduction: return Assessment::Partial;
+    case Comparability::NotComparable: return Assessment::No;
+  }
+  return Assessment::No;
+}
+
+std::string inconsistency(const ValidationEntry& e) {
+  // THE INVARIANT.  Validation is not implied by comparability, and a row may
+  // never claim it without the three things it actually requires.
+  if (e.validated == Assessment::Yes) {
+    if (e.implemented != Assessment::Yes)
+      return "als validiert gefuehrt, ohne implementiert zu sein";
+    if (e.converged != Assessment::Yes && e.converged != Assessment::NotApplicable)
+      return "als validiert gefuehrt, ohne numerisch konvergiert zu sein";
+    if (e.comparable_with_data != Assessment::Yes)
+      return "als validiert gefuehrt, ohne mit Messdaten vergleichbar zu sein";
+    if (e.blocked) return "als validiert gefuehrt, obwohl blockiert";
+  }
+  if (e.blocked && e.blocked_reason[0] == '\0')
+    return "blockiert, ohne dass ein Grund genannt ist";
+  if (!e.blocked && e.blocked_reason[0] != '\0')
+    return "nicht blockiert, traegt aber einen Blockergrund";
+  if (e.implemented == Assessment::No && e.converged == Assessment::Yes)
+    return "als konvergiert gefuehrt, ohne implementiert zu sein";
+  if (e.condition[0] == '\0') return "ohne Bedingung zur Vergleichbarkeit";
+  return "";
+}
+
+ValidationTally tally(const std::vector<ValidationEntry>& m) {
+  ValidationTally t;
+  t.n_rows = static_cast<Index>(m.size());
+  for (const ValidationEntry& e : m) {
+    const Assessment c = as_assessment(e.comparability);
+    if (c == Assessment::Yes || c == Assessment::Partial) ++t.n_comparable;
+    if (e.implemented == Assessment::Yes) ++t.n_implemented;
+    if (e.converged == Assessment::Yes) ++t.n_converged;
+    if (e.comparable_with_data == Assessment::Yes ||
+        e.comparable_with_data == Assessment::Partial)
+      ++t.n_comparable_with_data;
+    if (e.validated == Assessment::Yes) ++t.n_validated;
+    if (e.blocked) ++t.n_blocked;
+  }
+  return t;
+}
+
+// ---------------------------------------------------------------------------
+// The matrix.
+//
+// SIX INDEPENDENT VERDICTS PER ROW.  The earlier one-dimensional version
+// coloured a row by its comparability alone, which made the total current --
+// directly comparable, and not computable by this project at all -- appear as a
+// success.  Every axis is now answered on its own, and `validated` is answered
+// last and separately.  Nothing in this project is validated: no measured data
+// have been imported, and the test checks that the matrix says so.
+
 std::vector<ValidationEntry> validation_matrix() {
   return {
       {"Extraktorspannung", "V", Comparability::Direct,
        "Eine angelegte Spannung ist eine Randbedingung und in beiden Geometrien dieselbe "
-       "Zahl.", "P2a/P2b/P2c/P3b", "geprueft", true},
+       "Zahl.",
+       Assessment::Yes,            // implemented: it is an input every phase carries
+       Assessment::NotApplicable,  // converged: an input does not converge
+       Assessment::Yes, Assessment::No, false, "",
+       "P2a/P2b/P2c/P3b", "geprueft",
+       "Eine vorgegebene Randbedingung; es gibt nichts zu konvergieren.",
+       "Es sind ueberhaupt keine Messdaten importiert -- P9 stellt nur den Vertrag dafuer "
+       "auf.",
+       true},
+
       {"Gesamtstrom", "A", Comparability::Direct,
        "Ein Gesamtstrom ist ein Integral ueber die ganze Anordnung; er hat in beiden "
-       "Geometrien dieselbe Bedeutung.  Dieses Projekt sagt ihn NICHT voraus (P5 blockiert).",
-       "-", "blocked (P5)", true},
+       "Geometrien dieselbe Bedeutung.",
+       Assessment::No, Assessment::No, Assessment::Yes, Assessment::No, true,
+       "P5 ist blockiert: es gibt keine an einer Primaerquelle gepruefte Emissionsrate und "
+       "kein belegtes Delta G fuer EMI-BF4.  Dieses Projekt sagt keinen Strom voraus.",
+       "-", "blocked (P5)",
+       "Nicht gerechnet, also nichts zu konvergieren.",
+       "Blockiert; ausserdem sind keine Messdaten importiert.",
+       true},
+
       {"Transmission durch die Blende", "-", Comparability::AfterStatedReduction,
        "Vergleichbar, sobald gesagt ist, ueber welche Startverteilung gemittelt wurde.  In "
        "3D kann die Blende ausserdem exzentrisch sein, was achsensymmetrisch nicht "
-       "darstellbar ist.", "P7", "validated_subset (Transportantwort)", true},
+       "darstellbar ist.",
+       Assessment::Yes, Assessment::No, Assessment::Partial, Assessment::No, false, "",
+       "P7", "validated_subset (Transportantwort)",
+       "Fuer den Integrator ist die Zeitordnung gemessen; fuer die Transmission SELBST gibt "
+       "es keine Netz- oder Teilchenzahlstudie.  Nicht als konvergiert gefuehrt.",
+       "Keine Messdaten importiert; ausserdem haengt die Zahl an einer Startverteilung, die "
+       "ohne P5 nicht physikalisch ist.",
+       true},
+
       {"integrierte Maxwell-Kraft", "N", Comparability::Direct,
        "Ein Flaechenintegral; die 2 pi r-Wichtung IST das 3D-Integral, und die "
-       "Rotationsreferenz prueft genau das.", "P3b, P0", "DiscretizationNotConverged", false},
+       "Rotationsreferenz prueft genau das.",
+       Assessment::Yes, Assessment::No, Assessment::No, Assessment::No, false, "",
+       "P3b, P0", "DiscretizationNotConverged",
+       "P0 hat das vorab gesetzte 1-%-Ziel gemessen und VERFEHLT: 4,6 bis 6,1 %.  Die "
+       "Randsingularitaet setzt die Rate auf etwa 1+beta = 0,55.",
+       "Nicht konvergiert und keine Messdaten; eine Kraft ist ausserdem auf einem Pruefstand "
+       "nicht direkt messbar.",
+       false},
+
       {"Apexhoehe h/a", "-", Comparability::Direct,
        "Auf der Achse, wo beide Geometrien uebereinstimmen -- SOFERN die reale Anordnung "
-       "achsensymmetrisch ist.", "P3a/P3b", "qualitativ (P0: 1-%-Ziel verfehlt)", false},
+       "achsensymmetrisch ist.",
+       Assessment::Yes, Assessment::No, Assessment::No, Assessment::No, false, "",
+       "P3a/P3b", "qualitativ (P0: 1-%-Ziel verfehlt)",
+       "Keine Apexhoehe traegt drei Stellen; bei 1000 V liegen h/a und E_n nicht einmal im "
+       "asymptotischen Bereich, dort ist gar kein Fehler schaetzbar.",
+       "Nicht konvergiert; und eine Apexhoehe im Betrieb zu messen ist selbst eine offene "
+       "Aufgabe.",
+       false},
+
       {"Oberflaechenfeld am Apex", "V/m", Comparability::Direct,
        "Auf der Achse.  P6 hat allerdings gemessen, dass die Feldrekonstruktion dort nur "
-       "erster Ordnung ist.", "P2b/P2c/P3b", "erster Ordnung achsennah (P6)", false},
+       "erster Ordnung ist.",
+       Assessment::Yes, Assessment::No, Assessment::No, Assessment::No, false, "",
+       "P2b/P2c/P3b", "erster Ordnung achsennah (P6)",
+       "Genau auf der Achse ist die Rekonstruktion erster Ordnung -- die 2 pi r-Gewichtung "
+       "der Zellvolumina macht sie dort unsymmetrisch.",
+       "Nicht konvergiert; ein lokales Feld am Apex ist ausserdem nicht direkt messbar.",
+       false},
+
       {"Strahldivergenz", "rad", Comparability::AfterStatedReduction,
        "Achsensymmetrisch ist sie ein einziger Winkel; in 3D ist sie eine Verteilung ueber "
-       "den Azimut.  Vergleichbar nur nach einer ausgesprochenen Mittelung.", "P7",
-       "validated_subset", true},
+       "den Azimut.  Vergleichbar nur nach einer ausgesprochenen Mittelung.",
+       Assessment::Yes, Assessment::No, Assessment::Partial, Assessment::No, false, "",
+       "P7", "validated_subset",
+       "Wie die Transmission: der Integrator ist geprueft, die Groesse selbst hat keine "
+       "Konvergenzstudie.",
+       "Keine Messdaten importiert.",
+       true},
+
       {"Auftreffverteilung auf dem Extraktor", "A/m^2", Comparability::AfterStatedReduction,
        "Achsensymmetrisch ist sie eine Funktion von r allein.  Jede azimutale Struktur -- "
-       "die in einer realen Anordnung genau die interessante ist -- fehlt.", "P7",
-       "validated_subset", true},
+       "die in einer realen Anordnung genau die interessante ist -- fehlt.",
+       Assessment::Yes, Assessment::No, Assessment::Partial, Assessment::No, false, "",
+       "P7", "validated_subset",
+       "Keine Konvergenzstudie der Verteilung selbst.",
+       "Keine Messdaten importiert; und ohne P5 traegt die Verteilung keinen Strom.",
+       true},
+
       {"azimutale Asymmetrie des Strahls", "-", Comparability::NotComparable,
        "Sie IST die Groesse, die eine achsensymmetrische Rechnung nicht hat.  Sie kann nur "
-       "gemessen und nur in 3D gerechnet werden.", "-", "nicht gerechnet", true},
+       "gemessen und nur in 3D gerechnet werden.",
+       Assessment::No, Assessment::NotApplicable, Assessment::No, Assessment::No, true,
+       "Es gibt kein 3D-Netz und keinen 3D-Loeser.  ThreeDimensional ist ein Etikett, das "
+       "nichts erzeugen kann -- und der Test haelt diesen Weg ausdruecklich geschlossen.",
+       "-", "nicht gerechnet",
+       "Nicht gerechnet.",
+       "Grundsaetzlich nicht mit einer achsensymmetrischen Rechnung vergleichbar.",
+       true},
+
       {"Versatz von Emitter und Blende", "m", Comparability::NotComparable,
        "Eine Exzentrizitaet bricht die Rotationssymmetrie.  Achsensymmetrisch ist sie nicht "
-       "darstellbar, auch nicht naeherungsweise.", "-", "nicht gerechnet", true},
+       "darstellbar, auch nicht naeherungsweise.",
+       Assessment::No, Assessment::NotApplicable, Assessment::No, Assessment::No, true,
+       "Kein 3D-Netz, kein 3D-Loeser.",
+       "-", "nicht gerechnet", "Nicht gerechnet.",
+       "Grundsaetzlich nicht vergleichbar.", true},
+
       {"Neigung des Emitters", "rad", Comparability::NotComparable,
-       "Wie der Versatz: sie bricht die Symmetrie.", "-", "nicht gerechnet", true},
+       "Wie der Versatz: sie bricht die Symmetrie.",
+       Assessment::No, Assessment::NotApplicable, Assessment::No, Assessment::No, true,
+       "Kein 3D-Netz, kein 3D-Loeser.",
+       "-", "nicht gerechnet", "Nicht gerechnet.",
+       "Grundsaetzlich nicht vergleichbar.", true},
+
       {"Emitter-zu-Emitter-Uebersprechen im Array", "-", Comparability::NotComparable,
        "Ein Array ist nicht rotationssymmetrisch.  Ein einzelner achsensymmetrischer "
-       "Emitter kann es grundsaetzlich nicht abbilden.", "-", "nicht gerechnet", true},
+       "Emitter kann es grundsaetzlich nicht abbilden.",
+       Assessment::No, Assessment::NotApplicable, Assessment::No, Assessment::No, true,
+       "Kein 3D-Netz, kein 3D-Loeser, und ein einzelner Emitter waere auch mit einem nicht "
+       "genug.",
+       "-", "nicht gerechnet", "Nicht gerechnet.",
+       "Grundsaetzlich nicht vergleichbar.", true},
+
       {"Ladungsrelaxationszeit", "s", Comparability::Direct,
-       "Eine Stoffgroesse, unabhaengig von der Geometrie.  Nicht berechenbar, weil eps_r "
-       "fehlt.", "P3", "MissingMaterialData", true},
+       "Eine Stoffgroesse, unabhaengig von der Geometrie.",
+       Assessment::Yes, Assessment::NotApplicable, Assessment::Yes, Assessment::No, false, "",
+       "P3", "Band belegt, Einzelwert fehlt",
+       "Geschlossen loesbar, kein Netz beteiligt: tau folgt aus der impliziten Gleichung "
+       "tau = eps0 eps_r(1/(2 pi tau))/K auf der gemessenen Dispersionskurve, mit "
+       "verschwindendem Selbstkonsistenzresiduum.",
+       "Ein EINZELNER eps_r-Wert bleibt MissingMaterialData -- keine Quelle nennt Reinheit "
+       "und Wassergehalt.  Belegt ist ein Band (tau = 4,2e-11 .. 1,3e-10 s); eine "
+       "Validierung gegen eine Messung von tau selbst gibt es nicht.",
+       true},
   };
 }
 
