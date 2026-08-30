@@ -1,71 +1,328 @@
-# Nachtlauf 2026-08-29/30 — Übersicht
+# Nachtlauf 2026-08-29/30 und die Nacharbeit vom 2026-08-30
 
-21 lokale Commits, **nichts gepusht**. Vollständiger Build aus sauberem
-Zustand: fehlerfrei. `ctest`: **26/26 grün**. Sanitizerlauf unter WSL
-(GCC 13.3, ASan + UBSan, `detect_leaks=1`): **26/26 grün**, 385 s.
+**Nichts gepusht.** `origin/main` steht unverändert auf `a932ff1`; HEAD ist
+**34 Commits voraus, 0 zurück**, Arbeitsbaum sauber.
 
-`origin/main` steht auf `a932ff1`; HEAD ist **23 Commits voraus** (die zwei
-P3b-Commits `0677e3b` und `6dc833b` plus die 21 dieses Laufs).
+Vollständiger Build aus leerem Verzeichnis: fehlerfrei. `ctest`: **26/26 grün**
+(117 s). Sanitizerlauf unter WSL (Ubuntu, GCC 13.3, ASan + UBSan,
+`detect_leaks=1`): **26/26 grün**, 608 s, **null** Sanitizer- oder
+UBSan-Meldungen.
 
-## Die Punkte
+Sicherung des Standes vor der Nacharbeit: Branch
+`backup/nachtlauf-p0-p9-20260830` und Tag `backup-nachtlauf-20260830-ede1508`,
+beide auf `ede1508`. Es wurde nichts verworfen.
 
-| Punkt | Status | Code-Commit | Artefakt-Commit | Tests | wichtigste Abbildung | Blocker |
-|---|---|---|---|---|---|---|
-| 0 — P3b numerisch bereinigen | `validated_subset` + `DiscretizationNotConverged` | `713ab86` | `85e7096` | `test_load_projection`, 40+ Prüfungen | `fig3_exclusion.png` — `kTolExclusion` widerlegt | 1-%-Ziel der gekoppelten Netzkonvergenz **verfehlt** (4,6–6,1 %); bei 1000 V nicht einmal asymptotisch |
-| 1 — Druck- und Zulaufmodell | `implemented` | `1cb6108` | `3ffd040` | `test_feed` | `fig1_budget_vs_flow.png` | keiner; `p_reservoir` und `Q` bleiben Eingaben |
-| 2 — Reale Stoffdaten | `implemented` (γ, ρ, µ, K) + `MissingMaterialData` (ε_r, ν) | `4c4bbfe` | `42e24d4` | `test_material_data` | `fig2_scatter.png` — Literaturstreuung je Quelle | ε_r und kinematische Viskosität ohne Quelle mit Methode+Reinheit+Wassergehalt |
-| 3 — Endliche Leitfähigkeit und Strömung | `validated_subset` | `2a7205d` | `26e8a27` | `test_transport` | `fig1_pipe_flow.png` | τ = ε₀ε_r/σ **nicht berechenbar**; keine gekoppelte finite-conductivity-Meniskusrechnung |
-| 4 — Zeitabhängige freie Oberfläche | `infrastructure_only` | `c4ecbb7` | `5067cea` | `test_surface_kinematics` | `fig1_advection.png` | Vorbedingung aus Punkt 3 **nicht erfüllt**: kein Feld mit freier Oberfläche, keine tangentiale Traktion q_s E_t, kein ε_r |
-| 5 — Ionenemission | `blocked` | `baaf6fd` | `114768e` | `test_emission_contract` | `fig1_blocker.png` — Hebelwirkung der Barriere | Ratengleichung an keiner Primärquelle geprüft; kein belegtes ΔG für EMI-BF4 |
-| 6 — Raumladung, Poisson/FEM und PIC-Grundlage | `validated_subset` | `8de4558` | `93b3be6` | `test_space_charge` | `fig2_checks.png` | keine Emissions-PIC-Schleife (P5 blockiert); Selbstfeld ist eine Netzgröße |
-| 7 — Ionenbahnen und messbare Größen | `validated_subset` | `cc8f52f` | `3e97de0` | `test_particle_transport` | `fig1_trajectories.png` | keine physikalische Teilchenquelle → **Transportantwort**, keine Stromvorhersage |
-| 8 — Cone-Jet und Tropfenbetrieb | `blocked` | `4274453` | `be884ab` | `test_cone_jet_contract` | `fig1_status.png` — Gültigkeitskarte | fünf von sieben Teilmodellen fehlen; Gañán-Calvo 1997 und Erratum 2000 nicht im Volltext erreichbar |
-| 9 — 3D-Erweiterung und Validierung | `infrastructure_only` | `e8713ee` | `f6fc6f2` | `test_validation` | `fig1_validation.png` | kein 3D-Netz, kein 3D-Löser; keine Messdaten importiert |
+---
 
-## Die sieben Befunde, die etwas ändern
+## 1. Was die Nacharbeit geändert hat
 
-1. **γ war um 19 % zu klein.** Der bisher benutzte Wert 0,0452 N/m liegt unter
-   *jeder* Quelle, die Reinheit und Wassergehalt angibt (niedrigste 0,0501). Die
-   gewählte Quelle (Souckova et al. 2011, zwei Methoden, 99,8 %, 0,0164 % Wasser)
-   gibt 0,05401 N/m. **Faktor 1,195 auf jede Druckskala, 1,093 auf jede
-   Spannung** — größer als jeder Diskretisierungsfehler dieses Projekts.
-2. **`kTolExclusion` ist widerlegt, nicht getauscht.** Die geprüfte Größe hat für
-   p = C d^β einen geschlossenen Grenzwert ohne Netzweite; Messung trifft Formel
-   auf 2·10⁻⁴. Die 11,3 % aus P3b sind der von β festgelegte Wert.
-3. **Das 1-%-Ziel der gekoppelten Netzkonvergenz ist nirgends erreicht.** Die
-   P3b-Ergebnisse sind qualitativ; keine Apexhöhe trägt drei Stellen.
-   Die Randsingularität setzt die Rate: Ordnung ≈ 1+β ≈ 0,55.
-4. **τ = ε₀ε_r/σ ist mit den belegten Daten nicht berechenbar.** Der
-   Äquipotentialansatz von P3b ist damit eine **Annahme**, kein nachgewiesener
-   Grenzfall.
-5. **Die vorhandene Feldrekonstruktion ist achsennah nur erster Ordnung.**
-   Ursache: die 2πr-Volumengewichtung, Unsymmetrie h/r. Abseits der Achse ist sie
-   zweiter Ordnung. Betrifft auch P2b, P2c und P3b.
-6. **Die Emissionsbarriere ist der Hebel.** Über die Literaturspanne 1,0–1,4 eV
-   ändert sich die Rate bei festem Feld um den Faktor **5,8·10⁶**.
-7. **Die 2πr-Wichtung ist als 3D-Integral nachgewiesen** (≤10⁻¹² gegen explizite
-   3D-Quadratur) — die eine Sache, die zwischen 2D und 3D wirklich stimmt.
+Vier fachliche Korrekturen, eine Reparatur der lokalen Historie, und zwei
+Artefaktsätze, deren Provenienz durch die Reparatur ungültig geworden war. Jede
+Korrektur ist ein eigener Code-Commit mit einem eigenen Artefakt-Commit
+dahinter, und jede ist testgeprüft.
 
-## Fehler, die die Tests im Code dieses Laufs gefunden haben
+| Punkt | Befund | Code | Artefakte |
+|---|---|---|---|
+| **P2** | ν galt pauschal als `MissingMaterialData` — obwohl µ und ρ aus **derselben Publikation und derselben Probe** stammen | `2b95a94` | `572f1e8` |
+| **P2** | `maxwell_force_for_fixed_shape (linear in gamma)` ist physikalisch falsch | `2b95a94` | `572f1e8` |
+| **P3** | „nicht DC, also unbrauchbar" verwarf genau die Messung, die die Formel verlangt | `bfa2c61` | `fa0e090` |
+| **P6** | „keine Divergenz beim Annähern" galt nur bei **festem Netz** | `4c3b83b` | `593cecd` |
+| **P9** | eine einachsige Statuskarte ließ „vergleichbar" wie „validiert" aussehen | `3bef623` | `16cdd09` |
+| **P9** | eine fehlende Unsicherheit war ein harter Importfehler und warf Messungen weg | `3bef623` | `16cdd09` |
+| **Historie** | `713ab86` ließ sich nicht eigenständig konfigurieren | — | — |
+| **P0/P1** | Abbildungen stempelten Commits außerhalb der eigenen Historie | — | `8040125`, `e46c941` |
 
-| Fehler | wo | wie gefunden |
+---
+
+## 2. Die Korrekturen im Einzelnen
+
+### P2a — ν = µ/ρ ist ableitbar, und zwar belegt
+
+ν ist keine unabhängige Stoffgröße. Sie gar nicht zu bilden war zu streng; sie
+aus *irgendeinem* µ und *irgendeinem* ρ zu bilden wäre schlimmer — der Quotient
+wäre die Viskosität einer Probe geteilt durch die Dichte einer **anderen**.
+
+Die Ableitung ist deshalb genau dann erlaubt, wenn beide Elternwerte
+nachweislich **dieselbe Flüssigkeit im selben Zustand** beschreiben. Vier
+mechanisch geprüfte Bedingungen (`include/es/material_data.hpp`), die einzeln
+benannt fehlschlagen:
+
+| | Bedingung | bei 298,15 K |
 |---|---|---|
-| Vorzeichen im Energieinvariant (E = ½mv² **+** qφ) | P7 | Energietest meldete relativen Fehler von genau 2 |
-| φ am Austritt außerhalb des Netzes ausgewertet | P7 | Energiebilanz um die volle Beschleunigungsspannung falsch |
-| inkonsistenter letzter Zeitschritt | P7 | gemessene Zeitordnung kam **negativ** heraus |
-| geteilter statischer Puffer in `synthetic_complete_model` | P5 | einer der beiden Polaritätsströme war null |
-| zu starke Behauptung über γ | P2 | Test schlug fehl; Aussage auf das Haltbare korrigiert |
-| `CMakeLists.txt` in `713ab86` nennt Dateien, die erst mit P1 kommen | P0 | beim Artefaktlauf bemerkt, nach vorn behoben (siehe `1cb6108`) |
+| C1 | µ und ρ haben je eine **ausgewählte** Quelle | erfüllt |
+| C2 | beide decken T **ohne Extrapolation** ab | erfüllt (283,15 … 373,15 K) |
+| C3 | Umgebungsdruck, nicht frequenzaufgelöst | erfüllt |
+| C4 | Reinheit, Wassergehalt, Probenherkunft **wörtlich** gleich | erfüllt |
 
-## Was NICHT gerechnet wurde
+Hier sind beide Eltern sogar dieselbe Publikation und dieselbe Probe
+(Miranda & Santos 2025, *Fluid Phase Equilib.* **597**, 114458; 99 mass %,
+0,0100 water mass %, dried by vacuum heating):
+
+```
+µ  = (36,370 ± 0,760) mPa·s      Concentric cylinders viscometry
+ρ  = (1280,9  ± 1,1)  kg/m³      Vibrating tube method
+ν  = (28,3941 ± 0,5938) mm²/s    ABGELEITET, nicht gemessen
+```
+
+Die Unsicherheit ist **fortgepflanzt** (quadratische Summe, 2,09 %, von µ
+dominiert: 2,09 % gegen 0,086 %); die konservativere lineare Addition
+(± 0,6177 mm²/s) wird mitgeliefert, weil beide aus demselben Messgang stammen.
+
+Der Status ist `derived`, nicht `measured`: `is_direct_measurement()` ist dafür
+falsch, `carries_quantitative_claim()` wahr. Quervergleich, der berichtet und
+nicht weggerechnet wird: die drei direkt gemessenen Quellen geben
+27,1 … 27,5 mm²/s — der abgeleitete Wert liegt **3,3 % darüber**, klein gegen
+die Literaturstreuung von µ (54 %).
+
+### P2b — die Maxwell-Traktion skaliert nicht mit γ
+
+Bei festgehaltener Geometrie, festgehaltener angelegter Spannung und
+festgehaltener Permittivitätsverteilung folgt das Feld aus der Laplace- bzw.
+Poisson-Gleichung, in der γ **nirgends** vorkommt. Die Maxwell-Traktion
+ε₀E²/2 ist dann ein Funktional allein dieses Feldes und **invariant**.
+
+γ entscheidet, *welche* Form im Gleichgewicht steht — nicht, welche Kraft ein
+gegebenes Feld auf eine gegebene Form ausübt.
+
+| Größe | festgehalten | Gesetz | Exponent |
+|---|---|---|---|
+| Kapillardruckskala γ/a | dimensionslose Form, a | γ¹ | +1 |
+| mechanische Last für dieselbe dimensionslose Form | dimensionslose Form | γ¹ | +1 |
+| Spannung für dieselbe dimensionslose Form | dimensionslose Form, Geometrie | √γ | +½ |
+| elektrische Bondzahl bei festem **Feld** | E, Geometrie | 1/γ | −1 |
+| **Maxwell-Traktion bei festem Geometrie/U/ε** | Geometrie, U, ε-Verteilung | γ⁰ | **0** |
+
+Die Zeile wird **nicht gelöscht**, sondern als Invariante mit Exponent 0
+geführt, damit die Korrektur sichtbar bleibt. Jede Zeile trägt `recomputed=no`:
+keine ist eine neu gerechnete gekoppelte Simulation. Die Tabelle liegt als
+`es::gamma_scaling_rows()` in der Bibliothek, wo ein Test sie prüft — statt in
+einem `printf`.
+
+### P3 — welche Permittivität in τ_q gehört
+
+Fünf Größen heißen bei einer leitfähigen ionischen Flüssigkeit „die
+Permittivität", und sie sind keine Varianten einer Zahl: die niederfrequente
+**Schein**permittivität (eine Eigenschaft der Messzelle), die intrinsische
+statische ε_s (aus Mikrowellenspektren extrapoliert), die frequenzabhängige
+ε\*(f), die Elektrodenpolarisation und die DC-Leitfähigkeit K.
+
+Welche in τ_q gehört, folgt aus der Herleitung: die freie Ladung zerfällt auf
+der Zeitskala τ *selbst*, ihr Spektrum liegt also bei f\* = 1/(2πτ), und dort
+ist ε_r abzulesen. Da ε_r dispersiv ist, ist die Gleichung **implizit**:
+
+```
+τ = ε₀·ε_r(f*) / K ,   f* = 1/(2πτ)
+```
+
+**f\* = 2,627 GHz liegt innerhalb genau des Messbereichs, der als „nicht DC"
+verworfen worden war.** Die 1–18-GHz-Daten sind nicht die falsche Frequenz,
+sondern die richtige — sie umgekehrt als Gleichstromwert zu übernehmen wäre
+ebenso falsch.
+
+Fixpunktiteration auf den **Messpunkten**, keine angepasste Dispersionsfunktion,
+keine Extrapolation:
+
+| | |
+|---|---|
+| f\* | **2,627 GHz** (innerhalb 1–18 GHz) |
+| ε_r(f\*) | 10,664 |
+| τ | **6,059·10⁻¹¹ s** (18 Iterationen, Residuum 0) |
+| zum Vergleich mit ε_s = 13,6 | 7,727·10⁻¹¹ s, also **+27,5 %** |
+
+**Ein Einzelwert bleibt fehlend** — keine der vier Quellen nennt Reinheit *und*
+Wassergehalt, `judge_conductor_limit()` schlägt weiterhin geschlossen fehl.
+Belegt ist ein **Band** mit Empfindlichkeitsrechnung: ε_r ∈ [7,7; 13,6],
+K ∈ [0,91; 1,63] S/m. Die für die Näherung schlechteste Ecke ist
+(ε_hi, K_lo) — gerechnet und geprüft, nicht behauptet:
+
+| Ecke | τ [s] | t_kap/τ | t_vis/τ |
+|---|---|---|---|
+| ε_lo, K_hi | 4,183·10⁻¹¹ | 4,12·10⁴ | 8,05·10⁴ |
+| ε_lo, K_lo | 7,492·10⁻¹¹ | 2,30·10⁴ | 4,49·10⁴ |
+| ε_hi, K_hi | 7,388·10⁻¹¹ | 2,33·10⁴ | 4,56·10⁴ |
+| **ε_hi, K_lo** (schlechteste) | **1,323·10⁻¹⁰** | **1,30·10⁴** | **2,54·10⁴** |
+| selbstkonsistent | 6,059·10⁻¹¹ | 2,84·10⁴ | 5,56·10⁴ |
+
+Geforderte Schranke: 100.
+
+**Damit ändert sich der Befund von P3.** Der Äquipotentialansatz von P3b ist für
+die **statische** Form nicht mehr eine Annahme, sondern über das gesamte
+begründete Band belegt — an der ungünstigsten Ecke noch um mehr als zwei
+Größenordnungen über der Schranke, **ohne einen einzigen unbelegten ε_r-Wert**.
+Über emittierenden Betrieb sagt das nichts.
+
+### P6 — die Deposition regularisiert nichts
+
+„Keine Divergenz beim Annähern" war eine Aussage über **ein festes Netz**, und
+der Zusatz fehlte. Fünf Fragen, getrennt beantwortet:
+
+| | Frage | bei festem Netz | bei h → 0 |
+|---|---|---|---|
+| (a) | Ladungserhaltung der Deposition | exakt (2,4·10⁻¹⁶) | bleibt exakt auf **jeder** Stufe |
+| (b) | Fremdfeld bei **festem** Abstand | endlich | **konvergiert**, Ordnung 2,05 / 1,91 |
+| (c) | Selbstpotential am Teilchen | endlich | **divergiert** |
+| (d) | Breite der deponierten Wolke | eine Zelle | fällt **wie das Netz** gegen null |
+| (e) | Anteil des Selbstfeldes | — | fällt wie N^−0,82 mit der Makropartikelzahl |
+
+Zu (c), und das Gesetz hängt vom Ort ab:
+
+| Lage | über fünf Stufen (h: 10⁻⁶ → 6,25·10⁻⁸ m) | angepasstes Gesetz |
+|---|---|---|
+| abseits der Achse, r = 0,35 R | 1,938 → 3,073 V, Faktor **1,59** | 0,409·ln(1/h), Rest 1,2·10⁻⁴ |
+| auf der Achse, r = 0 | 32,4 → 524,6 V, Faktor **16,18** | h^−1,004, Rest 3,0·10⁻⁴ |
+
+Genau das physikalisch Erwartete: abseits der Achse ist ein Makropartikel ein
+**Ring** mit logarithmisch singulärem Eigenpotential; auf der Achse entartet er
+zur **Punktladung** mit 1/d. Der frühere Header-Kommentar behauptete „wie 1/h" —
+das ist nur das Achsengesetz.
+
+**Die drei Kandidaten, mit Urteil und mit der Messung dahinter**
+(`es::pic_options()`, in der Bibliothek und im Test geprüft):
+
+| Variante | Urteil |
+|---|---|
+| **Selbstfeldabzug** | `implemented` — eine Ladung übt auf sich selbst keine Kraft aus; die diskrete Aufgabe ist **linear**, also exakt abziehbar statt dämpfbar |
+| feste physikalische Formbreite | `rejected_free_parameter` — Messung (d) zeigt, dass in der Wolke nur h steckt; sie wäre ein frei gewählter Glättungsparameter |
+| skalierte Makropartikelzahl | `measured_not_implemented` — Eigenschaft einer Schleife, die es hier nicht gibt |
+
+Gemessen: ein *einzelnes* Teilchen im sonst leeren, geerdeten Kasten spürt ohne
+Abzug 1,13·10⁵ … 1,42·10⁵ V/m, obwohl nichts anderes darin ist — der Betrag
+hängt allein von seiner Lage in der Zelle ab. Mit Abzug spürt es **exakt null**.
+Überlagerungsfehler 1,6·10⁻¹⁵. **Preis: eine zusätzliche Lösung je Teilchen.**
+
+Die PIC-Schleife bleibt **blockiert, aus zwei unabhängigen Gründen**: P5 hat
+keine Quelle, und der Abzug skaliert nicht.
+
+### P9 — Vergleichbarkeit ist nicht Validierung
+
+Die frühere Matrix trug *eine* Vergleichbarkeit je Zeile, und die Abbildung
+färbte die Zeile danach. Der **Gesamtstrom** ist direkt vergleichbar und von
+diesem Projekt überhaupt nicht rechenbar — er erschien grün.
+
+Jede Zeile trägt jetzt sechs unabhängige Urteile (`yes`/`partial`/`no`/`n/a`):
+`comparable_geometry`, `implemented`, `converged`, `comparable_with_data`,
+`validated`, `blocked` + Grund. **Grün heißt nur, dass genau diese eine Achse
+erfüllt ist.**
+
+Die Invariante steht im Code (`es::inconsistency()`): `validated=yes` verlangt
+`implemented=yes` UND `converged` ∈ {yes, n/a} UND `comparable_with_data=yes`
+UND nicht blockiert. Der Test baut zusätzlich Zeilen, die sie verletzen, und
+prüft, dass sie abgefangen werden.
+
+| Achse | von 13 erreicht |
+|---|---|
+| vergleichbar (ganz oder nach Reduktion) | **9** |
+| implementiert | **8** |
+| numerisch konvergiert | **0** |
+| mit Messdaten vergleichbar | **6** |
+| **tatsächlich validiert** | **0** |
+| blockiert | **5** |
+
+Der Abstand zwischen der ersten und der vorletzten Zahl ist der ganze Punkt der
+Tabelle. Dass nichts validiert ist, ist eine **geprüfte** Aussage.
+
+**Der Importvertrag** unterscheidet jetzt harte von weichen Bedingungen. Fehlende
+Einheit, Fundstelle oder Geometrieart lehnen den Satz als GANZES ab. Eine in der
+Publikation **nicht angegebene Unsicherheit** ist dagegen ein eigener Zustand
+(`NotReported` / `OkUncertaintyNotReported`): der Punkt wird importiert und
+archiviert, darf qualitativ dargestellt werden, und `usable_quantitatively()`
+ist für ihn falsch. Ein gemischter Satz bleibt ganz und wird getrennt gezählt.
+
+---
+
+## 3. Die Historienreparatur
+
+`713ab86` (P0) nannte in `CMakeLists.txt` drei Einträge — `src/feed.cpp`,
+`es_feed`, `test_feed` —, deren Dateien erst mit `1cb6108` (P1) hinzukamen. Der
+Commit ließ sich damit **nicht eigenständig konfigurieren**.
+
+Genau zwei Commits wurden inhaltlich angefasst: P0 verliert die drei Einträge,
+P1 bekommt sie. Alle übrigen sind **Byte für Byte** wiedergespielt; der Baum am
+Ende des wiedergespielten Bereichs ist identisch mit dem vorherigen. Nur die
+Nachrichten der Artefakt-Commits nennen jetzt den neuen Hash und führen den
+alten mit.
+
+**Geprüft, nicht behauptet:** jeder der elf Code-Commits wurde einzeln in einem
+eigenen Worktree ausgecheckt, konfiguriert, gebaut und mit seinem Phasentest
+geprüft.
+
+| Commit | Punkt | configure | build | Phasentest | Tests am Commit |
+|---|---|---|---|---|---|
+| `0677e3b` | P3b | ok | ok | `test_electrocapillary` | 16 |
+| `117dc28` | P0 | ok | ok | `test_load_projection` | 17 |
+| `205ab7a` | P1 | ok | ok | `test_feed` | 18 |
+| `beebc38` | P2 | ok | ok | `test_material_data` | 19 |
+| `790be1b` | P3 | ok | ok | `test_transport` | 20 |
+| `60e71ab` | P4 | ok | ok | `test_surface_kinematics` | 21 |
+| `f8d5237` | P5 | ok | ok | `test_emission_contract` | 22 |
+| `d1b59d8` | P6 | ok | ok | `test_space_charge` | 23 |
+| `a81696d` | P7 | ok | ok | `test_particle_transport` | 24 |
+| `03034fa` | P8 | ok | ok | `test_cone_jet_contract` | 25 |
+| `b0731f8` | P9 | ok | ok | `test_validation` | 26 |
+
+### Alt → Neu
+
+| alt | neu | | alt | neu |
+|---|---|---|---|---|
+| `713ab86` | `117dc28` | | `baaf6fd` | `f8d5237` |
+| `85e7096` | `e8b329f` | | `114768e` | `8a3eeec` |
+| `1cb6108` | `205ab7a` | | `8de4558` | `d1b59d8` |
+| `3ffd040` | `2e03b40` | | `93b3be6` | `5030d80` |
+| `4c4bbfe` | `beebc38` | | `cc8f52f` | `a81696d` |
+| `42e24d4` | `ee94fed` | | `3e97de0` | `2376455` |
+| `2a7205d` | `790be1b` | | `4274453` | `03034fa` |
+| `26e8a27` | `b973b38` | | `be884ab` | `1decc56` |
+| `c4ecbb7` | `60e71ab` | | `e8713ee` | `b0731f8` |
+| `5067cea` | `b3fe7d9` | | `f6fc6f2` | `fcef5e6` |
+| | | | `134b620` | `1746c83` |
+| | | | `ede1508` | `f2c5270` |
+
+`0677e3b` und `6dc833b` sind unverändert; die Reparatur beginnt erst danach.
+
+**Ein Rest bleibt und wird nicht verschwiegen:** die Provenienzstempel *innerhalb*
+der Artefakte von P3b, P2 … P8 tragen weiterhin die Vorher-Hashes. Sie wurden
+nicht nachträglich umgeschrieben — der Baum, aus dem sie entstanden, ist
+identisch, und die Zuordnung steht in der Tabelle oben sowie in jeder
+betroffenen Commit-Nachricht. Für **P0 und P1** war das nicht hinnehmbar, weil
+Punkt 6 diese Abbildungen ausdrücklich verlangt: sie sind aus sauberem
+Arbeitsbaum neu erzeugt (`8040125`, `e46c941`) und stempeln jetzt einen Commit
+dieser Historie. Ihre Zahlen sind unverändert — bei P1 ist **jede CSV byteweise
+identisch**.
+
+---
+
+## 4. Status je Punkt
+
+| Punkt | Status | Code | Artefakte | Blocker |
+|---|---|---|---|---|
+| 0 — P3b numerisch bereinigen | `validated_subset` + `DiscretizationNotConverged` | `117dc28` | `8040125` | 1-%-Ziel **verfehlt** (4,6–6,1 %); bei 1000 V nicht einmal asymptotisch |
+| 1 — Druck- und Zulaufmodell | `implemented` | `205ab7a` | `e46c941` | keiner; `p_reservoir` und `Q` bleiben Eingaben |
+| 2 — Reale Stoffdaten | `implemented` (γ, ρ, µ, K) + **`derived`** (ν) + `MissingMaterialData` (ε_r) | `beebc38`, `2b95a94` | `572f1e8` | ε_r ohne Quelle mit Methode + Reinheit + Wassergehalt |
+| 3 — Endliche Leitfähigkeit | `validated_subset` | `790be1b`, `bfa2c61` | `fa0e090` | ε_r-**Einzelwert** fehlt weiterhin; keine gekoppelte finite-conductivity-Meniskusrechnung |
+| 4 — Zeitabhängige freie Oberfläche | `infrastructure_only` | `60e71ab` | `b3fe7d9` | kein Feld mit freier Oberfläche, keine tangentiale Traktion q_s·E_t |
+| 5 — Ionenemission | `blocked` | `f8d5237` | `8a3eeec` | Ratengleichung an keiner Primärquelle geprüft; kein belegtes ΔG |
+| 6 — Raumladung und PIC-Grundlage | `validated_subset` | `d1b59d8`, `4c3b83b` | `593cecd` | PIC-Schleife **blockiert**, zweifach: P5 hat keine Quelle, der Abzug skaliert nicht |
+| 7 — Ionenbahnen | `validated_subset` | `a81696d` | `2376455` | keine physikalische Teilchenquelle → Transportantwort, keine Stromvorhersage |
+| 8 — Cone-Jet | `blocked` | `03034fa` | `1decc56` | fünf von sieben Teilmodellen fehlen; Gañán-Calvo nicht im Volltext erreichbar |
+| 9 — 3D und Validierung | `infrastructure_only` | `b0731f8`, `3bef623` | `16cdd09` | kein 3D-Netz, kein 3D-Löser; **keine Messdaten importiert** |
+
+---
+
+## 5. Was weiterhin NICHT gerechnet wird
 
 Keine Emission. Keine selbstkonsistente Emissions-PIC-Schleife. Keine
 Zweiphasenströmung, kein Jet, kein Tropfenzerfall. Kein dynamischer Meniskus.
 Keine gekoppelte finite-conductivity-Meniskusrechnung. Keine Stabilitätsaussage,
 kein Taylor-Kegel-Onset. Kein 3D-Netz, kein 3D-Löser, kein 3D-Ergebnis. Keine
-importierten Messdaten. Keine Stromvorhersage.
+importierten Messdaten. Keine Stromvorhersage. **Keine netzunabhängige
+Regularisierung des Selbstfeldes** — der exakte Abzug entfernt die scheinbare
+Selbstkraft, macht das Selbstpotential aber nicht netzunabhängig.
 
-## Reproduktion
+**Nichts ist validiert**, und das ist eine geprüfte Aussage: 0 von 13 Größen.
+
+---
+
+## 6. Reproduktion
 
 ```sh
 cmake -S . -B build -G Ninja && cmake --build build && (cd build && ctest)
@@ -85,8 +342,23 @@ cmake -S . -B build -G Ninja && cmake --build build && (cd build && ctest)
 ```
 
 Danach je Ordner das zugehörige `python/plot_*.py`. Der Punkt-0-Lauf braucht
-rund 20 Minuten (gekoppelte Netzstufe 4 bei 1400 V und Kanten-Gate bis Stufe 5,
-3 GiB Bandfaktorisierung); alle anderen laufen in Sekunden bis wenigen Minuten.
+rund eine Stunde (gekoppelte Netzstufe 4 bei 1000 V und 1400 V, Kanten-Gate bis
+Stufe 5, 3 GiB Bandfaktorisierung); der P6-Lauf einige Minuten (die
+Selbstfeldstudie löst über fünf Netzstufen bis 321×641); alle anderen laufen in
+Sekunden.
+
+**Ein Ordner nach dem anderen**, mit sonst sauberem Arbeitsbaum: `provenance.py`
+ignoriert nur das Zielverzeichnis und stempelt sonst `working_tree_dirty=yes`.
+
+Sanitizerlauf:
+
+```sh
+cmake -S . -B build_asan -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DCMAKE_CXX_FLAGS='-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1'
+cmake --build build_asan -j2
+(cd build_asan && ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=print_stacktrace=1 ctest)
+```
 
 Die Stoffdatentabelle wird von `python tools/fetch_material_data.py` neu erzeugt;
-ein leerer `git diff` danach ist die Reproduzierbarkeitsprüfung.
+ein leerer `git diff` danach ist die Reproduzierbarkeitsprüfung. Dieser Lauf hat
+sie **nicht** ausgeführt — sie braucht die ILThermo-Abfrage.
