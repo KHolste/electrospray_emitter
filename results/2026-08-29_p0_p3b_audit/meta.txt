@@ -1,6 +1,6 @@
 app=es_p3b_audit (P0)
 phase=P0
-commit=713ab86ecfbe02f2bf419d25b0a520c2cce0641b
+commit=16cdd09d6786e9c6f01283cdedc15d2f80e62110
 config=device_p1.cfg;electrocapillary_p3b.cfg
 state=numerische Bereinigung von P3b: Lastprojektion, gekoppelte Netzkonvergenz, Kanten-Gate.  KEINE neue Physik.
 contact_radius_m=5.000000000e-06
