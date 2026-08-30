@@ -110,7 +110,7 @@ nennte das Physik.
 Gemessen an der Mantelfläche des Zylinders, die genau diese Bedingung trägt:
 größte radiale Stromdichte relativ zur mittleren axialen **< 10⁻¹²**.
 
-## 14.4 Der Grenzfall ist ein Verhältnis — und mit unseren Daten unbekannt
+## 14.4 Der Grenzfall ist ein Verhältnis — und welche Permittivität darin steht
 
 $\tau\ll t_\text{Prozess}$. **Welche** Prozesszeit gilt, ist eine
 Modellentscheidung: für eine statische Form die Einstellzeit der Form, für
@@ -118,20 +118,144 @@ emittierenden Betrieb die Transitzeit durch die Emissionszone. Der Code nimmt
 $t_\text{Prozess}$ deshalb als **explizite Eingabe** und berichtet das
 Verhältnis; er wählt keine.
 
-**Und hier steht der Befund.** $\tau=\varepsilon_0\varepsilon_r/\sigma$ braucht
-$\varepsilon_r$, und $\varepsilon_r$ ist für EMI-BF4 nach dem Stoffdatenvertrag
-von P2 **`MissingMaterialData`**: keine der vier Quellen nennt Reinheit und
-Wassergehalt, und die einzige mehrpunktige misst von 1 bis 18 GHz. Also ist
-$\tau$ **mit den belegten Daten dieses Projekts nicht berechenbar**, und
-`judge_conductor_limit()` liefert `MissingMaterialData` statt einer Zahl.
+### 14.4.1 Eine frühere Fassung dieses Abschnitts hat zweimal falsch gelegen
 
-Damit ist der Äquipotentialansatz von P3b **eine Annahme und kein
-nachgewiesener Grenzfall**. Mit einem ausdrücklich unbelegten
-$\varepsilon_r=12{,}8$ ergäbe sich $\tau\approx7{,}3\cdot10^{-11}$ s gegen
-$t_\text{kap}=\sqrt{\rho a^3/\gamma}\approx1{,}7\cdot10^{-6}$ s und
-$t_\text{vis}=\mu a/\gamma\approx3{,}4\cdot10^{-6}$ s, also Verhältnisse von
-$2\cdot10^4$ bis $5\cdot10^4$ — die Annahme ist plausibel, aber sie ist mit
-diesem Datenstand nicht belegt, und das steht in jeder Ausgabe.
+Sie verlangte einen einzelnen „DC-Wert“ von $\varepsilon_r$ und verwarf die
+vorhandene 1–18-GHz-Messung mit der Begründung, sie sei „nicht DC“. Beides war
+falsch, und zwar in entgegengesetzte Richtungen: die Forderung nach einem
+Gleichstromwert war unbegründet, und die Ablehnung der GHz-Daten verwarf genau
+die Messung, die die Formel verlangt.
+
+### 14.4.2 Fünf Größen heißen „die Permittivität“
+
+Bei einer **leitfähigen** ionischen Flüssigkeit sind das keine Varianten einer
+Zahl, sondern verschiedene Dinge:
+
+| | Größe | was sie ist | im Datensatz |
+|---|---|---|---|
+| (1) | **statische bzw. niederfrequente Scheinpermittivität** | was eine Kapazitätsmessbrücke bei kHz anzeigt. Bei $K\sim1$ S/m vom Leitungsbeitrag und von der Elektrodenpolarisation beherrscht, Werte bis $10^4$ und darüber. Eine Eigenschaft der **Messzelle** | **kein einziger Punkt** — geprüft, nicht behauptet |
+| (2) | **intrinsische statische Permittivität** $\varepsilon_s$ | Grenzwert der *dielektrischen* Dispersion für $f\to0$, nachdem der Leitungsbeitrag abgetrennt wurde. Wird bei ionischen Flüssigkeiten nicht bei null Hertz gemessen, sondern aus Mikrowellenspektren extrapoliert | 3 Punkte: 12,8 / 12,9 / 13,6 |
+| (3) | **frequenzabhängige komplexe Permittivität** $\varepsilon^*(f)$ | an einzelnen Frequenzen gemessen | 18 Punkte, 1–18 GHz, mit Unsicherheiten |
+| (4) | **Elektrodenpolarisation** | Messartefakt: Ionen schirmen an den Elektroden das Feld ab und blähen die scheinbare Kapazität auf. Der Grund, warum für diese Flüssigkeiten überhaupt Mikrowellenspektroskopie benutzt wird | — |
+| (5) | **DC-Leitfähigkeit** $K$ | eigene Größe mit eigener Quelle. Sie als imaginäre Permittivität $K/(\varepsilon_0\omega)$ zu schreiben ist Buchhaltung, keine zweite Dielektrizitätszahl | 1,5584 S/m, `measured` |
+
+Die Schwelle, unterhalb derer ein Punkt als (1) gilt, ist in
+`es::transport::kElectrodePolarisationFloor` **vorab** auf 1 MHz festgelegt.
+`permittivity_points.csv` führt jeden Punkt mit seiner Einordnung, und der Test
+prüft, dass der Datensatz keinen Punkt unterhalb der Schwelle enthält — die
+Aussage „hier steckt keine kHz-Scheinpermittivität drin“ ist damit nachgeprüft
+und nicht angenommen.
+
+### 14.4.3 Welche davon in $\tau_q$ gehört — hergeleitet, nicht gewählt
+
+Aus Ladungserhaltung und Gauß folgt
+
+$$
+\frac{\partial\rho_f}{\partial t}+\frac{K}{\varepsilon_0\varepsilon_r}\rho_f=0 ,
+$$
+
+wobei $\varepsilon_r$ die **gebundene** Ladungsantwort ist, also die
+Polarisation, die dem Feld folgt, *während* die freie Ladung zerfällt. Die
+freie Ladung zerfällt auf der Zeitskala $\tau$ selbst; ihr Spektrum liegt damit
+bei $\omega\sim1/\tau$, also bei
+
+$$
+f^{*}=\frac{1}{2\pi\tau}.
+$$
+
+Da $\varepsilon_r$ dispersiv ist, ist die Gleichung für $\tau$ **implizit**:
+
+$$
+\boxed{\;\tau=\frac{\varepsilon_0\,\varepsilon_r(f^{*})}{K},\qquad
+f^{*}=\frac{1}{2\pi\tau}\;}
+$$
+
+Für diese Flüssigkeit liegt $f^{*}$ bei einigen GHz — **genau dort, wo Bennett
+et al. gemessen haben**. Die 1–18-GHz-Daten sind also nicht die falsche
+Frequenz, sondern die richtige. Sie umgekehrt als Gleichstromwert zu übernehmen
+wäre ebenso falsch; die Kurve wird an der Stelle ausgewertet, die die Physik
+auswählt.
+
+### 14.4.4 Die Lösung auf der gemessenen Kurve
+
+`self_consistent_relaxation()` löst die implizite Gleichung durch
+Fixpunktiteration auf den **Messpunkten**, logarithmisch zwischen benachbarten
+Messfrequenzen interpoliert. Es wird **keine Dispersionsfunktion angepasst** —
+eine anzupassen hieße, Daten zu erfinden — und außerhalb des Messbereichs wird
+nicht extrapoliert; ob $f^{*}$ innerhalb liegt, wird berichtet.
+
+Bei 298,15 K:
+
+| | |
+|---|---|
+| $f^{*}$ | $2{,}627\;\mathrm{GHz}$ — **innerhalb** des gemessenen Bereichs 1–18 GHz |
+| $\varepsilon_r(f^{*})$ | $10{,}664$ |
+| $K$ | $1{,}5584\;\mathrm{S/m}$ (ausgewählte Quelle) |
+| $\tau$ | $6{,}059\cdot10^{-11}\;\mathrm{s}$ |
+| Iterationen | 18, Selbstkonsistenz-Residuum $0$ |
+| zum Vergleich mit $\varepsilon_s=13{,}6$ | $\tau=7{,}727\cdot10^{-11}$ s, also **+27,5 %** |
+
+Die letzte Zeile ist der ganze Unterschied zwischen „statisch“ und „bei
+$f^{*}$“: knapp 28 %. Er ist berichtenswert und für das Urteil unten belanglos.
+
+Die beiden definierenden Identitäten $\tau=\varepsilon_0\varepsilon_r/K$ und
+$f^{*}=1/(2\pi\tau)$ gelten in der Rückgabe **exakt**; das Residuum misst die
+eine Identität, die ein Fixpunkt nur bis auf seine Konvergenz erfüllen kann,
+nämlich $\varepsilon_r=\varepsilon_r(f^{*})$.
+
+### 14.4.5 Ein Einzelwert bleibt fehlend — ein Band ist belegt
+
+Keine der vier Permittivitätsquellen nennt Reinheit **und** Wassergehalt. Die
+Auswahlregel von P2 wählt deshalb weiterhin **keine** aus, und
+`material_value(RelativePermittivity)` meldet unverändert
+`MissingMaterialData`. `judge_conductor_limit()` — die Einzelwertabfrage —
+schlägt weiterhin geschlossen fehl. Der Lauf prüft das ausdrücklich und setzt
+sonst `exit_code = 2`.
+
+Was **statt** eines Ersatzwertes belegt werden kann, ist ein Band und die
+Empfindlichkeit darüber:
+
+$$
+\varepsilon_r\in[7{,}7,\;13{,}6],\qquad K\in[0{,}91,\;1{,}63]\;\mathrm{S/m}
+$$
+
+Das $\varepsilon_r$-Band umfasst alle als dielektrisch zulässigen Punkte, also
+die drei extrapolierten statischen Werte **und** die ganze gemessene
+Dispersion. Es wird nicht gemittelt.
+
+### 14.4.6 Das Urteil, an der ungünstigsten Ecke gefällt
+
+$\tau$ wächst mit $\varepsilon_r$ und fällt mit $K$; die für die Näherung
+schlechteste Ecke ist also $(\varepsilon_\text{hi},K_\text{lo})$. Das wird
+**gerechnet und geprüft**, nicht behauptet — ein Vorzeichenfehler in dieser
+Überlegung wäre sonst unsichtbar.
+
+| Ecke | $\tau$ [s] | $t_\text{kap}/\tau$ | $t_\text{vis}/\tau$ |
+|---|---|---|---|
+| $\varepsilon_\text{lo},K_\text{hi}$ | $4{,}183\cdot10^{-11}$ | $4{,}12\cdot10^{4}$ | $8{,}05\cdot10^{4}$ |
+| $\varepsilon_\text{lo},K_\text{lo}$ | $7{,}492\cdot10^{-11}$ | $2{,}30\cdot10^{4}$ | $4{,}49\cdot10^{4}$ |
+| $\varepsilon_\text{hi},K_\text{hi}$ | $7{,}388\cdot10^{-11}$ | $2{,}33\cdot10^{4}$ | $4{,}56\cdot10^{4}$ |
+| **$\varepsilon_\text{hi},K_\text{lo}$** (schlechteste) | $1{,}323\cdot10^{-10}$ | $\mathbf{1{,}30\cdot10^{4}}$ | $\mathbf{2{,}54\cdot10^{4}}$ |
+| selbstkonsistent | $6{,}059\cdot10^{-11}$ | $2{,}84\cdot10^{4}$ | $5{,}56\cdot10^{4}$ |
+
+mit $t_\text{kap}=\sqrt{\rho a^3/\gamma}=1{,}722\cdot10^{-6}$ s und
+$t_\text{vis}=\mu a/\gamma=3{,}367\cdot10^{-6}$ s aus den **belegten**
+Stoffdaten. Die geforderte Schranke ist 100.
+
+**Damit ändert sich der Befund von P3.** Der Äquipotentialansatz von P3b ist
+für die **statische** Form nicht mehr eine Annahme, sondern über das gesamte
+begründete Band belegt — und zwar an der ungünstigsten Ecke noch um mehr als
+zwei Größenordnungen über der Schranke. Es wird dafür **kein einziger
+unbelegter $\varepsilon_r$-Wert** benutzt: das Ergebnis hängt nicht davon ab,
+welchen Wert im Band man nähme, weil *jeder* Wert im Band dasselbe Urteil
+liefert. Genau das ist der Sinn einer Empfindlichkeitsrechnung.
+
+**Was das NICHT sagt.** Es sagt nichts über emittierenden Betrieb: dort ist die
+Prozesszeit die Transitzeit durch die Emissionszone, und die ist hier nicht
+gerechnet. Es sagt nichts über die tangentiale Traktion $q_sE_t$, die im
+Perfect-Conductor-Grenzfall gar nicht existiert (14.5). Und es macht
+$\varepsilon_r$ nicht zu einer belegten Zahl — für jede Rechnung, die einen
+*Wert* statt eines *Verhältnisses* braucht, fehlt er weiterhin.
 
 ## 14.5 Was NICHT implementiert ist — der Vertrag, damit es später geht
 

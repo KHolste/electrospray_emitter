@@ -237,6 +237,344 @@ RelaxationVerdict judge_conductor_limit(const MaterialDataset& d, Real T, Real p
 }
 
 // ===========================================================================
+// 2b.  Which permittivity belongs in tau_q
+// ===========================================================================
+
+const char* to_string(PermittivityConcept c) {
+  switch (c) {
+    case PermittivityConcept::StaticApparentLowFrequency: return "static_apparent_low_frequency";
+    case PermittivityConcept::IntrinsicStatic: return "intrinsic_static";
+    case PermittivityConcept::FrequencyResolved: return "frequency_resolved_complex";
+    case PermittivityConcept::ElectrodePolarisation: return "electrode_polarisation";
+    case PermittivityConcept::DcConductivity: return "dc_conductivity";
+  }
+  return "?";
+}
+
+const char* explain(PermittivityConcept c) {
+  switch (c) {
+    case PermittivityConcept::StaticApparentLowFrequency:
+      return "Was eine Kapazitaetsmessbruecke bei kHz anzeigt.  Bei K in der Groessenordnung "
+             "1 S/m wird das vom Leitungsbeitrag und von der Elektrodenpolarisation "
+             "beherrscht und erreicht Werte von 10^4 und mehr.  Eine Eigenschaft der "
+             "MESSZELLE, nicht der Fluessigkeit; kein Modell darf sie benutzen.";
+    case PermittivityConcept::IntrinsicStatic:
+      return "eps_s: der Grenzwert der DIELEKTRISCHEN Dispersion fuer f -> 0, nachdem der "
+             "Leitungsbeitrag abgetrennt wurde.  Bei ionischen Fluessigkeiten wird er nicht "
+             "bei null Hertz gemessen, sondern durch Anpassung eines Relaxationsmodells an "
+             "Mikrowellenspektren gewonnen und extrapoliert.";
+    case PermittivityConcept::FrequencyResolved:
+      return "eps*(f) = eps'(f) - i eps''(f), an einzelnen Frequenzen gemessen.  Traegt keinen "
+             "Gleichstromwert, ist aber genau dann die richtige Groesse, wenn der Vorgang "
+             "selbst bei dieser Frequenz stattfindet.";
+    case PermittivityConcept::ElectrodePolarisation:
+      return "Messartefakt: Ionen sammeln sich an den Elektroden und schirmen das angelegte "
+             "Feld ab, was die scheinbare Kapazitaet aufblaeht.  Der Grund, warum fuer diese "
+             "Fluessigkeiten ueberhaupt Mikrowellenspektroskopie benutzt wird.";
+    case PermittivityConcept::DcConductivity:
+      return "K, eine eigene Groesse mit eigener Quelle.  Sie als imaginaere Permittivitaet "
+             "K/(eps0 omega) zu schreiben ist Buchhaltung, keine zweite Dielektrizitaetszahl.";
+  }
+  return "?";
+}
+
+namespace {
+
+/// One admissible dielectric datum at temperature T.
+struct DielectricPoint {
+  Real f{0};        ///< [Hz]; 0 = reported as static (concept 2)
+  Real value{0};
+  Real uncertainty{0};
+  const PropertySource* src{nullptr};
+};
+
+/// Collect the permittivity points at T that may back a DIELECTRIC statement.
+/// Refused: points below the electrode-polarisation floor (concept 1), points
+/// away from ambient pressure, points at another temperature.
+std::vector<DielectricPoint> dielectric_points(const MaterialDataset& d, Real T, Real tol,
+                                               bool* any_below_floor) {
+  std::vector<DielectricPoint> out;
+  if (any_below_floor) *any_below_floor = false;
+  const MaterialProperty* p = d.find(PropertyKind::RelativePermittivity);
+  if (p == nullptr) return out;
+  for (std::size_t k = 0; k < p->n_sources; ++k) {
+    const PropertySource& src = p->sources[k];
+    for (std::size_t j = 0; j < src.n_points; ++j) {
+      const PropertyPoint& q = src.points[j];
+      if (!q.ambient()) continue;
+      if (std::abs(q.T - T) > tol) continue;
+      if (q.frequency_resolved() && q.frequency_Hz < transport::kElectrodePolarisationFloor) {
+        if (any_below_floor) *any_below_floor = true;
+        continue;   // concept (1): electrode polarisation, not a dielectric datum
+      }
+      out.push_back({q.frequency_Hz, q.value, q.uncertainty, &src});
+    }
+  }
+  return out;
+}
+
+/// eps_r'(f) from the measured dispersion, log-linear between the two
+/// neighbouring measured frequencies.  Outside the measured range it returns
+/// the nearest measured value and sets `extrapolated` -- it does NOT invent a
+/// dispersion model, and the caller reports the fact.
+Real eps_at_frequency(const std::vector<DielectricPoint>& pts, Real f, bool* extrapolated) {
+  std::vector<const DielectricPoint*> fr;
+  for (const DielectricPoint& q : pts)
+    if (q.f > 0.0) fr.push_back(&q);
+  if (fr.empty()) return kNaN;
+  std::sort(fr.begin(), fr.end(),
+            [](const DielectricPoint* a, const DielectricPoint* b) { return a->f < b->f; });
+  if (extrapolated) *extrapolated = false;
+  if (f <= fr.front()->f) {
+    if (extrapolated) *extrapolated = (f < fr.front()->f);
+    return fr.front()->value;
+  }
+  if (f >= fr.back()->f) {
+    if (extrapolated) *extrapolated = (f > fr.back()->f);
+    return fr.back()->value;
+  }
+  for (std::size_t i = 1; i < fr.size(); ++i) {
+    if (f <= fr[i]->f) {
+      const Real w = (std::log(f) - std::log(fr[i - 1]->f)) /
+                     (std::log(fr[i]->f) - std::log(fr[i - 1]->f));
+      return (1.0 - w) * fr[i - 1]->value + w * fr[i]->value;
+    }
+  }
+  return kNaN;
+}
+
+}  // namespace
+
+void PermittivityBand::print(std::FILE* out) const {
+  if (!ok) {
+    std::fprintf(out, "  Permittivitaetsband: NICHT bestimmbar -- %s\n", blocker.c_str());
+    return;
+  }
+  std::fprintf(out, "  eps_r bei %.2f K: begruendetes Band %.3g .. %.3g ueber %zu Quellen\n", T,
+               lo, hi, n_sources);
+  std::fprintf(out, "    %zu als statisch berichtete Punkte, %zu frequenzaufgeloeste "
+                    "(%.3g .. %.3g Hz)\n",
+               n_static_points, n_frequency_points, f_min, f_max);
+  std::fprintf(out, "    Punkte unterhalb der Elektrodenpolarisationsschwelle (%.0e Hz): %s\n",
+               transport::kElectrodePolarisationFloor,
+               any_below_polarisation_floor ? "JA -- ausgeschlossen" : "keine im Datensatz");
+  std::fprintf(out, "    %s\n", basis.c_str());
+  std::fprintf(out, "    KEIN Einzelwert ist ausgewaehlt: keine Quelle nennt Reinheit und "
+                    "Wassergehalt.\n");
+}
+
+PermittivityBand permittivity_band(const MaterialDataset& d, Real T) {
+  PermittivityBand b;
+  b.T = T;
+  bool below = false;
+  const std::vector<DielectricPoint> pts = dielectric_points(d, T, 2.0, &below);
+  b.any_below_polarisation_floor = below;
+  if (pts.empty()) {
+    b.blocker = "kein zulaessiger dielektrischer Messpunkt bei dieser Temperatur.";
+    return b;
+  }
+  std::vector<const PropertySource*> srcs;
+  b.lo = pts[0].value;
+  b.hi = pts[0].value;
+  b.f_min = std::numeric_limits<Real>::max();
+  b.f_max = 0.0;
+  for (const DielectricPoint& q : pts) {
+    b.lo = std::min(b.lo, q.value);
+    b.hi = std::max(b.hi, q.value);
+    if (q.f > 0.0) {
+      ++b.n_frequency_points;
+      b.f_min = std::min(b.f_min, q.f);
+      b.f_max = std::max(b.f_max, q.f);
+    } else {
+      ++b.n_static_points;
+    }
+    if (std::find(srcs.begin(), srcs.end(), q.src) == srcs.end()) srcs.push_back(q.src);
+  }
+  if (b.n_frequency_points == 0) { b.f_min = 0.0; b.f_max = 0.0; }
+  b.n_sources = srcs.size();
+  b.ok = true;
+  b.basis = "Band ueber alle als dielektrisch zulaessigen Punkte: die als statisch "
+            "berichteten Werte (aus Mikrowellenspektren extrapoliert) und die "
+            "frequenzaufgeloesten Messpunkte.  Es wird nicht gemittelt und keine "
+            "Dispersionsfunktion angepasst.";
+  return b;
+}
+
+Real dielectric_permittivity_at(const MaterialDataset& d, Real T, Real frequency_Hz,
+                                bool* extrapolated) {
+  const std::vector<DielectricPoint> pts = dielectric_points(d, T, 2.0, nullptr);
+  return eps_at_frequency(pts, frequency_Hz, extrapolated);
+}
+
+// ---------------------------------------------------------------------------
+
+void SelfConsistentRelaxation::print(std::FILE* out) const {
+  if (!ok) {
+    std::fprintf(out, "  selbstkonsistentes tau: NICHT bestimmbar -- %s\n", blocker.c_str());
+    return;
+  }
+  std::fprintf(out, "  tau = eps0 eps_r(f*) / K, implizit mit f* = 1/(2 pi tau):\n");
+  std::fprintf(out, "    tau   = %.6e s\n", tau);
+  std::fprintf(out, "    f*    = %.6e Hz  (%s des Messbereichs %.3g .. %.3g Hz)\n", f_star,
+               f_star_inside_measured ? "innerhalb" : "AUSSERHALB", f_measured_min,
+               f_measured_max);
+  std::fprintf(out, "    eps_r = %.4f bei f*\n", eps_r);
+  std::fprintf(out, "    K     = %.6g S/m (ausgewaehlte Quelle)\n", sigma);
+  std::fprintf(out, "    %d Iterationen; Selbstkonsistenz-Residuum "
+                    "|eps_r(f*) - eps_r| / eps_r = %.3e\n",
+               iterations, residual);
+  std::fprintf(out, "    zum Vergleich mit dem intrinsisch STATISCHEN eps_s = %.4f: "
+                    "tau = %.6e s (%+.1f %%)\n",
+               eps_static, tau_static, 100.0 * (tau_static - tau) / tau);
+}
+
+SelfConsistentRelaxation self_consistent_relaxation(const MaterialDataset& d, Real T) {
+  SelfConsistentRelaxation r;
+  r.T = T;
+  const MaterialValue sv = material_value(d, PropertyKind::ElectricalConductivity, T);
+  if (!sv.usable()) {
+    r.blocker = "die elektrische Leitfaehigkeit ist nicht belegt: " + sv.message;
+    return r;
+  }
+  r.sigma = sv.value;
+
+  bool below = false;
+  const std::vector<DielectricPoint> pts = dielectric_points(d, T, 2.0, &below);
+  Real fmin = std::numeric_limits<Real>::max(), fmax = 0.0;
+  std::size_t n_static = 0, n_fr = 0;
+  for (const DielectricPoint& q : pts) {
+    if (q.f > 0.0) { ++n_fr; fmin = std::min(fmin, q.f); fmax = std::max(fmax, q.f); }
+    else { ++n_static; }
+  }
+  if (n_fr == 0) {
+    r.blocker = "es gibt keine frequenzaufgeloeste Permittivitaetsmessung; die implizite "
+                "Gleichung fuer tau laesst sich dann nicht auf einer gemessenen Kurve "
+                "loesen.";
+    return r;
+  }
+  r.f_measured_min = fmin;
+  r.f_measured_max = fmax;
+
+  // The comparison value: the LARGEST of the intrinsic static values, i.e. the
+  // one that makes tau longest and the perfect-conductor case weakest.  Not an
+  // average -- this file does not average sources.
+  Real eps_s = 0.0;
+  for (const DielectricPoint& q : pts)
+    if (q.f == 0.0) eps_s = std::max(eps_s, q.value);
+  if (!(eps_s > 0.0) && n_static == 0) eps_s = eps_at_frequency(pts, fmin, nullptr);
+  r.eps_static = eps_s;
+  r.tau_static = eps0 * eps_s / r.sigma;
+
+  // Fixed-point iteration.  Started from the static value, which is the
+  // largest permittivity in play and therefore the slowest tau: the iteration
+  // then walks DOWN onto the dispersion curve.
+  Real tau = eps0 * eps_s / r.sigma;
+  Real eps = eps_s;
+  bool extrap = false;
+  int it = 0;
+  for (; it < 400; ++it) {
+    const Real f_star = 1.0 / (2.0 * pi * tau);
+    const Real e = eps_at_frequency(pts, f_star, &extrap);
+    if (!std::isfinite(e) || !(e > 0.0)) {
+      r.blocker = "die gemessene Dispersionskurve liefert bei der gesuchten Frequenz keinen "
+                  "Wert.";
+      return r;
+    }
+    const Real tau_new = eps0 * e / r.sigma;
+    const Real step = std::abs(tau_new - tau) / tau_new;
+    tau = tau_new;
+    eps = e;
+    if (step == 0.0) { ++it; break; }
+  }
+  r.iterations = it;
+
+  // The three quantities cannot all three be exact at once in floating point,
+  // so the two that are DEFINITIONS are made exact and the residual is reported
+  // where the approximation actually sits: in the self-consistency of eps_r.
+  //
+  //   tau    = eps0 eps_r / K            -- exact, this is the formula
+  //   f*     = 1 / (2 pi tau)            -- exact, this is the definition of f*
+  //   eps_r  = eps_r(f*)                 -- satisfied to `residual`
+  r.eps_r = eps;
+  r.tau = eps0 * r.eps_r / r.sigma;
+  r.f_star = 1.0 / (2.0 * pi * r.tau);
+  const Real e_check = eps_at_frequency(pts, r.f_star, &extrap);
+  r.residual = std::abs(e_check - r.eps_r) / r.eps_r;
+  r.f_star_inside_measured = !extrap;
+  r.ok = true;
+  return r;
+}
+
+// ---------------------------------------------------------------------------
+
+void BandedRelaxationVerdict::print(std::FILE* out) const {
+  std::fprintf(out, "  Perfect-Conductor-Urteil ueber das ganze begruendete Band:\n");
+  std::fprintf(out, "    eps_r %.3g .. %.3g,  K %.4g .. %.4g S/m\n", eps_lo, eps_hi, sigma_lo,
+               sigma_hi);
+  std::fprintf(out, "    tau   %.4e .. %.4e s  (Ecken des Bandes)\n", tau_min, tau_max);
+  std::fprintf(out, "    selbstkonsistent: tau = %.4e s\n", tau_self_consistent);
+  std::fprintf(out, "    t_process = %.4e s -> Verhaeltnis %.4g .. %.4g, Schranke %.0f\n",
+               process_time, ratio_min, ratio_max, transport::kPerfectConductorMargin);
+  std::fprintf(out, "    %s: %s\n", to_string(limit), message.c_str());
+}
+
+BandedRelaxationVerdict judge_conductor_limit_over_band(const MaterialDataset& d, Real T,
+                                                        Real process_time) {
+  BandedRelaxationVerdict v;
+  v.T = T;
+  v.process_time = process_time;
+
+  const PermittivityBand band = permittivity_band(d, T);
+  const MaterialProperty* pk = d.find(PropertyKind::ElectricalConductivity);
+  if (!band.ok || pk == nullptr) {
+    v.limit = ConductorLimit::MissingMaterialData;
+    v.message = band.ok ? "keine Leitfaehigkeitsdaten." : band.blocker;
+    v.tau_min = v.tau_max = v.ratio_min = v.ratio_max = kNaN;
+    return v;
+  }
+  v.eps_lo = band.lo;
+  v.eps_hi = band.hi;
+  v.sigma_lo = pk->min_at(T);
+  v.sigma_hi = pk->max_at(T);
+  if (!(std::isfinite(v.sigma_lo) && v.sigma_lo > 0.0 && std::isfinite(v.sigma_hi))) {
+    v.limit = ConductorLimit::MissingMaterialData;
+    v.message = "das Leitfaehigkeitsband bei dieser Temperatur ist leer.";
+    v.tau_min = v.tau_max = v.ratio_min = v.ratio_max = kNaN;
+    return v;
+  }
+
+  // Four corners.  tau grows with eps_r and falls with K, so the worst corner
+  // for the approximation is (eps_hi, sigma_lo) -- but it is computed, not
+  // asserted, because a sign error in that reasoning would be invisible.
+  const Real taus[4] = {eps0 * v.eps_lo / v.sigma_lo, eps0 * v.eps_lo / v.sigma_hi,
+                        eps0 * v.eps_hi / v.sigma_lo, eps0 * v.eps_hi / v.sigma_hi};
+  v.tau_min = taus[0];
+  v.tau_max = taus[0];
+  for (int i = 1; i < 4; ++i) {
+    v.tau_min = std::min(v.tau_min, taus[i]);
+    v.tau_max = std::max(v.tau_max, taus[i]);
+  }
+  v.ratio_min = process_time / v.tau_max;   // the worst case
+  v.ratio_max = process_time / v.tau_min;
+
+  const SelfConsistentRelaxation sc = self_consistent_relaxation(d, T);
+  v.tau_self_consistent = sc.ok ? sc.tau : kNaN;
+
+  if (v.ratio_min > transport::kPerfectConductorMargin) {
+    v.limit = ConductorLimit::PerfectConductorJustified;
+    v.message = "auch an der fuer die Naeherung UNGUENSTIGSTEN Ecke des Bandes ist tau um "
+                "mehr als den geforderten Faktor kuerzer als die Prozesszeit.  Die "
+                "Aequipotentialbehandlung ist damit belegt und nicht mehr nur angenommen -- "
+                "und zwar ohne dass ein einzelner unbelegter eps_r-Wert benutzt wird.";
+  } else {
+    v.limit = ConductorLimit::FiniteConductivityRequired;
+    v.message = "an mindestens einer Ecke des Bandes ist tau nicht klein genug.  Die "
+                "Aequipotentialbehandlung ist dort nicht gerechtfertigt.";
+  }
+  return v;
+}
+
+// ===========================================================================
 // 3.  Steady conduction in a cylinder
 // ===========================================================================
 

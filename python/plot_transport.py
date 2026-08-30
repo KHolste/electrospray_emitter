@@ -11,8 +11,9 @@ Produces
                                the mesh convergence of the flow rate and of the
                                hydraulic resistance P1 asserts
   <dir>/fig2_charge.png        charge relaxation and the steady conduction check
-  <dir>/fig3_time_scales.png   the time scales side by side, with what is
-                               sourced and what is not
+  <dir>/fig3_time_scales.png   WHICH permittivity belongs in tau_q: the measured
+                               dispersion, the implicit equation solved on it,
+                               and the time scales with tau as a band
   <dir>/figures_provenance.txt
 """
 import csv
@@ -216,71 +217,139 @@ def figure_charge(d, m, out):
 
 # ==========================================================================
 def figure_scales(d, m, out):
+    """Which permittivity belongs in tau_q, and what follows for P3b.
+
+    Left   -- the measured dispersion eps_r'(f), 1-18 GHz, with the values that
+              the sources report as static shown for what they are: extrapolated
+              limits, not measurements at zero frequency.
+    Middle -- the implicit equation.  tau = eps0 eps_r(f)/K comes from the
+              measured curve; f = 1/(2 pi tau) is the definition of the
+              frequency at which the decaying free charge lives.  Where the two
+              cross IS tau.  Nothing is fitted.
+    Right  -- the time scales.  tau is a BAND, because no single eps_r is
+              sourced; the verdict is read off its worst edge.
+    """
     ts = rows(os.path.join(d, "time_scales.csv"))
     rel = rows(os.path.join(d, "relaxation.csv"))
+    pts = rows(os.path.join(d, "permittivity_points.csv"))
+    sc = rows(os.path.join(d, "self_consistency.csv"))
     if not ts:
         return None
-    fig, axes = plt.subplots(1, 2, figsize=(13.6, 6.2))
-    fig.suptitle(TITLE + "\nAbb. 3 – die Zeitskalen nebeneinander", fontsize=12.5, y=0.975)
 
+    fig, axes = plt.subplots(1, 3, figsize=(17.4, 6.4))
+    fig.suptitle(TITLE + "\nAbb. 3 – welche Permittivität in τ_q gehört, "
+                         "und was daraus für P3b folgt", fontsize=12.5, y=0.975)
+
+    sol = next((r for r in sc if r.get("is_solution") == "yes"), None)
+
+    # ---------------------------------------------------------------- panel 1
     ax = axes[0]
-    names, vals, cols = [], [], []
-    for r in ts:
-        v = f(r["value_s"])
-        names.append(r["scale"].replace("_", " "))
-        vals.append(v)
-        cols.append("#2ca02c" if r["status"] in ("sourced", "measured")
-                    else ("#bbbbbb" if not np.isfinite(v) else "#ff7f0e"))
-    y = np.arange(len(names))
-    plotted = [v if np.isfinite(v) else np.nan for v in vals]
-    ax.barh(y, plotted, color=cols)
+    fr = [r for r in pts if f(r["frequency_Hz"]) > 0 and r["admissible"] == "yes"]
+    st = [r for r in pts if f(r["frequency_Hz"]) == 0 and r["admissible"] == "yes"]
+    bad = [r for r in pts if r["admissible"] == "no"]
+    if fr:
+        x = col(fr, "frequency_Hz") / 1e9
+        y = col(fr, "eps_r")
+        e = col(fr, "uncertainty")
+        order = np.argsort(x)
+        ax.errorbar(x[order], y[order], yerr=e[order], fmt="o-", ms=4.5, lw=1.3,
+                    color="#1f77b4", capsize=3, zorder=4,
+                    label="gemessen, frequenzaufgelöst (ε′)")
+    for k, r in enumerate(st):
+        ax.axhline(f(r["eps_r"]), color="#9467bd", ls=":", lw=1.4, zorder=2,
+                   label="von der Quelle als statisch berichtet\n(aus Mikrowellenspektren "
+                         "extrapoliert)" if k == 0 else None)
+    if bad:
+        ax.plot([f(r["frequency_Hz"]) / 1e9 for r in bad], [f(r["eps_r"]) for r in bad],
+                "x", color="#d62728", ms=8, label="unter der Elektrodenpolarisationsschwelle")
+    if sol:
+        fs = f(sol["frequency_Hz"]) / 1e9
+        ax.plot([fs], [f(sol["eps_r"])], "D", ms=11, color="#2ca02c", zorder=6,
+                label=f"ε_r bei f* = {fs:.2f} GHz")
+        ax.axvline(fs, color="#2ca02c", lw=1.2, ls="--", zorder=3)
     ax.set_xscale("log")
+    ax.set_xlabel("Frequenz [GHz]")
+    ax.set_ylabel("ε_r′")
+    ax.set_title("die gemessene Dispersion – sie wurde früher\nals „nicht DC“ verworfen",
+                 fontsize=9.5)
+    ax.grid(alpha=0.25, which="both")
+    ax.legend(fontsize=7.0, loc="upper right")
+
+    # ---------------------------------------------------------------- panel 2
+    ax = axes[1]
+    curve = [r for r in sc if r.get("is_solution") != "yes"]
+    if curve:
+        fq = col(curve, "frequency_Hz") / 1e9
+        ax.plot(fq, col(curve, "tau_from_eps_s"), color="#1f77b4", lw=2.0,
+                label=r"$\tau = \varepsilon_0\,\varepsilon_r(f)\,/\,K$  (Messkurve)")
+        ax.plot(fq, col(curve, "tau_from_f_s"), color="#7a3b00", lw=2.0, ls="--",
+                label=r"$\tau = 1/(2\pi f)$  (Definition von $f^*$)")
+    if sol:
+        fs, ta = f(sol["frequency_Hz"]) / 1e9, f(sol["tau_from_eps_s"])
+        ax.plot([fs], [ta], "D", ms=12, color="#2ca02c", zorder=6)
+        ax.annotate(f"Lösung\nf* = {fs:.2f} GHz\nτ = {ta:.3g} s",
+                    xy=(fs, ta), xytext=(0.30, 0.22), textcoords="axes fraction",
+                    fontsize=9.0, color="#2ca02c", weight="bold",
+                    arrowprops=dict(arrowstyle="->", color="#2ca02c", lw=1.5))
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlabel("Frequenz [GHz]")
+    ax.set_ylabel("τ [s]")
+    ax.set_title("die implizite Gleichung – der Schnittpunkt IST τ,\nes wird nichts angepasst",
+                 fontsize=9.5)
+    ax.grid(alpha=0.25, which="both")
+    ax.legend(fontsize=8.0, loc="upper right")
+
+    # ---------------------------------------------------------------- panel 3
+    ax = axes[2]
+    names, vals, los, his, cols = [], [], [], [], []
+    for r in ts:
+        names.append(r["scale"].replace("_", " "))
+        vals.append(f(r["value_s"]))
+        los.append(f(r["lo_s"]))
+        his.append(f(r["hi_s"]))
+        cols.append("#2ca02c" if r["status"] == "sourced" else "#1f77b4")
+    y = np.arange(len(names))
+    ax.barh(y, vals, color=cols, height=0.5, zorder=3)
+    for i2 in range(len(names)):
+        if np.isfinite(los[i2]) and np.isfinite(his[i2]):
+            ax.plot([los[i2], his[i2]], [y[i2], y[i2]], color="#111111", lw=2.4, zorder=5)
+            ax.plot([los[i2], his[i2]], [y[i2], y[i2]], "|", color="#111111", ms=11, zorder=5)
+        anchor = his[i2] if np.isfinite(his[i2]) else vals[i2]
+        ax.text(anchor * 1.9, y[i2], f"{vals[i2]:.3g} s", va="center", fontsize=8.5)
+    ax.set_xscale("log")
+    ax.set_xlim(min(v for v in los + vals if np.isfinite(v)) * 0.35,
+                max(vals) * 60.0)
     ax.set_yticks(y)
     ax.set_yticklabels(names, fontsize=8.5)
     ax.set_xlabel("Zeit [s]")
     ax.grid(alpha=0.25, axis="x", which="both")
-    for i, (v, r) in enumerate(zip(vals, ts)):
-        if np.isfinite(v):
-            ax.text(v * 1.25, i, f"{v:.3g} s", va="center", fontsize=7.5)
-        else:
-            lo = ax.get_xlim()[0]
-            ax.text(lo * 3.0, i, "nicht berechenbar – MissingMaterialData", va="center",
-                    fontsize=8, color="#8a1b1b")
-    ax.set_title("grün: aus belegten Stoffdaten.  orange: mit einem unbelegten ε_r.",
-                 fontsize=9.5)
 
-    ax = axes[1]
+    worst = None
     if rel:
-        lab = [r["case"].replace("_", " ") for r in rel]
-        ratio = col(rel, "ratio")
-        y = np.arange(len(lab))
-        colours = ["#2ca02c" if r["verdict"] == "PerfectConductorJustified"
-                   else ("#bbbbbb" if r["verdict"] == "MissingMaterialData" else "#d62728")
-                   for r in rel]
-        ax.barh(y, np.where(np.isfinite(ratio), ratio, np.nan), color=colours)
-        ax.set_xscale("log")
-        ax.set_yticks(y)
-        ax.set_yticklabels(lab, fontsize=8.5)
-        ax.axvline(f(m.get("perfect_conductor_margin", 100)), color="#7a3b00", ls="--",
-                   lw=1.4, label="geforderter Abstand")
-        for i, (r, v) in enumerate(zip(rel, ratio)):
-            ax.text(v * 1.2 if np.isfinite(v) else 1.0, i, r["verdict"], va="center",
-                    fontsize=7.5,
-                    color="#8a1b1b" if r["verdict"] == "MissingMaterialData" else "#333333")
-        ax.set_xlabel("Prozesszeit / τ")
-        ax.set_title("der Perfect-Conductor-Grenzfall ist ein VERHÄLTNIS", fontsize=9.5)
-        ax.grid(alpha=0.25, axis="x", which="both")
-        ax.legend(fontsize=7.6)
+        fin = [f(r["ratio"]) for r in rel if np.isfinite(f(r["ratio"]))]
+        worst = min(fin) if fin else None
+    margin = f(m.get("perfect_conductor_margin", 100))
+    ax.set_title("τ als BAND – kein einzelner ε_r-Wert ist belegt.\n"
+                 + (f"Schlechteste Bandecke: Prozesszeit/τ = {worst:.3g}  ≫  {margin:.0f}"
+                    if worst else ""), fontsize=9.5)
 
-    caveat(fig, "Welche Prozesszeit gilt, ist eine Modellentscheidung und keine Tatsache: für "
-                "eine statische Form ist es die Zeit, in der sich die Form einstellt, für "
-                "einen emittierenden Betrieb die Transitzeit durch die Emissionszone. Diese "
-                "zweite ist hier NICHT gerechnet. Und mit den belegten Stoffdaten dieses "
-                "Projekts ist τ überhaupt nicht berechenbar, weil ε_r fehlt – der "
-                "Äquipotentialansatz von P3b ist damit eine Annahme und kein nachgewiesener "
-                "Grenzfall.", 0.058)
+    caveat(fig, "Welche Permittivität in τ_q = ε₀ε_r/K gehört, ist keine Konvention: die freie "
+                "Ladung zerfällt auf der Zeitskala τ selbst, ihr Spektrum liegt also bei "
+                "f* = 1/(2πτ), und dort ist ε_r abzulesen. Für diese Flüssigkeit liegt f* bei "
+                "rund 2,6 GHz – also genau dort, wo gemessen wurde. Die 1–18-GHz-Daten früher "
+                "als „nicht DC“ zu verwerfen war ein Lesefehler der Formel; sie umgekehrt als "
+                "Gleichstromwert zu übernehmen wäre ebenso falsch. Ein EINZELNER ε_r-Wert "
+                "bleibt MissingMaterialData: keine der vier Quellen nennt Reinheit und "
+                "Wassergehalt. Belegt ist ein BAND, und über dessen gesamte Breite – "
+                "einschließlich der für die Näherung ungünstigsten Ecke – ist τ um mehr als "
+                "vier Größenordnungen kürzer als jede der beiden Prozesszeiten. Der "
+                "Äquipotentialansatz von P3b ist damit belegt und nicht mehr nur angenommen. "
+                "Das sagt weiterhin NICHTS über einen emittierenden Betrieb: dort ist die "
+                "Prozesszeit die Transitzeit durch die Emissionszone, und die ist hier nicht "
+                "gerechnet.", 0.072)
     provenance(fig, m, NOT_MODELLED)
-    fig.tight_layout(rect=[0, 0.150, 1, 0.930])
+    fig.tight_layout(rect=[0, 0.265, 1, 0.930])
     fig.savefig(out, dpi=145)
     plt.close(fig)
     return out

@@ -16,6 +16,7 @@
 // own material data -- it is assumed.  That is tested, so it cannot be lost.
 
 #include <cmath>
+#include <utility>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -161,6 +162,105 @@ int main() {
   }
 
   // =========================================================================
+  // WHICH permittivity belongs in tau_q.  The earlier version of this project
+  // demanded one "DC permittivity" and threw the 1-18 GHz measurement away as
+  // "not DC".  Both halves of that were wrong: the free charge decays on the
+  // time scale tau itself, so the permittivity that belongs in tau is the one
+  // at f* = 1/(2 pi tau) -- which for this liquid lies in the low GHz range,
+  // i.e. exactly where the discarded data were measured.
+  std::printf("\n4b. Welche Permittivitaet in tau_q gehoert\n");
+  {
+    const MaterialDataset& d = emibf4_sourced();
+
+    // The band: no selection, no average, and nothing below the electrode
+    // polarisation floor -- concept (1) is a property of the cell.
+    const PermittivityBand band = permittivity_band(d, 298.15);
+    band.print(stdout);
+    check(band.ok, "es gibt ein begruendetes eps_r-Band");
+    check(band.n_frequency_points > 1,
+          "der Datensatz enthaelt eine frequenzaufgeloeste Messung -- sie ist nicht "
+          "geloescht worden");
+    check(band.n_static_points > 0,
+          "und daneben als statisch berichtete Werte aus Mikrowellenspektren");
+    check(!band.any_below_polarisation_floor,
+          "kein einziger Punkt liegt unter der Elektrodenpolarisationsschwelle: der "
+          "Datensatz enthaelt gar keine kHz-Scheinpermittivitaet");
+    check(band.lo > 0.0 && band.hi > band.lo, "das Band ist nicht entartet");
+
+    // The single-value query STILL fails closed.  Nothing here relaxes that.
+    const MaterialValue single = material_value(d, PropertyKind::RelativePermittivity, 298.15);
+    check(single.status == MaterialDataStatus::MissingMaterialData,
+          "ein EINZELNER eps_r-Wert bleibt MissingMaterialData: keine Quelle nennt "
+          "Reinheit und Wassergehalt");
+
+    // The implicit equation, solved on the measured curve.
+    const SelfConsistentRelaxation sc = self_consistent_relaxation(d, 298.15);
+    sc.print(stdout);
+    check(sc.ok, "die implizite Gleichung tau = eps0 eps_r(1/(2 pi tau))/K ist loesbar");
+    if (sc.ok) {
+      check(sc.residual < 1e-10,
+            "die Fixpunktiteration ist konvergiert: eps_r(f*) trifft das benutzte eps_r");
+      // The two defining identities hold EXACTLY, checked rather than trusted.
+      check(sc.tau == constants::eps0 * sc.eps_r / sc.sigma,
+            "das Ergebnis erfuellt tau = eps0 eps_r / K exakt, mit genau dem eps_r bei f*");
+      check(sc.f_star == 1.0 / (2.0 * constants::pi * sc.tau),
+            "und f* = 1/(2 pi tau) exakt, mit genau diesem tau");
+      check(sc.f_star_inside_measured,
+            "f* liegt INNERHALB des gemessenen Frequenzbereichs 1-18 GHz -- die Kurve "
+            "wird nicht extrapoliert und keine Dispersionsfunktion erfunden");
+      check(sc.eps_r < sc.eps_static,
+            "eps_r bei f* ist kleiner als der statische Wert, weil die Dispersion bei "
+            "GHz bereits abgefallen ist");
+      check(sc.tau < sc.tau_static,
+            "das selbstkonsistente tau ist deshalb kuerzer als das mit eps_s gerechnete");
+      // The whole difference between the two is a few tens of per cent -- worth
+      // reporting, and far too small to change the verdict below.
+      const Real rel = (sc.tau_static - sc.tau) / sc.tau;
+      std::printf("    Unterschied zwischen tau(eps_s) und tau(eps(f*)): %+.1f %%\n",
+                  100.0 * rel);
+      check(rel > 0.0 && rel < 1.0,
+            "der Unterschied ist merklich, aber keine Groessenordnung");
+    }
+
+    // THE VERDICT, taken at the corner of the band that is WORST for the
+    // approximation.  This is the point of the whole section: the
+    // equipotential treatment of P3b can be justified from documented data
+    // over the entire justified range, without any single unsourced eps_r.
+    const Real a = 5.0e-6, rho = 1280.9, gamma = 0.05401, mu = 0.03637;
+    const Real t_cap = std::sqrt(rho * a * a * a / gamma);
+    const Real t_visc = mu * a / gamma;
+    for (auto tp : {std::pair<const char*, Real>{"t_kap", t_cap},
+                    std::pair<const char*, Real>{"t_vis", t_visc}}) {
+      std::printf("    -- Prozesszeit %s = %.4e s\n", tp.first, tp.second);
+      const BandedRelaxationVerdict v =
+          judge_conductor_limit_over_band(d, 298.15, tp.second);
+      v.print(stdout);
+      check(v.limit == ConductorLimit::PerfectConductorJustified,
+            std::string("ueber das GANZE begruendete Band ist der Perfect-Conductor-Fall "
+                        "fuer ") + tp.first + " gerechtfertigt");
+      check(v.ratio_min <= v.ratio_max, "die Verhaeltnisse sind richtig herum sortiert");
+      check(v.tau_max >= v.tau_min, "und die Zeiten ebenso");
+      check(v.tau_self_consistent >= v.tau_min && v.tau_self_consistent <= v.tau_max,
+            "das selbstkonsistente tau liegt im Band der vier Ecken");
+      // The worst corner is the largest eps_r with the smallest K.  Checked,
+      // not asserted: a sign error in that reasoning would be invisible.
+      check(std::abs(v.tau_max - constants::eps0 * v.eps_hi / v.sigma_lo) <=
+                1e-14 * v.tau_max,
+            "die ungueenstigste Ecke ist tatsaechlich (eps_hi, K_lo)");
+      check(v.ratio_min > 100.0 * transport::kPerfectConductorMargin,
+            std::string("und sie verfehlt die Schranke nicht knapp, sondern um mehr als "
+                        "zwei Groessenordnungen (") + tp.first + ")");
+    }
+
+    // A counter-example, so that the verdict is not simply always positive:
+    // for a process time of the order of tau itself it must flip.
+    const BandedRelaxationVerdict fastp =
+        judge_conductor_limit_over_band(d, 298.15, 1.0e-10);
+    check(fastp.limit == ConductorLimit::FiniteConductivityRequired,
+          "bei einer Prozesszeit von 0,1 ns kippt das Urteil -- die Schranke wirkt");
+  }
+
+  // =========================================================================
   std::printf("\n5. Stationaerer Leitungsstrom im Zylinder\n");
   {
     const Real R = 5.0e-6, L = 3.0e-4, sigma = 1.5584, V = 1.0;
@@ -212,12 +312,17 @@ int main() {
   std::printf("\n6. Die Zeitskalen nebeneinander (Rechenbeispiel)\n");
   {
     // Everything here is a RATIO of quantities computed above; no new physics.
-    const Real eps_r = 12.8, sigma = 1.5584;       // NOT the sourced eps_r -- see 4.
-    const Real tau = charge_relaxation_time(eps_r, sigma);
+    // tau comes from 4b: the self-consistent solution on the MEASURED dispersion
+    // curve.  No unsourced eps_r is used here any more.
+    const SelfConsistentRelaxation sc6 = self_consistent_relaxation(emibf4_sourced(), 298.15);
+    check(sc6.ok, "die selbstkonsistente Loesung aus 4b liegt vor");
+    const Real eps_r = sc6.eps_r;
+    const Real tau = sc6.tau;
     const Real a = 5.0e-6, rho = 1280.9, gamma = 0.05401, mu = 0.03637;
     const Real t_cap = std::sqrt(rho * a * a * a / gamma);   // capillary-inertial
     const Real t_visc = mu * a / gamma;                       // visco-capillary
-    std::printf("    tau (Ladung)              = %.4e s\n", tau);
+    std::printf("    tau (Ladung, selbstkonsistent bei f* = %.3e Hz, eps_r = %.4f)"
+                " = %.4e s\n", sc6.f_star, eps_r, tau);
     std::printf("    t_kap = sqrt(rho a^3/gamma) = %.4e s\n", t_cap);
     std::printf("    t_vis = mu a / gamma        = %.4e s\n", t_visc);
     std::printf("    t_kap/tau = %.3e, t_vis/tau = %.3e\n", t_cap / tau, t_visc / tau);
@@ -225,10 +330,12 @@ int main() {
           "gegen die kapillare Zeitskala ist die Ladungsrelaxation sehr schnell");
     check(t_visc / tau > transport::kPerfectConductorMargin,
           "gegen die viskokapillare ebenso");
-    std::printf("    Das rechtfertigt den Aequipotentialansatz fuer die STATISCHE Form.\n"
+    std::printf("    Das rechtfertigt den Aequipotentialansatz fuer die STATISCHE Form --\n"
+                "    und nach 4b sogar ueber das ganze begruendete eps_r/K-Band, ohne\n"
+                "    dass ein einzelner unbelegter eps_r-Wert benutzt wird.\n"
                 "    Es sagt NICHTS ueber einen emittierenden Betrieb: dort ist die\n"
                 "    Prozesszeit die Transitzeit durch die Emissionszone, und die ist\n"
-                "    hier nicht gerechnet.  Und eps_r = 12.8 ist ein unbelegter Wert.\n");
+                "    hier nicht gerechnet.\n");
   }
 
   std::printf("\n%s: %d Fehler\n", failures == 0 ? "BESTANDEN" : "FEHLGESCHLAGEN", failures);

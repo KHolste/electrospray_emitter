@@ -47,6 +47,22 @@ void put(std::FILE* f, Real v) {
   else
     std::fprintf(f, ",nan");
 }
+
+/// A quoted CSV field.  These notes contain commas and would otherwise split
+/// the row; the field is quoted rather than the text mutilated.
+std::string csv_quote(const std::string& in) {
+  std::string out = "\"";
+  for (char c : in) {
+    if (c == '"')
+      out += "\"\"";
+    else if (c == '\n' || c == '\r')
+      out += ' ';
+    else
+      out += c;
+  }
+  out += '"';
+  return out;
+}
 }  // namespace
 
 int main(int argc, char** argv) try {
@@ -158,83 +174,218 @@ int main(int argc, char** argv) try {
 
   // =========================================================================
   // 2.  Charge relaxation and the perfect-conductor limit
+  //
+  // WHICH permittivity belongs in tau_q is settled here rather than assumed.
+  // An earlier version of this run demanded a single "DC permittivity" and
+  // rejected the 1-18 GHz measurement as "not DC".  The free charge decays on
+  // the time scale tau itself, so the permittivity that belongs in tau is the
+  // one at f* = 1/(2 pi tau) -- which for this liquid falls in the low GHz
+  // range, i.e. exactly where that measurement was taken.  The equation for
+  // tau is therefore implicit, and it is solved on the MEASURED curve.
+  //
+  // A single eps_r is STILL not selected: no source states purity and water
+  // content, and the single-value query still fails closed.  What is
+  // established instead is a justified BAND plus the sensitivity over it, and
+  // the verdict is taken at the corner of that band which is worst for the
+  // approximation.
   // =========================================================================
   {
-    std::FILE* f = std::fopen((outdir + "/relaxation.csv").c_str(), "w");
-    std::fprintf(f, "# Ladungsrelaxation.  tau = eps0 eps_r / sigma ist NUR berechenbar, wenn\n"
-                    "# BEIDE Zahlen belegt sind.  Fuer EMI-BF4 fehlt eps_r (siehe\n"
-                    "# docs/13_material_data.md), also steht der belegte Fall als nan.\n"
-                    "# Der Fall 'unbelegt' benutzt einen ausdruecklich NICHT belegten Wert\n"
-                    "# und ist ein Rechenbeispiel, keine Aussage ueber den Stoff.\n");
-    std::fprintf(f, "case,eps_r,eps_r_status,sigma_S_per_m,sigma_status,tau_s,"
-                    "process_time_s,ratio,verdict\n");
-
-    // The capillary and visco-capillary times, from the SOURCED data.
     const Real t_cap = (rho_v.usable() && gam_v.usable())
                            ? std::sqrt(rho_v.value * a * a * a / gam_v.value)
                            : std::numeric_limits<Real>::quiet_NaN();
     const Real t_vis = gam_v.usable() ? mu * a / gam_v.value
                                       : std::numeric_limits<Real>::quiet_NaN();
 
-    auto row = [&](const char* tag, const RelaxationVerdict& v) {
-      std::fprintf(f, "%s", tag);
-      put(f, v.eps_r > 0.0 ? v.eps_r : std::numeric_limits<Real>::quiet_NaN());
-      std::fprintf(f, ",%s", to_string(v.eps_status));
-      put(f, v.sigma > 0.0 ? v.sigma : std::numeric_limits<Real>::quiet_NaN());
-      std::fprintf(f, ",%s", to_string(v.sigma_status));
-      put(f, v.tau);
-      put(f, v.process_time);
-      put(f, v.ratio);
-      std::fprintf(f, ",%s\n", to_string(v.limit));
-    };
-    const RelaxationVerdict sourced = judge_conductor_limit(mat, T, t_cap);
-    row("belegt_kapillar", sourced);
-    sourced.print(stdout);
-    sourced.print(log);
-    // An explicitly UNSOURCED what-if, labelled as such, so that the order of
-    // magnitude is visible without being claimed.
-    const Real eps_guess = cfg.num("transport.eps_r_unsourced", 12.8);
-    if (sig_v.usable()) {
-      row("unbelegt_kapillar",
-          judge_conductor_limit_explicit(eps_guess, sig_v.value, t_cap));
-      row("unbelegt_viskokapillar",
-          judge_conductor_limit_explicit(eps_guess, sig_v.value, t_vis));
-    }
-    std::fclose(f);
+    const PermittivityBand band = permittivity_band(mat, T);
+    const SelfConsistentRelaxation sc = self_consistent_relaxation(mat, T);
+    band.print(stdout);  band.print(log);
+    sc.print(stdout);    sc.print(log);
 
-    // The decay itself, drawn.
-    if (sig_v.usable()) {
+    // --- the five things that get called "the permittivity" ----------------
+    {
+      std::FILE* f = std::fopen((outdir + "/permittivity_concepts.csv").c_str(), "w");
+      std::fprintf(f,
+                   "# Fuenf verschiedene Groessen heissen bei einer leitfaehigen ionischen\n"
+                   "# Fluessigkeit 'die Permittivitaet'.  Sie sind keine Varianten einer\n"
+                   "# Zahl.  Welche in tau_q = eps0 eps_r / K gehoert, folgt aus der\n"
+                   "# Herleitung und nicht aus einer Konvention: die freie Ladung zerfaellt\n"
+                   "# auf der Zeitskala tau selbst, ihr Spektrum liegt also bei\n"
+                   "# f* = 1/(2 pi tau), und dort ist eps_r abzulesen.\n");
+      std::fprintf(f, "concept,enters_tau_q,explanation\n");
+      const PermittivityConcept all[] = {PermittivityConcept::StaticApparentLowFrequency,
+                                         PermittivityConcept::IntrinsicStatic,
+                                         PermittivityConcept::FrequencyResolved,
+                                         PermittivityConcept::ElectrodePolarisation,
+                                         PermittivityConcept::DcConductivity};
+      for (PermittivityConcept c : all)
+        std::fprintf(f, "%s,%s,%s\n", to_string(c),
+                     c == PermittivityConcept::FrequencyResolved ? "yes_at_f_star" : "no",
+                     csv_quote(explain(c)).c_str());
+      std::fclose(f);
+      say("  permittivity_concepts.csv geschrieben");
+    }
+
+    // --- every permittivity datum, with its frequency and admissibility ----
+    {
+      std::FILE* f = std::fopen((outdir + "/permittivity_points.csv").c_str(), "w");
+      std::fprintf(f,
+                   "# Jeder Permittivitaetsmesspunkt bei dieser Temperatur.\n"
+                   "# frequency_Hz = 0 heisst 'von der Quelle als statisch berichtet' -- fuer\n"
+                   "# ionische Fluessigkeiten ist das kein Messwert bei null Hertz, sondern\n"
+                   "# ein aus Mikrowellenspektren extrapolierter Grenzwert.\n"
+                   "# admissible=no hiesse: unterhalb der Elektrodenpolarisationsschwelle und\n"
+                   "# damit eine Eigenschaft der Messzelle statt der Fluessigkeit.  Der\n"
+                   "# Datensatz enthaelt keinen solchen Punkt; die Spalte steht trotzdem da,\n"
+                   "# damit die Pruefung sichtbar ist und nicht nur behauptet.\n");
+      std::fprintf(f, "frequency_Hz,eps_r,uncertainty,concept,admissible,reference,method\n");
+      const MaterialProperty* pp = mat.find(PropertyKind::RelativePermittivity);
+      std::size_t n_written = 0;
+      for (std::size_t k = 0; pp != nullptr && k < pp->n_sources; ++k) {
+        const PropertySource& src = pp->sources[k];
+        for (std::size_t j = 0; j < src.n_points; ++j) {
+          const PropertyPoint& q = src.points[j];
+          if (!q.ambient() || std::abs(q.T - T) > 2.0) continue;
+          const bool below = q.frequency_resolved() &&
+                             q.frequency_Hz < transport::kElectrodePolarisationFloor;
+          const PermittivityConcept c =
+              below ? PermittivityConcept::ElectrodePolarisation
+                    : (q.frequency_resolved() ? PermittivityConcept::FrequencyResolved
+                                              : PermittivityConcept::IntrinsicStatic);
+          std::fprintf(f, "%.9e,%.9e,%.9e,%s,%s,%s,%s\n", q.frequency_Hz, q.value,
+                       q.uncertainty, to_string(c), below ? "no" : "yes",
+                       csv_quote(src.reference).c_str(), csv_quote(src.method).c_str());
+          ++n_written;
+        }
+      }
+      std::fclose(f);
+      say("  permittivity_points.csv geschrieben (" + std::to_string(n_written) + " Punkte)");
+    }
+
+    // --- the implicit equation, as two curves whose intersection IS tau ----
+    {
+      std::FILE* f = std::fopen((outdir + "/self_consistency.csv").c_str(), "w");
+      std::fprintf(f,
+                   "# Die implizite Gleichung fuer tau, als zwei Kurven ueber der Frequenz:\n"
+                   "#   tau_from_eps(f) = eps0 eps_r(f) / K   -- aus der GEMESSENEN Kurve\n"
+                   "#   tau_from_f(f)   = 1 / (2 pi f)        -- die Definition von f*\n"
+                   "# Ihr Schnittpunkt ist die Loesung.  Es wird nichts angepasst und keine\n"
+                   "# Dispersionsfunktion erfunden; zwischen Messfrequenzen wird logarithmisch\n"
+                   "# interpoliert und ausserhalb gar nicht erst gerechnet.\n");
+      std::fprintf(f, "frequency_Hz,eps_r,tau_from_eps_s,tau_from_f_s,is_solution\n");
+      if (sc.ok && sig_v.usable()) {
+        const int n = 400;
+        const Real lf0 = std::log10(sc.f_measured_min), lf1 = std::log10(sc.f_measured_max);
+        for (int k = 0; k <= n; ++k) {
+          const Real fq = std::pow(10.0, lf0 + (lf1 - lf0) * static_cast<Real>(k) / n);
+          bool ex = false;
+          const Real e = dielectric_permittivity_at(mat, T, fq, &ex);
+          std::fprintf(f, "%.9e,%.9e,%.9e,%.9e,no\n", fq, e,
+                       constants::eps0 * e / sc.sigma, 1.0 / (2.0 * constants::pi * fq));
+        }
+        std::fprintf(f, "%.9e,%.9e,%.9e,%.9e,yes\n", sc.f_star, sc.eps_r, sc.tau, sc.tau);
+      }
+      std::fclose(f);
+      say("  self_consistency.csv geschrieben");
+    }
+
+    // --- the solution, and every corner of what it rests on ----------------
+    {
+      std::FILE* f = std::fopen((outdir + "/relaxation.csv").c_str(), "w");
+      std::fprintf(f,
+                   "# Ladungsrelaxation.  KEIN Einzelwert von eps_r ist ausgewaehlt -- keine\n"
+                   "# Quelle nennt Reinheit und Wassergehalt -- und die Einzelwertabfrage\n"
+                   "# meldet weiterhin MissingMaterialData.  Statt eines Ersatzwertes stehen\n"
+                   "# hier die selbstkonsistente Loesung auf der GEMESSENEN Dispersionskurve\n"
+                   "# und die vier Ecken des begruendeten Bandes aus eps_r und K.  Das Urteil\n"
+                   "# wird an der fuer die Naeherung UNGUENSTIGSTEN Ecke gefaellt.\n");
+      std::fprintf(f, "case,eps_r,eps_r_basis,sigma_S_per_m,tau_s,process_time_s,"
+                      "process_name,ratio,verdict\n");
+      auto write_row = [&](const char* tag, Real e, const char* basis, Real sg, Real tau,
+                           Real tp, const char* tpname) {
+        const Real ratio = tp / tau;
+        std::fprintf(f, "%s,%.9e,%s,%.9e,%.9e,%.9e,%s,%.9e,%s\n", tag, e,
+                     csv_quote(basis).c_str(), sg, tau, tp, tpname, ratio,
+                     ratio > transport::kPerfectConductorMargin
+                         ? "PerfectConductorJustified"
+                         : "FiniteConductivityRequired");
+      };
+      const struct { const char* name; Real t; } procs[] = {{"t_capillary_inertial", t_cap},
+                                                            {"t_visco_capillary", t_vis}};
+      for (const auto& pr : procs) {
+        if (!std::isfinite(pr.t)) continue;
+        if (sc.ok)
+          write_row("selbstkonsistent", sc.eps_r,
+                    "eps_r(f*) auf der gemessenen Kurve, f* = 1/(2 pi tau)", sc.sigma, sc.tau,
+                    pr.t, pr.name);
+        const BandedRelaxationVerdict bv = judge_conductor_limit_over_band(mat, T, pr.t);
+        bv.print(stdout);
+        bv.print(log);
+        if (bv.limit != ConductorLimit::PerfectConductorJustified) exit_code = 2;
+        const Real eps[2] = {bv.eps_lo, bv.eps_hi};
+        const Real sig[2] = {bv.sigma_lo, bv.sigma_hi};
+        const char* en[2] = {"eps_lo", "eps_hi"};
+        const char* sn[2] = {"K_lo", "K_hi"};
+        for (int ie = 0; ie < 2; ++ie)
+          for (int is = 0; is < 2; ++is) {
+            char tag[64];
+            std::snprintf(tag, sizeof tag, "Bandecke_%s_%s", en[ie], sn[is]);
+            write_row(tag, eps[ie], "Ecke des begruendeten Bandes", sig[is],
+                      constants::eps0 * eps[ie] / sig[is], pr.t, pr.name);
+          }
+      }
+      std::fclose(f);
+      say("  relaxation.csv geschrieben");
+    }
+
+    // --- the decay itself, on the self-consistent tau ----------------------
+    if (sc.ok) {
       std::FILE* g = std::fopen((outdir + "/decay.csv").c_str(), "w");
-      std::fprintf(g, "# Geschlossene Ladungsrelaxation rho(t) = rho0 exp(-t/tau) mit einem\n"
-                      "# ausdruecklich UNBELEGTEN eps_r.  Die Kurve zeigt die Form des\n"
-                      "# Zerfalls und die Lage von tau, nicht einen Stoffwert.\n");
+      std::fprintf(g, "# rho(t) = rho0 exp(-t/tau) mit dem SELBSTKONSISTENTEN tau.\n"
+                      "# Die Kurve zeigt die Form des Zerfalls und die Lage von tau.\n");
       std::fprintf(g, "t_over_tau,rho_over_rho0\n");
-      const Real tau = charge_relaxation_time(eps_guess, sig_v.value);
       for (int k = 0; k <= 200; ++k) {
         const Real x = 6.0 * static_cast<Real>(k) / 200.0;
-        std::fprintf(g, "%.9e,%.9e\n", x, relaxed_charge_density(1.0, x * tau, tau));
+        std::fprintf(g, "%.9e,%.9e\n", x, relaxed_charge_density(1.0, x * sc.tau, sc.tau));
       }
       std::fclose(g);
     }
 
-    // The time scales, side by side.
-    std::FILE* h = std::fopen((outdir + "/time_scales.csv").c_str(), "w");
-    std::fprintf(h, "# Zeitskalen nebeneinander.  Der Perfect-Conductor-Grenzfall ist ein\n"
-                    "# VERHAELTNIS und keine Eigenschaft von sigma allein: welche Prozesszeit\n"
-                    "# gilt, ist eine Modellentscheidung.\n");
-    std::fprintf(h, "scale,value_s,status,note\n");
-    std::fprintf(h, "tau_charge_relaxation,%.9e,%s,eps0 eps_r / sigma -- eps_r fehlt\n",
-                 sourced.tau, to_string(sourced.limit));
-    std::fprintf(h, "tau_charge_relaxation_unsourced,%.9e,unsourced,"
-                    "mit eps_r = %.3g (NICHT belegt)\n",
-                 sig_v.usable() ? charge_relaxation_time(eps_guess, sig_v.value)
-                                : std::numeric_limits<Real>::quiet_NaN(),
-                 eps_guess);
-    std::fprintf(h, "t_capillary_inertial,%.9e,%s,sqrt(rho a^3 / gamma)\n", t_cap,
-                 (rho_v.usable() && gam_v.usable()) ? "sourced" : "missing");
-    std::fprintf(h, "t_visco_capillary,%.9e,%s,mu a / gamma\n", t_vis,
-                 gam_v.usable() ? "sourced" : "missing");
-    std::fclose(h);
+    // --- the time scales, with tau as a BAND and not as a point ------------
+    {
+      std::FILE* h = std::fopen((outdir + "/time_scales.csv").c_str(), "w");
+      std::fprintf(h, "# Zeitskalen nebeneinander.  Der Perfect-Conductor-Grenzfall ist ein\n"
+                      "# VERHAELTNIS und keine Eigenschaft von K allein: welche Prozesszeit\n"
+                      "# gilt, ist eine Modellentscheidung.  tau steht als BAND, weil kein\n"
+                      "# einzelner eps_r-Wert belegt ist; lo/hi sind die Ecken des\n"
+                      "# begruendeten Bandes, value_s ist der selbstkonsistente Wert.\n");
+      std::fprintf(h, "scale,value_s,lo_s,hi_s,status,note\n");
+      const BandedRelaxationVerdict bv = judge_conductor_limit_over_band(mat, T, t_cap);
+      char note[512];
+      std::snprintf(note, sizeof note,
+                    "eps0 eps_r(f*)/K mit f* = %.4g Hz; Band ueber eps_r %.3g..%.3g und "
+                    "K %.3g..%.3g S/m",
+                    sc.ok ? sc.f_star : 0.0, bv.eps_lo, bv.eps_hi, bv.sigma_lo, bv.sigma_hi);
+      std::fprintf(h, "tau_charge_relaxation,%.9e,%.9e,%.9e,%s,%s\n",
+                   sc.ok ? sc.tau : std::numeric_limits<Real>::quiet_NaN(), bv.tau_min,
+                   bv.tau_max, sc.ok ? "self_consistent_band" : "missing",
+                   csv_quote(note).c_str());
+      std::fprintf(h, "t_capillary_inertial,%.9e,nan,nan,%s,\"sqrt(rho a^3 / gamma)\"\n", t_cap,
+                   (rho_v.usable() && gam_v.usable()) ? "sourced" : "missing");
+      std::fprintf(h, "t_visco_capillary,%.9e,nan,nan,%s,\"mu a / gamma\"\n", t_vis,
+                   gam_v.usable() ? "sourced" : "missing");
+      std::fclose(h);
+      say("  time_scales.csv geschrieben");
+    }
+
+    // The single-value query must STILL fail closed.  Written out and checked,
+    // so that nobody reads the band as if a value had been selected.
+    const RelaxationVerdict single = judge_conductor_limit(mat, T, t_cap);
+    single.print(stdout);
+    single.print(log);
+    if (single.limit != ConductorLimit::MissingMaterialData) {
+      say("  FEHLER: die Einzelwertabfrage haette geschlossen fehlschlagen muessen.");
+      exit_code = 2;
+    }
   }
 
   // =========================================================================
