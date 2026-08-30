@@ -1,17 +1,34 @@
-# Welche Groessen sich zwischen einer achsensymmetrischen Rechnung und
-# einem dreidimensionalen Geraet ueberhaupt vergleichen lassen, unter
-# welcher Bedingung, und was dieses Projekt davon rechnet.
-quantity,unit,comparability,condition,computed_by,status,measurable
-"Extraktorspannung","V",Direct,"Eine angelegte Spannung ist eine Randbedingung und in beiden Geometrien dieselbe Zahl.","P2a/P2b/P2c/P3b","geprueft",yes
-"Gesamtstrom","A",Direct,"Ein Gesamtstrom ist ein Integral ueber die ganze Anordnung; er hat in beiden Geometrien dieselbe Bedeutung.  Dieses Projekt sagt ihn NICHT voraus (P5 blockiert).","-","blocked (P5)",yes
-"Transmission durch die Blende","-",AfterStatedReduction,"Vergleichbar, sobald gesagt ist, ueber welche Startverteilung gemittelt wurde.  In 3D kann die Blende ausserdem exzentrisch sein, was achsensymmetrisch nicht darstellbar ist.","P7","validated_subset (Transportantwort)",yes
-"integrierte Maxwell-Kraft","N",Direct,"Ein Flaechenintegral; die 2 pi r-Wichtung IST das 3D-Integral, und die Rotationsreferenz prueft genau das.","P3b, P0","DiscretizationNotConverged",no
-"Apexhoehe h/a","-",Direct,"Auf der Achse, wo beide Geometrien uebereinstimmen -- SOFERN die reale Anordnung achsensymmetrisch ist.","P3a/P3b","qualitativ (P0: 1-%-Ziel verfehlt)",no
-"Oberflaechenfeld am Apex","V/m",Direct,"Auf der Achse.  P6 hat allerdings gemessen, dass die Feldrekonstruktion dort nur erster Ordnung ist.","P2b/P2c/P3b","erster Ordnung achsennah (P6)",no
-"Strahldivergenz","rad",AfterStatedReduction,"Achsensymmetrisch ist sie ein einziger Winkel; in 3D ist sie eine Verteilung ueber den Azimut.  Vergleichbar nur nach einer ausgesprochenen Mittelung.","P7","validated_subset",yes
-"Auftreffverteilung auf dem Extraktor","A/m^2",AfterStatedReduction,"Achsensymmetrisch ist sie eine Funktion von r allein.  Jede azimutale Struktur -- die in einer realen Anordnung genau die interessante ist -- fehlt.","P7","validated_subset",yes
-"azimutale Asymmetrie des Strahls","-",NotComparable,"Sie IST die Groesse, die eine achsensymmetrische Rechnung nicht hat.  Sie kann nur gemessen und nur in 3D gerechnet werden.","-","nicht gerechnet",yes
-"Versatz von Emitter und Blende","m",NotComparable,"Eine Exzentrizitaet bricht die Rotationssymmetrie.  Achsensymmetrisch ist sie nicht darstellbar, auch nicht naeherungsweise.","-","nicht gerechnet",yes
-"Neigung des Emitters","rad",NotComparable,"Wie der Versatz: sie bricht die Symmetrie.","-","nicht gerechnet",yes
-"Emitter-zu-Emitter-Uebersprechen im Array","-",NotComparable,"Ein Array ist nicht rotationssymmetrisch.  Ein einzelner achsensymmetrischer Emitter kann es grundsaetzlich nicht abbilden.","-","nicht gerechnet",yes
-"Ladungsrelaxationszeit","s",Direct,"Eine Stoffgroesse, unabhaengig von der Geometrie.  Nicht berechenbar, weil eps_r fehlt.","P3","MissingMaterialData",yes
+# Die Validierungsmatrix.  Sie beantwortet SECHS unabhaengige Fragen je
+# Groesse und gerade nicht eine einzige:
+#   comparable_geometry  -- laesst sich die Groesse zwischen einer
+#                           achsensymmetrischen Rechnung und einem
+#                           3D-Geraet ueberhaupt vergleichen?
+#   implemented          -- rechnet dieses Projekt sie?
+#   converged            -- ist das numerische Ergebnis nach einem VORAB
+#                           festgelegten Kriterium konvergiert?
+#   comparable_with_data -- liesse sie sich mit einer Messung vergleichen?
+#   validated            -- ist sie TATSAECHLICH mit Messdaten verglichen
+#                           worden und hat innerhalb der angegebenen
+#                           Unsicherheiten uebereingestimmt?
+#   blocked + reason     -- ist sie blockiert, und wodurch?
+#
+# INVARIANTE, im Code geprueft statt in Prosa versprochen: validated=yes
+# verlangt implemented=yes UND converged=yes (oder n/a) UND
+# comparable_with_data=yes UND nicht blockiert.  Eine Groesse kann NIE als
+# validiert erscheinen, nur weil sie vergleichbar ist.
+#
+# Werte je Achse: yes / partial / no / n-a.
+quantity,unit,comparability,comparable_geometry,implemented,converged,comparable_with_data,validated,blocked,blocked_reason,computed_by,phase_status,condition,convergence_note,validation_note,measurable
+"Extraktorspannung","V",Direct,yes,yes,n/a,yes,no,no,"","P2a/P2b/P2c/P3b","geprueft","Eine angelegte Spannung ist eine Randbedingung und in beiden Geometrien dieselbe Zahl.","Eine vorgegebene Randbedingung; es gibt nichts zu konvergieren.","Es sind ueberhaupt keine Messdaten importiert -- P9 stellt nur den Vertrag dafuer auf.",yes
+"Gesamtstrom","A",Direct,yes,no,no,yes,no,yes,"P5 ist blockiert: es gibt keine an einer Primaerquelle gepruefte Emissionsrate und kein belegtes Delta G fuer EMI-BF4.  Dieses Projekt sagt keinen Strom voraus.","-","blocked (P5)","Ein Gesamtstrom ist ein Integral ueber die ganze Anordnung; er hat in beiden Geometrien dieselbe Bedeutung.","Nicht gerechnet, also nichts zu konvergieren.","Blockiert; ausserdem sind keine Messdaten importiert.",yes
+"Transmission durch die Blende","-",AfterStatedReduction,partial,yes,no,partial,no,no,"","P7","validated_subset (Transportantwort)","Vergleichbar, sobald gesagt ist, ueber welche Startverteilung gemittelt wurde.  In 3D kann die Blende ausserdem exzentrisch sein, was achsensymmetrisch nicht darstellbar ist.","Fuer den Integrator ist die Zeitordnung gemessen; fuer die Transmission SELBST gibt es keine Netz- oder Teilchenzahlstudie.  Nicht als konvergiert gefuehrt.","Keine Messdaten importiert; ausserdem haengt die Zahl an einer Startverteilung, die ohne P5 nicht physikalisch ist.",yes
+"integrierte Maxwell-Kraft","N",Direct,yes,yes,no,no,no,no,"","P3b, P0","DiscretizationNotConverged","Ein Flaechenintegral; die 2 pi r-Wichtung IST das 3D-Integral, und die Rotationsreferenz prueft genau das.","P0 hat das vorab gesetzte 1-%-Ziel gemessen und VERFEHLT: 4,6 bis 6,1 %.  Die Randsingularitaet setzt die Rate auf etwa 1+beta = 0,55.","Nicht konvergiert und keine Messdaten; eine Kraft ist ausserdem auf einem Pruefstand nicht direkt messbar.",no
+"Apexhoehe h/a","-",Direct,yes,yes,no,no,no,no,"","P3a/P3b","qualitativ (P0: 1-%-Ziel verfehlt)","Auf der Achse, wo beide Geometrien uebereinstimmen -- SOFERN die reale Anordnung achsensymmetrisch ist.","Keine Apexhoehe traegt drei Stellen; bei 1000 V liegen h/a und E_n nicht einmal im asymptotischen Bereich, dort ist gar kein Fehler schaetzbar.","Nicht konvergiert; und eine Apexhoehe im Betrieb zu messen ist selbst eine offene Aufgabe.",no
+"Oberflaechenfeld am Apex","V/m",Direct,yes,yes,no,no,no,no,"","P2b/P2c/P3b","erster Ordnung achsennah (P6)","Auf der Achse.  P6 hat allerdings gemessen, dass die Feldrekonstruktion dort nur erster Ordnung ist.","Genau auf der Achse ist die Rekonstruktion erster Ordnung -- die 2 pi r-Gewichtung der Zellvolumina macht sie dort unsymmetrisch.","Nicht konvergiert; ein lokales Feld am Apex ist ausserdem nicht direkt messbar.",no
+"Strahldivergenz","rad",AfterStatedReduction,partial,yes,no,partial,no,no,"","P7","validated_subset","Achsensymmetrisch ist sie ein einziger Winkel; in 3D ist sie eine Verteilung ueber den Azimut.  Vergleichbar nur nach einer ausgesprochenen Mittelung.","Wie die Transmission: der Integrator ist geprueft, die Groesse selbst hat keine Konvergenzstudie.","Keine Messdaten importiert.",yes
+"Auftreffverteilung auf dem Extraktor","A/m^2",AfterStatedReduction,partial,yes,no,partial,no,no,"","P7","validated_subset","Achsensymmetrisch ist sie eine Funktion von r allein.  Jede azimutale Struktur -- die in einer realen Anordnung genau die interessante ist -- fehlt.","Keine Konvergenzstudie der Verteilung selbst.","Keine Messdaten importiert; und ohne P5 traegt die Verteilung keinen Strom.",yes
+"azimutale Asymmetrie des Strahls","-",NotComparable,no,no,n/a,no,no,yes,"Es gibt kein 3D-Netz und keinen 3D-Loeser.  ThreeDimensional ist ein Etikett, das nichts erzeugen kann -- und der Test haelt diesen Weg ausdruecklich geschlossen.","-","nicht gerechnet","Sie IST die Groesse, die eine achsensymmetrische Rechnung nicht hat.  Sie kann nur gemessen und nur in 3D gerechnet werden.","Nicht gerechnet.","Grundsaetzlich nicht mit einer achsensymmetrischen Rechnung vergleichbar.",yes
+"Versatz von Emitter und Blende","m",NotComparable,no,no,n/a,no,no,yes,"Kein 3D-Netz, kein 3D-Loeser.","-","nicht gerechnet","Eine Exzentrizitaet bricht die Rotationssymmetrie.  Achsensymmetrisch ist sie nicht darstellbar, auch nicht naeherungsweise.","Nicht gerechnet.","Grundsaetzlich nicht vergleichbar.",yes
+"Neigung des Emitters","rad",NotComparable,no,no,n/a,no,no,yes,"Kein 3D-Netz, kein 3D-Loeser.","-","nicht gerechnet","Wie der Versatz: sie bricht die Symmetrie.","Nicht gerechnet.","Grundsaetzlich nicht vergleichbar.",yes
+"Emitter-zu-Emitter-Uebersprechen im Array","-",NotComparable,no,no,n/a,no,no,yes,"Kein 3D-Netz, kein 3D-Loeser, und ein einzelner Emitter waere auch mit einem nicht genug.","-","nicht gerechnet","Ein Array ist nicht rotationssymmetrisch.  Ein einzelner achsensymmetrischer Emitter kann es grundsaetzlich nicht abbilden.","Nicht gerechnet.","Grundsaetzlich nicht vergleichbar.",yes
+"Ladungsrelaxationszeit","s",Direct,yes,yes,n/a,yes,no,no,"","P3","Band belegt, Einzelwert fehlt","Eine Stoffgroesse, unabhaengig von der Geometrie.","Geschlossen loesbar, kein Netz beteiligt: tau folgt aus der impliziten Gleichung tau = eps0 eps_r(1/(2 pi tau))/K auf der gemessenen Dispersionskurve, mit verschwindendem Selbstkonsistenzresiduum.","Ein EINZELNER eps_r-Wert bleibt MissingMaterialData -- keine Quelle nennt Reinheit und Wassergehalt.  Belegt ist ein Band (tau = 4,2e-11 .. 1,3e-10 s); eine Validierung gegen eine Messung von tau selbst gibt es nicht.",yes

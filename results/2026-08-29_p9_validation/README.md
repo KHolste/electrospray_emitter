@@ -43,26 +43,94 @@ nichts Neues geloest, es wird eine Wichtung geprueft.
 
 ## Der Importvertrag
 
-Einheit, Unsicherheit MIT TYP (GUM A oder B), Fundstelle und Geometrieart sind
-Pflicht; dazu Ueberdeckungsfaktor und Bedingungen. Jede fehlende Angabe schlaegt
-geschlossen fehl, und ein Satz mit einem unvollstaendigen Punkt wird als GANZES
-abgelehnt -- einen Punkt wegzulassen waere ein Vergleich mit einem anderen
-Datensatz.
+**Harte Bedingungen** -- eine fehlende schlaegt geschlossen fehl und lehnt den
+Satz als GANZES ab, denn einen Punkt wegzulassen waere ein Vergleich mit einem
+anderen Datensatz:
+
+| Feld | fehlt → |
+|---|---|
+| `unit` | `MissingUnit` |
+| `provenance` | `MissingProvenance` |
+| `geometry_stated` | `MissingGeometryKind` |
+| zwei Einheiten fuer dieselbe Groesse | `UnitMismatch` |
+
+**Eine nicht angegebene Unsicherheit ist KEINE davon.** Eine fruehere Fassung
+behandelte sie wie eine fehlende Einheit und warf damit echte Messungen weg. Die
+beiden Faelle sind nicht dasselbe: eine fehlende Einheit macht die Zahl
+unlesbar; eine fehlende Unsicherheit macht sie unbrauchbar fuer einen
+*quantitativen* Vergleich -- die Messung selbst existiert aber, ist zitierbar und
+traegt eine Aussage.
+
+Dafuer gibt es den ausdruecklichen Zustand `UncertaintyType::NotReported` und
+den Importstatus `ImportStatus::OkUncertaintyNotReported`:
+
+* der Punkt wird **importiert und archiviert**;
+* er darf **qualitativ dargestellt** werden, mit sichtbarem Status;
+* `usable_quantitatively()` ist fuer ihn **falsch** -- jede Abweichung, jedes
+  Chi-Quadrat und jedes Bestanden/Durchgefallen muss genau das abfragen.
+
+Ein **gemischter Satz** bleibt ganz: `n_quantitative` und `n_qualitative_only`
+werden getrennt gezaehlt, und jeder Punkt traegt seinen eigenen Status.
 
 **Keiner der Punkte in `import_contract.csv` ist eine Messung.** Sie fuehren den
 Vertrag vor.
 
-## Die Validierungsmatrix
+## Die Validierungsmatrix: sechs Fragen, nicht eine
 
-13 Groessen: **6 direkt vergleichbar**, **3 erst nach ausgesprochener
-Reduktion**, **4 grundsaetzlich nicht** -- azimutale Asymmetrie, Versatz von
-Emitter und Blende, Neigung des Emitters, Array-Uebersprechen. Diese vier sind
-genau das, was ein achsensymmetrisches Modell nicht hat; sie stehen benannt in
-der Matrix statt zu fehlen, und sie sind die Antwort auf die Frage, wofuer ein
-3D-Loeser gebraucht wuerde.
+**Was daran falsch war.** Die fruehere Matrix trug *eine* Vergleichbarkeit je
+Zeile, und die Abbildung faerbte die Zeile danach. Eine Groesse, die im Prinzip
+vergleichbar, aber blockiert oder nicht konvergiert ist, erschien damit **gruen**
+-- und gruen liest sich als Erfolg. Der klarste Fall ist der **Gesamtstrom**:
+direkt vergleichbar, und von diesem Projekt ueberhaupt nicht rechenbar, weil P5
+blockiert ist.
 
-Von den 13 rechnet dieses Projekt 8 -- und **keine davon traegt den Status
-"validiert"**.
+Jede Zeile traegt jetzt **sechs unabhaengige Urteile** (`yes` / `partial` /
+`no` / `n/a`):
+
+| Achse | Frage |
+|---|---|
+| `comparable_geometry` | laesst sich die Groesse zwischen achsensymmetrisch und 3D ueberhaupt vergleichen? |
+| `implemented` | rechnet dieses Projekt sie? |
+| `converged` | ist das Ergebnis nach einem **vorab** festgelegten Kriterium konvergiert? |
+| `comparable_with_data` | liesse sie sich mit einer Messung vergleichen? |
+| `validated` | ist sie **tatsaechlich** verglichen worden und hat innerhalb der angegebenen Unsicherheiten uebereingestimmt? |
+| `blocked` + Grund | ist sie blockiert, und wodurch? |
+
+In der Abbildung heisst gruen nur, dass **genau diese eine Achse** erfuellt ist.
+Die Blockiert-Spalte steht **neben** den anderen, nicht statt ihrer.
+
+**Die Invariante steht im Code**: `validated=yes` verlangt `implemented=yes` UND
+`converged` in {yes, n/a} UND `comparable_with_data=yes` UND nicht blockiert;
+und blockiert genau dann, wenn ein Grund genannt ist. Der Test baut zusaetzlich
+von Hand Zeilen, die sie verletzen, und prueft, dass sie abgefangen werden.
+
+### Was dabei herauskommt
+
+| Achse | von 13 erreicht |
+|---|---|
+| vergleichbar (ganz oder nach Reduktion) | **9** |
+| implementiert | **8** |
+| numerisch konvergiert | **0** |
+| mit Messdaten vergleichbar | **6** |
+| **tatsaechlich validiert** | **0** |
+| blockiert | **5** |
+
+**Der Abstand zwischen der ersten und der vorletzten Zahl ist der ganze Punkt
+dieser Tabelle.** Dass nichts validiert ist, ist eine **gepruefte** Aussage: es
+sind ueberhaupt keine Messdaten importiert, und der Lauf setzt `exit_code=2`,
+sobald eine Zeile etwas anderes behauptet.
+
+Die **vier grundsaetzlich nicht vergleichbaren** Groessen -- azimutale
+Asymmetrie, Versatz von Emitter und Blende, Neigung des Emitters,
+Array-Uebersprechen -- sind genau das, was ein achsensymmetrisches Modell nicht
+hat. Sie stehen benannt in der Matrix statt zu fehlen, und sie sind die Antwort
+auf die Frage, wofuer ein 3D-Loeser gebraucht wuerde.
+
+Jede Zeile traegt ausserdem je einen Satz zu Konvergenz und Validierung statt
+einer Farbe. **Eine Zeile hat sich durch die P3-Korrektur geaendert:** die
+Ladungsrelaxationszeit stand als `MissingMaterialData` und steht jetzt als
+„Band belegt, Einzelwert fehlt" -- implementiert, geschlossen loesbar, mit
+Messdaten vergleichbar, und weiterhin **nicht validiert**.
 
 ## Kunze-Geometrien und Messdaten
 
@@ -76,4 +144,12 @@ die dieser Lauf nicht geleistet hat. Das Schema steht bereit; die Daten fehlen.
 
 | Datei | Inhalt |
 |---|---|
-| `fig1_validation.png` | die Validierungsmatrix nach Vergleichbarkeit, die Rotationsreferenz ueber der Azimutzahl, und der Importvertrag an einem absichtlich unvollstaendigen Beispielsatz |
+| `fig1_validation.png` | die Validierungsmatrix mit einer Spalte je Achse und einer eindeutigen Legende, die Rotationsreferenz ueber der Azimutzahl, und der Importvertrag mit seinen drei Ausgaengen |
+
+## Dateien
+
+`validation_matrix.csv` -- alle sechs Achsen je Groesse, der Blockergrund und je
+ein Satz zu Konvergenz und Validierung. `validation_tally.csv` -- wie viele
+Zeilen jede Achse erreichen; die vorletzte Zahl ist null.
+`import_contract.csv` -- die drei Ausgaenge des Vertrags und ein gemischter Satz.
+`revolution.csv` -- die Rotationsreferenz.

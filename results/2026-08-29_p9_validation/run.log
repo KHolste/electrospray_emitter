@@ -6,10 +6,24 @@ ThreeDimensional existiert, damit nachweislich nichts hier eines erzeugt.
   'h/a bei 1400 V' ist ein Ergebnis der Art Axisymmetric und darf nicht als dreidimensionales Ergebnis ausgegeben werden.  Die Meridianhalbebene mit Rotationssymmetrie.  Alles, was dieses Projekt rechnet, ist von dieser Art.  Ein achsensymmetrisches Modell sieht genau das nicht, worin sich eine reale Anordnung von ihm unterscheidet; die Zahl saehe richtig aus und beantwortete eine andere Frage.
 
   Rotationsreferenz: groesster Unterschied zwischen der 2 pi r-Form und der 3D-Quadratur 9.926e-13
-  Validierungsmatrix: 6 direkt vergleichbar, 3 nach ausgesprochener Reduktion, 4 grundsaetzlich nicht.
-  Extraktionsspannung          1250 +- 15 V (TypeB, k = 2)  [ThreeDimensional]  importierbar
+  Validierungsmatrix, 13 Zeilen:
+    vergleichbar (ganz oder nach Reduktion): 9
+    implementiert:                          8
+    numerisch konvergiert:                  0
+    mit Messdaten vergleichbar:             6
+    TATSAECHLICH VALIDIERT:                 0
+    blockiert:                              5
+  Der Abstand zwischen der ersten und der vorletzten Zahl ist der Punkt dieser Tabelle.
+  Extraktionsspannung          1250 +- 15 V (TypeB, k = 2)  [ThreeDimensional]  quantitativ verwendbar
       BEISPIELEINTRAG -- keine Messung.  Er zeigt nur die Pflichtfelder.
       Bedingungen: T = 298 K, positive Polaritaet
-  import_contract.csv geschrieben: nur der vollstaendige Punkt wird importiert.
+  Extraktionsspannung          1250 +- 0 V (TypeB, k = 2)  [ThreeDimensional]  nur qualitativ (Unsicherheit NICHT berichtet)
+      BEISPIELEINTRAG -- keine Messung.  Er zeigt nur die Pflichtfelder.
+      Bedingungen: T = 298 K, positive Polaritaet
+  Extraktionsspannung          1250 +- 15 V (NotReported, k = 2)  [ThreeDimensional]  nur qualitativ (Unsicherheit NICHT berichtet)
+      BEISPIELEINTRAG -- keine Messung.  Er zeigt nur die Pflichtfelder.
+      Bedingungen: T = 298 K, positive Polaritaet
+  Gemischter Satz: 1 quantitativ verwendbar, 1 nur qualitativ -- und der Satz wird NICHT als Ganzes verworfen.
+  import_contract.csv geschrieben.  Fehlende Einheit, Fundstelle oder Geometrieart sind harte Fehler; eine nicht berichtete Unsicherheit ist ein eigener Zustand und kein Grund, die Messung wegzuwerfen.
 
 Alle deklarierten Pruefungen dieses Laufs bestanden.

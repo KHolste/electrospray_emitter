@@ -1,0 +1,9 @@
+# Wie viele Zeilen jede Achse erreichen.  Die vorletzte Zahl ist
+# null, und das ist der Befund von P9.
+axis,n_rows,n_reached
+comparable_geometry,13,9
+implemented,13,8
+converged,13,0
+comparable_with_data,13,6
+validated,13,0
+blocked,13,5

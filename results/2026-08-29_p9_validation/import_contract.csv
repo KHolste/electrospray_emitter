@@ -1,10 +1,22 @@
 # Der Importvertrag, an einem absichtlich unvollstaendigen Beispielsatz
-# vorgefuehrt.  KEINER dieser Punkte ist eine Messung: sie zeigen, was
-# ein Datensatz tragen muss und woran ein Import scheitert.
+# vorgefuehrt.  KEINER dieser Punkte ist eine Messung: sie zeigen, was ein
+# Datensatz tragen muss und woran ein Import scheitert.
+#
+# HARTE FEHLER (der ganze Satz wird abgelehnt): fehlende Einheit, fehlende
+# Fundstelle, fehlende Geometrieart, widerspruechliche Einheiten.  Jeder
+# davon heisst, dass der Datensatz gar nicht zu deuten ist.
+#
+# KEIN harter Fehler: eine in der Publikation NICHT ANGEGEBENE
+# Unsicherheit.  Das ist eine Tatsache ueber die Quelle, kein Defekt des
+# Datensatzes.  Solche Punkte werden importiert, archiviert und duerfen mit
+# sichtbarem Status qualitativ dargestellt werden -- aber sie tragen keine
+# quantitative Validierung.  Eine fruehere Fassung dieses Vertrags lehnte
+# sie hart ab und warf damit echte Messungen weg.
 case,quantity,value,unit,uncertainty,uncertainty_type,geometry,status
 vollstaendig,"Extraktionsspannung",1.250000000e+03,"V",1.500000000e+01,TypeB,ThreeDimensional,Ok
 ohne_Einheit,"Extraktionsspannung",1.250000000e+03,"",1.500000000e+01,TypeB,ThreeDimensional,MissingUnit
-ohne_Unsicherheit,"Extraktionsspannung",1.250000000e+03,"V",0.000000000e+00,TypeB,ThreeDimensional,MissingUncertainty
-ohne_Unsicherheitstyp,"Extraktionsspannung",1.250000000e+03,"V",1.500000000e+01,NotStated,ThreeDimensional,MissingUncertainty
+Unsicherheit_nicht_berichtet,"Extraktionsspannung",1.250000000e+03,"V",0.000000000e+00,TypeB,ThreeDimensional,OkUncertaintyNotReported
+Unsicherheitstyp_nicht_berichtet,"Extraktionsspannung",1.250000000e+03,"V",1.500000000e+01,NotReported,ThreeDimensional,OkUncertaintyNotReported
 ohne_Fundstelle,"Extraktionsspannung",1.250000000e+03,"V",1.500000000e+01,TypeB,ThreeDimensional,MissingProvenance
 ohne_Geometrieart,"Extraktionsspannung",1.250000000e+03,"V",1.500000000e+01,TypeB,NICHT ANGEGEBEN,MissingGeometryKind
+gemischter_Satz,"2 Punkte, 1 ohne berichtete Unsicherheit",2.100000000e-07,"A",0.000000000e+00,NotReported,ThreeDimensional,OkUncertaintyNotReported
